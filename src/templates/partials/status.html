@@ -1,3 +1,4 @@
+{% from "partials/macros.html" import local_time %}
 <section id="sync-status" hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML">
   {% if banner %}
   <article role="status"><strong>{{ banner }}</strong></article>
@@ -5,8 +6,8 @@
   <div class="grid">
     <article><header>Mode</header><strong>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</strong></article>
     <article><header>State</header><strong>{{ snapshot.status }}</strong></article>
-    <article><header>Last sync</header>{{ snapshot.updated_at | utc }}</article>
-    <article><header>Cursor</header>{{ snapshot.cursor_timestamp | utc }}</article>
+    <article><header>Last sync</header>{{ local_time(snapshot.updated_at) }}</article>
+    <article><header>Cursor</header>{{ local_time(snapshot.cursor_timestamp) }}</article>
   </div>
   <div class="grid">
     <article><header>Processed today</header><h2>{{ snapshot.processed }}</h2></article>
@@ -23,7 +24,7 @@
     <tbody>
       {% for row in snapshot.recent %}
       <tr>
-        <td>{{ row.created_at | utc }}</td>
+        <td>{{ local_time(row.created_at) }}</td>
         <td>{{ row.entity_key }}</td>
         <td>{{ row.action }}</td>
         <td>{{ row.status_code if row.status_code is not none else "" }}</td>

@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 import pytest
 
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
-from src.pipelines.warranty_resolver import ResolvedWarranty
 from src.schemas.bc_vehicle import BCODataShipToAddress
+from src.schemas.warranty import ResolvedWarranty
 from tests.pipeline_fakes import FIELD_IDS, INTERNAL_CLIENT, REG_ID, SITE_ID, vehicle
 
 T0 = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)

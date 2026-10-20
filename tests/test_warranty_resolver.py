@@ -4,7 +4,8 @@ from datetime import date
 
 import pytest
 
-from src.pipelines.warranty_resolver import ResolvedWarranty, apply_date_formula, resolve_warranty
+from src.pipelines.warranty_resolver import apply_date_formula, resolve_warranty
+from src.schemas.warranty import ResolvedWarranty
 from tests.pipeline_fakes import warranty
 
 START = date(2025, 1, 15)

@@ -27,7 +27,13 @@ def format_utc(value: datetime | None) -> str:
     return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
+def format_iso_utc(value: datetime) -> str:
+    """Machine-readable UTC instant for `<time datetime>`; the browser localises it."""
+    return value.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 TEMPLATES.env.filters["utc"] = format_utc
+TEMPLATES.env.filters["iso_utc"] = format_iso_utc
 
 
 def get_sync_control(request: Request) -> SyncControl:
@@ -66,9 +72,21 @@ Single = Annotated[SingleVehicleControl, Depends(get_single_sync)]
 router = APIRouter()
 
 
-async def _status(request: Request, control: SyncControl, banner: str | None) -> HTMLResponse:
-    context = {"snapshot": await control.snapshot(), "banner": banner, "dry_run": control.dry_run}
-    return TEMPLATES.TemplateResponse(request, "partials/status.html", context)
+async def _status(
+    request: Request,
+    control: SyncControl,
+    banner: str | None,
+    single: SingleSyncResult | None = None,
+) -> HTMLResponse:
+    """Status partial; a single-vehicle result also carries the out-of-band debug panel."""
+    context = {
+        "snapshot": await control.snapshot(),
+        "banner": banner,
+        "dry_run": control.dry_run,
+        "single": single,
+    }
+    template = "partials/status.html" if single is None else "partials/vehicle_result.html"
+    return TEMPLATES.TemplateResponse(request, template, context)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -103,4 +121,4 @@ async def sync_vehicle(
     if not serial:
         return await _status(request, control, banner=BLANK_SERIAL)
     result = await single.sync_single_vehicle(serial, force_live=force_live)
-    return await _status(request, control, banner=single_sync_banner(result))
+    return await _status(request, control, single_sync_banner(result), result)

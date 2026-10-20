@@ -1,0 +1,3 @@
+{% macro local_time(value) -%}
+{% if value is none %}—{% else %}<time datetime="{{ value | iso_utc }}">{{ value | utc }}</time>{% endif %}
+{%- endmacro %}

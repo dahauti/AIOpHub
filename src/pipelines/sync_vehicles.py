@@ -8,11 +8,12 @@ from datetime import datetime, timedelta
 from src.adapters.resilience import ExternalServiceError
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
-from src.pipelines.warranty_resolver import ResolvedWarranty, resolve_warranty
+from src.pipelines.warranty_resolver import resolve_warranty
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
 from src.schemas.sync import AuditAction, AuditEntry, ReleaseStatus, SyncRunResult
+from src.schemas.warranty import ResolvedWarranty
 
 logger = logging.getLogger(__name__)
 

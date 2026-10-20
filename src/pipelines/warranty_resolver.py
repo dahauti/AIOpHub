@@ -6,9 +6,8 @@ import re
 from collections.abc import Iterable, Sequence
 from datetime import date, timedelta
 
-from pydantic import BaseModel, ConfigDict
-
 from src.schemas.bc_vehicle import BCVehicleWarranty
+from src.schemas.warranty import ResolvedWarranty
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +17,6 @@ BC_NULL_DATE = "0001-01-01"
 # A whole formula: one or more `<n><unit>` segments, optionally joined by `+` (e.g. `1Y+6M`).
 _FORMULA = re.compile(r"\+?\d+[YMD](?:\+?\d+[YMD])*")
 _SEGMENT = re.compile(r"(\d+)([YMD])")
-
-
-class ResolvedWarranty(BaseModel):
-    """Warranty facts for one vehicle, dates formatted as `YYYY-MM-DD`."""
-
-    model_config = ConfigDict(frozen=True)
-
-    start_date: str | None = None
-    end_date: str | None = None
-    extended_end_date: str | None = None
-    indicator_limit: int | None = None
 
 
 def _add_months(day: date, months: int) -> date:

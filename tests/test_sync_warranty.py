@@ -146,3 +146,32 @@ async def test_single_sync_warranty_lookup_failure_is_reported() -> None:
     assert (result.outcome, result.status_code) == ("FAILED", 503)
     assert frontu.pushed == []
     assert repo.audit[-1].action == "FAILED"
+
+
+@pytest.mark.asyncio
+async def test_single_sync_dry_run_exposes_debug_data() -> None:
+    bc, frontu = FakeBC([[vehicle("SN-1", T0)]], warranties=WARRANTIES), FakeFrontu()
+    single = SingleVehicleSync(
+        bc, frontu, _repo(), INTERNAL_CLIENT, lock=asyncio.Lock(), clock=lambda: NOW
+    )
+
+    result = await single.sync_single_vehicle("SN-1")
+
+    assert result.outcome == "DRY_RUN" and result.debug is not None
+    assert result.debug.warranties == WARRANTIES["SN-1"]
+    assert result.debug.warranty.extended_end_date == "2027-07-15"
+    _assert_enriched(result.debug.payload)
+    assert frontu.pushed == []
+
+
+@pytest.mark.asyncio
+async def test_single_sync_live_success_and_failure_keep_debug_data() -> None:
+    bc = FakeBC([[vehicle("SN-1", T0)]], warranties=WARRANTIES)
+    synced = await _single(bc, FakeFrontu(), _repo()).sync_single_vehicle("SN-1")
+    failed = await _single(bc, FakeFrontu(failures={"SN-1": 422}), _repo()).sync_single_vehicle(
+        "SN-1"
+    )
+
+    assert synced.debug is not None and synced.debug.payload.systemId == "SN-1"
+    assert failed.outcome == "FAILED" and failed.debug is not None
+    _assert_enriched(failed.debug.payload)

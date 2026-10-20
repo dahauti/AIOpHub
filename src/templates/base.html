@@ -6,6 +6,25 @@
   <title>{% block title %}AIOpHub Sync Engine{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script>
+    // Rewrite server-rendered UTC <time> tags into the viewer's local time zone.
+    (() => {
+      const fmt = new Intl.DateTimeFormat("sv-SE", {
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit",
+        minute: "2-digit", second: "2-digit", timeZoneName: "short",
+      });
+      const localize = () => document.querySelectorAll("time[datetime]:not([data-local])")
+        .forEach((el) => {
+          const instant = new Date(el.dateTime);
+          if (Number.isNaN(instant.getTime())) return;
+          el.title = el.textContent;
+          el.textContent = fmt.format(instant);
+          el.dataset.local = "";
+        });
+      document.addEventListener("DOMContentLoaded", localize);
+      document.addEventListener("htmx:afterSettle", localize);
+    })();
+  </script>
 </head>
 <body>
   <main class="container">

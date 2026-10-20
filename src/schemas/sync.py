@@ -5,6 +5,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
+from src.schemas.bc_vehicle import BCVehicleWarranty
+from src.schemas.frontu_models import FrontuWorkspaceUpsert
+from src.schemas.warranty import ResolvedWarranty
+
 AuditAction = Literal[
     "UPSERT",
     "ARCHIVE",
@@ -69,6 +73,19 @@ class SyncRunResult(BaseModel):
     cursor: datetime
 
 
+class SingleSyncDebug(BaseModel):
+    """What a single-vehicle sync fetched from BC, resolved, and sent (or would send)."""
+
+    warranties: list[BCVehicleWarranty]
+    warranty: ResolvedWarranty
+    payload: FrontuWorkspaceUpsert
+
+    @property
+    def wire_json(self) -> str:
+        """The payload exactly as the Frontu client sends it (None fields omitted)."""
+        return self.payload.model_dump_json(exclude_none=True, indent=2)
+
+
 class SingleSyncResult(BaseModel):
     """Outcome of one targeted single-vehicle sync."""
 
@@ -78,3 +95,4 @@ class SingleSyncResult(BaseModel):
     action: AuditAction | None = None
     status_code: int | None = None
     error: str | None = None
+    debug: SingleSyncDebug | None = None

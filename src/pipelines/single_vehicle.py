@@ -18,7 +18,7 @@ from src.pipelines.warranty_resolver import resolve_warranty
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
-from src.schemas.sync import AuditAction, AuditEntry, SingleSyncResult
+from src.schemas.sync import AuditAction, AuditEntry, SingleSyncDebug, SingleSyncResult
 
 logger = logging.getLogger(__name__)
 
@@ -70,31 +70,38 @@ class SingleVehicleSync:
 
     async def _sync(self, serial_no: str, live: bool) -> SingleSyncResult:
         payload: FrontuWorkspaceUpsert | None = None
+        debug: SingleSyncDebug | None = None
         try:
             vehicle = await self._source.get_vehicle(serial_no)
             if vehicle is None:
                 logger.info("Single sync: vehicle %r not found in BC", serial_no)
                 return SingleSyncResult(serial_no=serial_no, outcome="NOT_FOUND", dry_run=not live)
             ship_to = await self._ship_to(vehicle)
-            warranty = resolve_warranty(await self._source.get_vehicle_warranties(vehicle.SerialNo))
+            warranties = await self._source.get_vehicle_warranties(vehicle.SerialNo)
+            warranty = resolve_warranty(warranties)
             field_ids = await self._sink.resolve_custom_fields()
             payload = build_workspace(
                 vehicle, ship_to, field_ids, self._internal_client_id, warranty
             )
+            debug = SingleSyncDebug(warranties=warranties, warranty=warranty, payload=payload)
             if not live:
                 planned: AuditAction = (
                     "DRY_RUN_SINGLE_ARCHIVE" if vehicle.Blocked else "DRY_RUN_SINGLE_UPSERT"
                 )
                 await self._audit(serial_no, planned, None, payload)
                 return SingleSyncResult(
-                    serial_no=serial_no, outcome="DRY_RUN", action=planned, dry_run=True
+                    serial_no=serial_no,
+                    outcome="DRY_RUN",
+                    action=planned,
+                    dry_run=True,
+                    debug=debug,
                 )
             result = await self._sink.upsert_workspace(payload)
         except ExternalServiceError as exc:
-            return await self._fail(serial_no, exc.status_code, str(exc), payload)
+            return await self._fail(serial_no, exc.status_code, str(exc), payload, debug)
         if result.status_code not in CONFIRMED_STATUSES:
             detail = f"unexpected Frontu status {result.status_code}"
-            return await self._fail(serial_no, result.status_code, detail, payload)
+            return await self._fail(serial_no, result.status_code, detail, payload, debug)
         if vehicle.Blocked:
             await self._repo.delete_fingerprint(serial_no)
         else:
@@ -107,6 +114,7 @@ class SingleVehicleSync:
             action=action,
             status_code=result.status_code,
             dry_run=False,
+            debug=debug,
         )
 
     async def _ship_to(self, vehicle: BCODataVehicle) -> BCODataShipToAddress | None:
@@ -122,6 +130,7 @@ class SingleVehicleSync:
         status_code: int | None,
         detail: str,
         payload: FrontuWorkspaceUpsert | None,
+        debug: SingleSyncDebug | None,
     ) -> SingleSyncResult:
         logger.warning(
             "Single vehicle sync failed: %s",
@@ -135,6 +144,7 @@ class SingleVehicleSync:
             status_code=status_code,
             error=detail,
             dry_run=False,
+            debug=debug,
         )
 
     async def _audit(

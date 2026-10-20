@@ -1,0 +1,45 @@
+<div id="single-debug" hx-swap-oob="true">
+  {% if single.debug %}
+  {% set debug = single.debug %}
+  <details open>
+    <summary>Debug inspector: {{ single.serial_no }}</summary>
+    {% if single.dry_run %}
+    <p><mark>DRY RUN - No payload sent to Frontu</mark></p>
+    {% elif single.outcome == "FAILED" %}
+    <p><strong>LIVE - Frontu push failed{% if single.status_code %}: HTTP {{ single.status_code }}{% endif %}</strong></p>
+    {% else %}
+    <p><strong>LIVE - payload sent to Frontu: HTTP {{ single.status_code }}</strong></p>
+    {% endif %}
+    <h6>BC VehicleWarrList (Active)</h6>
+    <table>
+      <thead>
+        <tr><th>Type</th><th>Starting date</th><th>Formula</th><th>Indicator</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for row in debug.warranties %}
+        <tr>
+          <td>{{ row.WarrantyTypeCode }}</td>
+          <td>{{ row.StartingDate }}</td>
+          <td>{{ row.TermDateFormula or "" }}</td>
+          <td>{{ row.VariableFieldRun1 }}</td>
+          <td>{{ row.Status }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No active warranty records in BC.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <h6>Resolved warranty</h6>
+    <table>
+      <tbody>
+        <tr><th>warrantyStartDate</th><td>{{ debug.warranty.start_date or "—" }}</td></tr>
+        <tr><th>warrantyEndDate</th><td>{{ debug.warranty.end_date or "—" }}</td></tr>
+        <tr><th>extendedWarrantyEndDate</th><td>{{ debug.warranty.extended_end_date or "—" }}</td></tr>
+        <tr><th>warrantyIndicatorLimit</th><td>{{ debug.warranty.indicator_limit or "—" }}</td></tr>
+      </tbody>
+    </table>
+    <h6>Frontu payload (wire body, empty fields omitted)</h6>
+    <pre><code>{{ debug.wire_json }}</code></pre>
+  </details>
+  {% endif %}
+</div>

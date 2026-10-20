@@ -2,9 +2,9 @@
 
 import hashlib
 
-from src.pipelines.warranty_resolver import ResolvedWarranty
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuCustomFieldIds, FrontuWorkspaceUpsert
+from src.schemas.warranty import ResolvedWarranty
 
 
 def build_workspace(
