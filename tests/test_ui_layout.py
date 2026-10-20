@@ -101,6 +101,6 @@ async def test_layout_dimensions_are_frozen_between_polls(client: httpx.AsyncCli
     widths = ["w-[180px]", "w-[120px]", "w-[200px]", "w-[80px]"]
     colgroup = status[status.index("<colgroup>") + len("<colgroup>") : status.index("</colgroup>")]
     assert [w for w in widths if w in colgroup] == widths and colgroup.count("<col") == 5
-    assert status.count("min-h-[96px]") >= 7
+    assert status.count("min-h-[96px]") == 6  # 3 state + 3 counter cards (no planned card live)
     assert "time { display: inline-block; min-width: 160px;" in page
     assert "font-variant-numeric: tabular-nums" in page
