@@ -170,3 +170,34 @@ FrontuWorkspaceUpsert fields:
 - Maximum 200 LOC per file. Split logic across layers cleanly.
 - Strict Mypy compliance (no Any, no ignore flags).
 - No direct external network calls outside src/adapters/.
+
+## 9. Feature: Warranty Data Enrichment (VehicleWarrList -> Frontu Workspace)
+
+### 9.1 BC OData Source Contract
+- Endpoint: `VehicleWarrList`
+- Query Path: `.../Company('{company}')/VehicleWarrList?$filter=VehicleSerialNo eq '{escaped_serial_no}' and Status eq 'Active'`
+- Raw Fields to Ingest:
+  - `VehicleSerialNo`: str (matched with vehicle `SerialNo`)
+  - `WarrantyTypeCode`: str (e.g., `STANDART_FACTORY`, `EXTENDED_FACTORY`, `NOWARRANTY`)
+  - `StartingDate`: str (date format `YYYY-MM-DD`, ignore/nullify if `"0001-01-01"`)
+  - `TermDateFormula`: str (BC date formula string, e.g., `"1Y"`, `"3M"`, `"6M"`, `"0Y"`)
+  - `VariableFieldRun1`: int | float (operating indicator limit, e.g., moto-hours/mileage)
+  - `Status`: str (`"Active"`)
+
+### 9.2 Parsing & Date Formula Resolution
+- Date Formulas parser:
+  - Supports format `r"^(\d+)([YMD])$"` (Years, Months, Days).
+  - Computation: `target_date = starting_date + relativedelta(years=N / months=N / days=N)`.
+  - Format output strictly as `YYYY-MM-DD`.
+
+### 9.3 Mapping & Hierarchy Rules
+- If multiple warranty records exist for a single `VehicleSerialNo`:
+  1. `warrantyStartDate`: Earliest valid `StartingDate` where `StartingDate != "0001-01-01"`.
+  2. `warrantyEndDate` (Standard): Compute from record where `WarrantyTypeCode` is NOT `NOWARRANTY` and does NOT start with `EXTENDED_`.
+  3. `extendedWarrantyEndDate` (Extended): Compute from record where `WarrantyTypeCode` starts with `EXTENDED_`.
+  4. `warrantyIndicatorLimit`: Highest positive value from `VariableFieldRun1` across active non-`NOWARRANTY` records (cast to `int`). If 0, pass `None`.
+- Frontu Payload Fields (Direct top-level attributes in `FrontuWorkspaceUpsert`):
+  - `warrantyStartDate`: Optional[str] = None
+  - `warrantyEndDate`: Optional[str] = None
+  - `extendedWarrantyEndDate`: Optional[str] = None
+  - `warrantyIndicatorLimit`: Optional[int] = None

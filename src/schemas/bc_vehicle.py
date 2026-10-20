@@ -35,6 +35,19 @@ class BCODataShipToAddress(BaseModel):
     Post_Code: str | None = None
 
 
+class BCVehicleWarranty(BaseModel):
+    """Row from the BC `VehicleWarrList` OData page (SPEC section 9.1)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    VehicleSerialNo: str
+    WarrantyTypeCode: str
+    StartingDate: str
+    TermDateFormula: str | None = None
+    VariableFieldRun1: int | float = 0
+    Status: str
+
+
 class ODataCollection(BaseModel):
     """OData V4 collection envelope: `{"@odata.context": ..., "value": [...]}`."""
 

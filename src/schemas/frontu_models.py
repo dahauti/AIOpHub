@@ -23,6 +23,10 @@ class FrontuWorkspaceUpsert(BaseModel):
     zipCode: str | None = None
     serialNumber: str | None = None
     customValues: dict[str, str] | None = None
+    warrantyStartDate: str | None = None
+    warrantyEndDate: str | None = None
+    extendedWarrantyEndDate: str | None = None
+    warrantyIndicatorLimit: int | None = None
     deleted: bool = False
 
 

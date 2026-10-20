@@ -14,7 +14,12 @@ from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 from src.adapters.bc_auth import EntraCredentials, EntraTokenProvider
 from src.adapters.resilience import ExternalServiceError, Sleep, send_with_retry
 from src.config import Settings
-from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, ODataCollection
+from src.schemas.bc_vehicle import (
+    BCODataShipToAddress,
+    BCODataVehicle,
+    BCVehicleWarranty,
+    ODataCollection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +29,7 @@ SAAS_SCOPE = "https://api.businesscentral.dynamics.com/.default"
 SAAS_ODATA_ROOT = "https://api.businesscentral.dynamics.com/v2.0/{tenant}/{environment}/ODataV4"
 VEHICLES_PAGE = "VehicleCard"
 SHIP_TO_PAGE = "TG_ShipToAdress"
+WARRANTY_PAGE = "VehicleWarrList"
 _QUERY_SAFE = "',:()"
 # A `/Company(` (or `/Company%28`) segment already present in a configured root URL.
 _COMPANY_SEGMENT = re.compile(r"/Company(?:\(|%28)", re.IGNORECASE)
@@ -102,7 +108,7 @@ def onprem_connection(settings: Settings) -> BCConnection:
 
 
 class BCClient:
-    """Reads VehicleCard deltas and TG_ShipToAdress rows from one BC profile."""
+    """Reads VehicleCard deltas, TG_ShipToAdress and VehicleWarrList rows from one BC profile."""
 
     def __init__(
         self,
@@ -150,6 +156,13 @@ class BCClient:
         }
         rows = await self._get_rows(SHIP_TO_PAGE, params, BCODataShipToAddress)
         return rows[0] if rows else None
+
+    async def get_vehicle_warranties(self, serial_no: str) -> list[BCVehicleWarranty]:
+        """Return the active VehicleWarrList rows for one vehicle (SPEC section 9.1)."""
+        params = {
+            "$filter": f"VehicleSerialNo eq {odata_literal(serial_no)} and Status eq 'Active'"
+        }
+        return await self._get_rows(WARRANTY_PAGE, params, BCVehicleWarranty)
 
     async def _get_rows[RowT: BaseModel](
         self, page: str, params: dict[str, str], row_type: type[RowT]

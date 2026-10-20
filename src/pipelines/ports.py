@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 
-from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
+from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import (
     FrontuCustomFieldIds,
     FrontuUpsertResult,
@@ -17,6 +17,7 @@ from src.schemas.frontu_models import (
 class VehicleSource(Protocol):
     def fetch_vehicles(self, modified_since: datetime) -> AsyncIterator[list[BCODataVehicle]]: ...
     async def get_ship_to(self, customer_no: str, code: str) -> BCODataShipToAddress | None: ...
+    async def get_vehicle_warranties(self, serial_no: str) -> list[BCVehicleWarranty]: ...
 
 
 class WorkspaceSink(Protocol):
@@ -36,6 +37,7 @@ class RunState:
     cursor: datetime
     run_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     ship_to: dict[tuple[str, str], BCODataShipToAddress | None] = field(default_factory=dict)
+    warranties: dict[str, list[BCVehicleWarranty]] = field(default_factory=dict)
     earliest_failure: datetime | None = None
     processed: int = 0
     skipped: int = 0

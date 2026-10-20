@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from src.adapters.resilience import ExternalServiceError
 from src.repositories.sync_statements import STALE_RUN_AFTER
-from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
+from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import (
     FrontuCustomFieldIds,
     FrontuUpsertResult,
@@ -44,6 +44,24 @@ def vehicle(
     )
 
 
+def warranty(
+    serial: str,
+    *,
+    code: str = "STANDART_FACTORY",
+    start: str = "2025-01-15",
+    formula: str | None = "1Y",
+    run: float = 0,
+) -> BCVehicleWarranty:
+    return BCVehicleWarranty(
+        VehicleSerialNo=serial,
+        WarrantyTypeCode=code,
+        StartingDate=start,
+        TermDateFormula=formula,
+        VariableFieldRun1=run,
+        Status="Active",
+    )
+
+
 class FakeBC:
     def __init__(
         self,
@@ -52,15 +70,19 @@ class FakeBC:
         fail_at_page: int | None = None,
         failing_ship_to: frozenset[tuple[str, str]] = frozenset(),
         failing_vehicles: frozenset[str] = frozenset(),
+        warranties: dict[str, list[BCVehicleWarranty]] | None = None,
     ) -> None:
         self.pages = pages
         self.ship_to = ship_to or {}
         self.fail_at_page = fail_at_page
         self.failing_ship_to = failing_ship_to
         self.failing_vehicles = failing_vehicles
+        self.warranties = warranties or {}
+        self.failing_warranties: frozenset[str] = frozenset()
         self.vehicle_calls: list[str] = []
         self.since: list[datetime] = []
         self.ship_to_calls: list[tuple[str, str]] = []
+        self.warranty_calls: list[str] = []
 
     async def fetch_vehicles(self, modified_since: datetime) -> AsyncIterator[list[BCODataVehicle]]:
         self.since.append(modified_since)
@@ -83,6 +105,12 @@ class FakeBC:
         if (customer_no, code) in self.failing_ship_to:
             raise ExternalServiceError("business-central", 500, "ship-to lookup failed")
         return self.ship_to.get((customer_no, code))
+
+    async def get_vehicle_warranties(self, serial_no: str) -> list[BCVehicleWarranty]:
+        self.warranty_calls.append(serial_no)
+        if serial_no in self.failing_warranties:
+            raise ExternalServiceError("business-central", 503, "warranty lookup failed")
+        return self.warranties.get(serial_no, [])
 
 
 class FakeFrontu:

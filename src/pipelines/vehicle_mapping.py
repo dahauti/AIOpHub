@@ -2,6 +2,7 @@
 
 import hashlib
 
+from src.pipelines.warranty_resolver import ResolvedWarranty
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuCustomFieldIds, FrontuWorkspaceUpsert
 
@@ -11,8 +12,10 @@ def build_workspace(
     ship_to: BCODataShipToAddress | None,
     field_ids: FrontuCustomFieldIds,
     internal_client_id: str,
+    warranty: ResolvedWarranty | None = None,
 ) -> FrontuWorkspaceUpsert:
-    """Map one BC vehicle (and its optional ship-to address) to a Frontu workspace."""
+    """Map one BC vehicle (plus optional ship-to address and warranty) to a Frontu workspace."""
+    resolved = warranty if warranty is not None else ResolvedWarranty()
     title = f"{vehicle.MakeCode or ''} {vehicle.ModelCode or ''}".strip() or vehicle.SerialNo
     site_name = ship_to.Name if ship_to is not None else None
     return FrontuWorkspaceUpsert(
@@ -24,6 +27,10 @@ def build_workspace(
         zipCode=ship_to.Post_Code if ship_to is not None else None,
         serialNumber=vehicle.VIN,
         customValues=field_ids.build_custom_values(vehicle.RegistrationNo, site_name),
+        warrantyStartDate=resolved.start_date,
+        warrantyEndDate=resolved.end_date,
+        extendedWarrantyEndDate=resolved.extended_end_date,
+        warrantyIndicatorLimit=resolved.indicator_limit,
         deleted=vehicle.Blocked,
     )
 

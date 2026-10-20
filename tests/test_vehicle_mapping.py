@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
+from src.pipelines.warranty_resolver import ResolvedWarranty
 from src.schemas.bc_vehicle import BCODataShipToAddress
 from tests.pipeline_fakes import FIELD_IDS, INTERNAL_CLIENT, REG_ID, SITE_ID, vehicle
 
@@ -87,3 +88,23 @@ def test_payload_hash_is_sha256_of_json_without_deleted() -> None:
     assert len(expected) == 64
     assert payload_hash(blocked) == payload_hash(active)
     assert payload_hash(renamed) != payload_hash(active)
+
+
+def test_resolved_warranty_maps_to_top_level_fields_and_changes_hash() -> None:
+    resolved = ResolvedWarranty(
+        start_date="2025-01-15",
+        end_date="2026-01-15",
+        extended_end_date="2028-01-15",
+        indicator_limit=4000,
+    )
+    source = vehicle("SN-1", T0)
+
+    plain = build_workspace(source, None, FIELD_IDS, INTERNAL_CLIENT)
+    enriched = build_workspace(source, None, FIELD_IDS, INTERNAL_CLIENT, resolved)
+
+    assert (plain.warrantyStartDate, plain.warrantyIndicatorLimit) == (None, None)
+    assert enriched.warrantyStartDate == "2025-01-15"
+    assert enriched.warrantyEndDate == "2026-01-15"
+    assert enriched.extendedWarrantyEndDate == "2028-01-15"
+    assert enriched.warrantyIndicatorLimit == 4000
+    assert payload_hash(enriched) != payload_hash(plain)

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from src.adapters.resilience import ExternalServiceError
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
+from src.pipelines.warranty_resolver import ResolvedWarranty, resolve_warranty
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
@@ -94,7 +95,10 @@ class VehicleSyncPipeline:
         payload: FrontuWorkspaceUpsert | None = None
         try:
             ship_to = await self._ship_to(vehicle, run)
-            payload = build_workspace(vehicle, ship_to, run.field_ids, self._internal_client_id)
+            warranty = await self._warranty(vehicle, run)
+            payload = build_workspace(
+                vehicle, ship_to, run.field_ids, self._internal_client_id, warranty
+            )
             digest = payload_hash(payload)
             if not vehicle.Blocked and known == digest:
                 await self._audit(vehicle, "SKIPPED")
@@ -128,6 +132,13 @@ class VehicleSyncPipeline:
         if key not in run.ship_to:
             run.ship_to[key] = await self._source.get_ship_to(*key)
         return run.ship_to[key]
+
+    async def _warranty(self, vehicle: BCODataVehicle, run: RunState) -> ResolvedWarranty:
+        if vehicle.SerialNo not in run.warranties:
+            run.warranties[vehicle.SerialNo] = await self._source.get_vehicle_warranties(
+                vehicle.SerialNo
+            )
+        return resolve_warranty(run.warranties[vehicle.SerialNo])
 
     async def _checkpoint(self, page: list[BCODataVehicle], run: RunState) -> None:
         """Advance to the page maximum, never past the earliest failure; never in dry run."""
