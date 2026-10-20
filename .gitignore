@@ -24,3 +24,9 @@ data/
 
 # Local launchers
 *.bat
+
+# Deployment templates (tracked despite *.bat above)
+!deploy/*.bat
+
+# Build output
+dist/
