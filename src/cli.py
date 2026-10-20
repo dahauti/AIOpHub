@@ -12,7 +12,7 @@ import time
 from collections.abc import Sequence
 
 from src.config import Settings, get_settings
-from src.database import get_engine
+from src.database import get_engine, init_db
 from src.logging_setup import configure_logging
 from src.pipelines.sync_vehicles import sync_vehicles_batch
 from src.schemas.sync import SyncRunResult
@@ -49,6 +49,7 @@ async def _run_batch() -> int:
     configure_logging(settings.log_level)
     started = time.monotonic()
     try:
+        await init_db()  # a fresh install or deleted sync.db gets its tables without the web app
         result = await sync_vehicles_batch(settings)
     finally:
         await get_engine().dispose()

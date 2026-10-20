@@ -76,7 +76,7 @@ class VehicleSyncPipeline:
         async with self._lock:
             now = self._clock()
             if not await self._repo.try_acquire(now, now - INITIAL_WINDOW):
-                logger.info("Sync skipped: module claimed elsewhere", extra={"module": MODULE})
+                logger.info("Sync skipped: module claimed elsewhere", extra={"sync_module": MODULE})
                 return None
             status: ReleaseStatus = "FAILED"
             try:
