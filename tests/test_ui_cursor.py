@@ -123,3 +123,15 @@ async def test_page_lets_htmx_swap_409_and_422_responses(ports: Ports) -> None:
 
     assert 'name="htmx-config"' in html and "409|422" in html
     assert "https://cdn.tailwindcss.com" in html and "JetBrains+Mono" in html
+
+
+@pytest.mark.asyncio
+async def test_reset_runs_without_confirm_and_picker_opens_dark(ports: Ports) -> None:
+    _, client = ports
+
+    reset, cursor_input, _ = _cursor_controls((await client.get("/partials/status")).text)
+
+    assert 'hx-target="#sync-status" hx-swap="morph:outerHTML"' in reset
+    assert "hx-confirm" not in reset
+    assert 'style="color-scheme: dark;"' in cursor_input
+    assert 'onclick="this.showPicker()"' in cursor_input
