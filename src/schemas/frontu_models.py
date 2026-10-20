@@ -3,10 +3,11 @@
 from collections.abc import Mapping
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 # Identifier keys seen in live payloads, in order of precedence.
 CUSTOM_FIELD_ID_KEYS = ("guid", "id", "field_id")
+WORKSPACE_ID_KEYS = ("guid", "id")
 
 
 class FrontuWorkspaceUpsert(BaseModel):
@@ -31,23 +32,44 @@ class FrontuWorkspaceUpsert(BaseModel):
 
 
 class FrontuWorkspaceSummary(BaseModel):
-    """Workspace row from GET /workspaces, reduced to the identity-resolution fields."""
+    """Workspace row from GET /workspaces, reduced to the identity-resolution fields.
+
+    Live rows carry the identifier as `guid` (used for PUT /workspaces/{guid}); `id` is
+    accepted as a fallback.
+    """
 
     model_config = ConfigDict(extra="ignore", coerce_numbers_to_str=True)
 
-    id: str
+    id: str = Field(min_length=1)
     systemId: str | None = None
     serialNumber: str | None = None
     type: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _identifier_from_known_keys(cls, data: object) -> object:
+        """Use the first non-blank of `WORKSPACE_ID_KEYS` as `id`."""
+        if not isinstance(data, Mapping):
+            return data
+        for key in WORKSPACE_ID_KEYS:
+            value = data.get(key)
+            if value is not None and str(value).strip():
+                return {**data, "id": value}
+        return data
+
 
 class FrontuWorkspaceList(BaseModel):
-    """Paginated envelope `{"items": [...], "total": n}`; items stay raw for per-row validation."""
+    """Envelope `{"items": [...], "next_page": n}` (live) or `{"items": [...], "total": n}`.
+
+    Items stay raw for per-row validation. `next_page` is parsed but deliberately not used to
+    stop paging: its semantics are unconfirmed, and stopping early would yield a partial index.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
     items: list[JsonValue]
     total: int | None = None
+    next_page: int | None = None
 
 
 class FrontuCustomField(BaseModel):

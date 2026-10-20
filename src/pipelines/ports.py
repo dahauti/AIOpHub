@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 
+from src.adapters.resilience import ExternalServiceError
 from src.pipelines.identity_resolver import LegacyIndex
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import (
@@ -45,6 +46,7 @@ class RunState:
     ship_to: dict[tuple[str, str], BCODataShipToAddress | None] = field(default_factory=dict)
     warranties: dict[str, list[BCVehicleWarranty]] = field(default_factory=dict)
     identity: LegacyIndex | None = None
+    identity_error: ExternalServiceError | None = None
     earliest_failure: datetime | None = None
     processed: int = 0
     skipped: int = 0

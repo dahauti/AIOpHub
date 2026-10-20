@@ -147,9 +147,18 @@ class VehicleSyncPipeline:
         run.processed += 1
 
     async def _identity(self, vehicle: BCODataVehicle, run: RunState) -> IdentityDecision:
-        """Resolve against a Frontu index loaded lazily, at most once per run."""
+        """Resolve against a Frontu index loaded lazily, at most once per run.
+
+        A failed listing is remembered: later vehicles fail fast instead of re-paging Frontu.
+        """
+        if run.identity_error is not None:
+            raise run.identity_error
         if run.identity is None:
-            run.identity = LegacyIndex(await self._sink.list_workspaces())
+            try:
+                run.identity = LegacyIndex(await self._sink.list_workspaces())
+            except ExternalServiceError as exc:
+                run.identity_error = exc
+                raise
         return run.identity.resolve(vehicle)
 
     async def _ship_to(self, vehicle: BCODataVehicle, run: RunState) -> BCODataShipToAddress | None:

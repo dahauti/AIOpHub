@@ -7,6 +7,7 @@ from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from src.adapters.resilience import ExternalServiceError
 from src.schemas.frontu_models import (
+    WORKSPACE_ID_KEYS,
     FrontuUpsertResult,
     FrontuWorkspaceList,
     FrontuWorkspaceSummary,
@@ -39,15 +40,38 @@ def parse_workspace_page(response: httpx.Response) -> tuple[list[JsonValue], int
     return parsed, None
 
 
-def valid_workspaces(rows: list[JsonValue]) -> list[FrontuWorkspaceSummary]:
+def _identifiable(raw: JsonValue) -> bool:
+    """True when a row carries an identifier or serial number, so it could be a match."""
+    if not isinstance(raw, dict):
+        return False
+    keys = (*WORKSPACE_ID_KEYS, "serialNumber")
+    return any(raw.get(key) not in (None, "") for key in keys)
+
+
+def valid_workspaces(rows: list[JsonValue], page: int) -> list[FrontuWorkspaceSummary]:
+    """Validate one listing page, failing closed on any unreadable row that could match.
+
+    Skipping such a row could hide a legacy twin and lead to a duplicate POST, so the whole
+    listing is refused instead. Rows with neither identifier nor serial number are skipped.
+    """
     valid: list[FrontuWorkspaceSummary] = []
+    skipped = 0
     for raw in rows:
         try:
             valid.append(FrontuWorkspaceSummary.model_validate(raw))
         except ValidationError as exc:
-            logger.warning(
-                "Skipping malformed Frontu workspace row (%d validation errors)",
-                exc.error_count(),
-                extra={"service": SERVICE},
-            )
+            if _identifiable(raw):
+                detail = (
+                    f"unreadable workspace row on listing page {page} "
+                    f"({exc.error_count()} validation errors); refusing a partial identity index"
+                )
+                raise ExternalServiceError(SERVICE, None, detail) from exc
+            skipped += 1
+    if skipped:
+        logger.warning(
+            "Skipped %d unidentifiable Frontu workspace rows on page %d",
+            skipped,
+            page,
+            extra={"service": SERVICE},
+        )
     return valid

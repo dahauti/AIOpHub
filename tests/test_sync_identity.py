@@ -158,3 +158,16 @@ async def test_single_sync_ambiguous_match_fails_with_candidates() -> None:
     assert (result.outcome, result.action) == ("FAILED", "FAILED_AMBIGUOUS_MATCH")
     assert result.error is not None and "a, b" in result.error
     assert frontu.pushed == [] and frontu.adopted == []
+
+
+@pytest.mark.asyncio
+async def test_batch_index_failure_is_not_refetched_for_every_vehicle() -> None:
+    frontu, repo = FakeFrontu(), _repo()
+    frontu.list_failure = 502
+    pages = [[vehicle("SN-1", T0), vehicle("SN-2", T0 + timedelta(minutes=1))]]
+
+    result = await _batch(FakeBC(pages), frontu, repo).run()
+
+    assert result is not None and result.failed == 2
+    assert frontu.list_max_ages == [0.0] and frontu.pushed == []
+    assert repo.cursor == T0

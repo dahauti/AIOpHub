@@ -104,7 +104,7 @@ class FrontuClient:
             rows, total = parse_workspace_page(
                 await self._send("GET", "/workspaces", params=params)
             )
-            found.extend(valid_workspaces(rows))
+            found.extend(valid_workspaces(rows, page))
             seen += len(rows)
             if len(rows) < WORKSPACE_PAGE_SIZE or (total is not None and seen >= total):
                 return found

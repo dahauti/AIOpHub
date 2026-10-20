@@ -208,11 +208,11 @@ FrontuWorkspaceUpsert fields:
 Frontu may already hold a vehicle created manually or by a legacy import: `serialNumber` is set but `systemId` is `null`/blank. The native `POST /workspaces` upsert matches only by `systemId`, so it would create a duplicate and fragment service history.
 
 ### 10.2 Frontu Adapter Contract (src/adapters/frontu_client.py)
-- Listing: `GET /workspaces?type=object&pageSize=100&page={n}` starting at `page=1`.
-  - Envelope: `{"items": [...], "total": n}` or a bare JSON array.
+- Listing: `GET /workspaces?type=object&pageSize=100&page={n}` starting at `page=1`. Rows identify workspaces by `guid` (`id` accepted as a fallback).
+  - Envelope: `{"items": [...], "next_page": n}` (live), `{"items": [...], "total": n}` or a bare JSON array. `next_page` is parsed but not used to stop paging (unconfirmed semantics; stopping early would yield a partial index).
   - Paging stops on a short page or once `total` rows were read. More than 1000 pages raises an `ExternalServiceError` (fail closed: never resolve against a partial index).
-  - Rows are validated one by one (`FrontuWorkspaceSummary`: `id`, `systemId`, `serialNumber`, `type`; numeric ids coerced to str); malformed rows are skipped with a warning.
-- Adoption: `PUT /workspaces/{id}` (id URL-encoded) with the full `FrontuWorkspaceUpsert` body, `None` fields omitted, carrying `systemId = BC.SerialNo`.
+  - Rows are validated one by one (`FrontuWorkspaceSummary`: `guid`/`id`, `systemId`, `serialNumber`, `type`). Fail closed: an unreadable row that carries a `guid`, `id` or `serialNumber` aborts the whole listing (`ExternalServiceError`), because skipping it could hide a legacy twin. Rows with none of these are skipped, with one summary warning per page.
+- Adoption: `PUT /workspaces/{guid}` (URL-encoded) with the full `FrontuWorkspaceUpsert` body, `None` fields omitted, carrying `systemId = BC.SerialNo`.
 - Pacing (src/adapters/rate_limit.py) and retries apply to both calls.
 
 ### 10.3 Identity Index (src/pipelines/identity_resolver.py)
@@ -233,5 +233,5 @@ Frontu may already hold a vehicle created manually or by a legacy import: `seria
 - Fingerprint skip happens before identity resolution; unchanged vehicles never trigger the listing.
 - Audit actions: `ADOPT`, `SINGLE_ADOPT` (counted as processed), `DRY_RUN_ADOPT`, `DRY_RUN_SINGLE_ADOPT` (counted as planned), `FAILED_AMBIGUOUS_MATCH` (counted as an error).
 - `AMBIGUOUS` is strict fail-closed for the vehicle only: no Frontu write, audit `FAILED_AMBIGUOUS_MATCH` with the payload and an `error_message` listing the candidate Frontu ids, and the vehicle counts as failed/an error. The batch cursor is NOT held (no head-of-line blocking); the vehicle is re-evaluated the next time BC modifies it, or via a single-vehicle sync once the duplicates are resolved in Frontu.
-- A listing failure fails the vehicle (no write); the next vehicle in the run retries the listing.
+- A listing failure fails the vehicle (no write, cursor held) and is remembered for the rest of the batch run: remaining vehicles that need a write fail fast instead of re-paging Frontu. The next run retries.
 - Dry runs resolve identities too (read-only listing) so the planned ADOPT/UPSERT/AMBIGUOUS split is visible before live mode.
