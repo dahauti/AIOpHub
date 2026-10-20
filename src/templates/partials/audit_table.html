@@ -1,0 +1,33 @@
+{% from "partials/macros.html" import local_time %}
+<div id="audit-log" {% if audit_oob %}hx-swap-oob="true" {% endif %}class="card min-h-[20rem] overflow-x-auto p-0">
+  <table class="data-table table-fixed min-w-[760px]">
+    <colgroup>
+      <col class="w-[180px]">
+      <col class="w-[120px]">
+      <col class="w-[200px]">
+      <col class="w-[80px]">
+      <col>
+    </colgroup>
+    <thead>
+      <tr><th>Time</th><th>Vehicle</th><th>Action</th><th>HTTP</th><th>Error</th></tr>
+    </thead>
+    <tbody>
+      {% for row in snapshot.recent %}
+      <tr class="h-9 min-h-[2.25rem] hover:bg-slate-800/30">
+        <td class="tabular-nums">{{ local_time(row.created_at) }}</td>
+        <td class="truncate" title="{{ row.entity_key }}">{{ row.entity_key }}</td>
+        <td class="truncate" title="{{ row.action }}">{{ row.action }}</td>
+        <td>
+          {%- if row.status_code is not none -%}
+          {%- set code = row.status_code -%}
+          <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
+          {%- endif -%}
+        </td>
+        <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
+      </tr>
+      {% else %}
+      <tr class="h-9 min-h-[2.25rem]"><td colspan="5" class="text-center font-sans text-slate-500">No sync activity yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,44 @@
+{% from "partials/macros.html" import local_time, spinner %}
+{% set running = snapshot.status == "RUNNING" %}
+<div id="kpi-metrics" {% if poll %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="morph" {% endif %}class="space-y-4">
+  <div id="status-banner" class="min-h-[2.5rem]">
+    {% if banner %}
+    <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ banner }}</strong></div>
+    {% endif %}
+  </div>
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="card min-h-[96px]">
+      <p class="label">Mode</p>
+      <p class="mt-2 text-lg font-semibold {{ 'text-amber-300' if dry_run else 'text-emerald-300' }}">{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</p>
+    </div>
+    <div class="card min-h-[96px]">
+      <p class="label">State</p>
+      <p class="mt-2 flex items-center gap-2 text-lg font-semibold text-slate-100">
+        <span class="h-2 w-2 shrink-0 rounded-full {{ 'animate-pulse bg-indigo-400' if running else 'bg-slate-500' }}"></span>{{ snapshot.status }}
+      </p>
+    </div>
+    <div class="card min-h-[96px]">
+      <p class="label">Last sync</p>
+      <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.updated_at) }}</p>
+    </div>
+    <div class="card min-h-[136px]">
+      <p class="label">Cursor</p>
+      <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.cursor_timestamp) }}</p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <button hx-post="/partials/cursor/reset-now" hx-target="#sync-status" hx-swap="morph:outerHTML" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Reset to Now</button>
+        <form hx-post="/partials/cursor/set" hx-target="#sync-status" hx-swap="morph" hx-disabled-elt="find button" class="flex items-center gap-1">
+          <input id="cursor-input" type="datetime-local" name="cursor_timestamp" step="1" required style="color-scheme: dark;" onclick="this.showPicker()" aria-label="New cursor (local time)" class="field btn-mini font-mono"{% if running %} disabled{% endif %}>
+          <button type="submit" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Set</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div class="card min-h-[96px]"><p class="label">Processed today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</p></div>
+    <div class="card min-h-[96px]"><p class="label">Skipped today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</p></div>
+    <div class="card min-h-[96px]"><p class="label">Errors today</p><p class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</p></div>
+    {% if dry_run or snapshot.planned %}
+    <div class="card min-h-[96px]"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold tabular-nums text-amber-200">{{ snapshot.planned }}</p></div>
+    {% endif %}
+  </div>
+</div>

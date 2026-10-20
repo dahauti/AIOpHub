@@ -58,7 +58,7 @@ async def test_status_partial_is_polling_fragment(
     assert 'hx-get="/partials/status"' in response.text
     assert 'hx-trigger="every 5s"' in response.text
     assert "RUNNING" in response.text
-    assert "No sync activity yet" in response.text
+    assert 'id="audit-log"' not in response.text
 
 
 @pytest.mark.asyncio

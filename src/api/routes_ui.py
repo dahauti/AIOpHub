@@ -8,15 +8,10 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.api.cursor_handlers import (
-    CURSOR_LOCKED,
-    MAX_CURSOR_INPUT,
-    CursorInputError,
-    parse_cursor,
-)
+from src.api.cursor_handlers import CURSOR_LOCKED, MAX_CURSOR_INPUT, CursorInputError, parse_cursor
 from src.pipelines.scheduler import SyncControl
 from src.pipelines.single_vehicle import SingleVehicleControl
-from src.schemas.sync import SingleSyncResult
+from src.schemas.sync import RUNNING, SingleSyncResult
 
 TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 SYNC_STARTED = "Sync started"
@@ -24,6 +19,8 @@ SYNC_ALREADY_RUNNING = "Sync already in progress"
 DRY_RUN_NOTE = " (dry run: no changes will be sent to Frontu)"
 SINGLE_BUSY = "Sync already in progress. Please wait for the current batch to complete."
 BLANK_SERIAL = "Enter a vehicle SerialNo"
+# htmx swaps a 286 response, then cancels the polling element's timer.
+STOP_POLLING = 286
 
 
 def format_utc(value: datetime | None) -> str:
@@ -78,10 +75,28 @@ Single = Annotated[SingleVehicleControl, Depends(get_single_sync)]
 router = APIRouter()
 
 
+async def _context(control: SyncControl, banner: str | None, **extra: object) -> dict[str, object]:
+    """Template context; the KPI block polls only while the snapshot says RUNNING."""
+    snapshot = await control.snapshot()
+    base: dict[str, object] = {
+        "snapshot": snapshot,
+        "banner": banner,
+        "dry_run": control.dry_run,
+        "poll": snapshot.status == RUNNING,
+    }
+    return base | extra
+
+
 async def _status(
-    request: Request, control: SyncControl, banner: str | None, status_code: int = 200
+    request: Request,
+    control: SyncControl,
+    banner: str | None,
+    status_code: int = 200,
+    *,
+    force_poll: bool = False,
 ) -> HTMLResponse:
-    context = {"snapshot": await control.snapshot(), "banner": banner, "dry_run": control.dry_run}
+    context = await _context(control, banner)
+    context["poll"] = force_poll or context["poll"]
     return TEMPLATES.TemplateResponse(
         request, "partials/status.html", context, status_code=status_code
     )
@@ -97,34 +112,34 @@ async def _vehicle_result(
     request: Request, control: SyncControl, message: str, single: SingleSyncResult | None
 ) -> HTMLResponse:
     """Canary card content, plus an out-of-band refresh of the batch status section."""
-    context = {
-        "snapshot": await control.snapshot(),
-        "banner": None,
-        "dry_run": control.dry_run,
-        "single": single,
-        "single_banner": message,
-        "oob": True,
-    }
+    context = await _context(control, None, single=single, single_banner=message, oob=True)
     return TEMPLATES.TemplateResponse(request, "partials/vehicle_result.html", context)
 
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, control: Control) -> HTMLResponse:
-    context = {"snapshot": await control.snapshot(), "banner": None, "dry_run": control.dry_run}
+    context = await _context(control, None)
     return TEMPLATES.TemplateResponse(request, "dashboard.html", context)
 
 
 @router.get("/partials/status", response_class=HTMLResponse)
 async def status_partial(request: Request, control: Control) -> HTMLResponse:
-    return await _status(request, control, banner=None)
+    """Poll target: KPIs while running; once idle, a final KPI + audit-table update (286)."""
+    context = await _context(control, None)
+    running = bool(context["poll"])
+    context["audit_oob"] = not running
+    return TEMPLATES.TemplateResponse(
+        request, "partials/status_poll.html", context, status_code=200 if running else STOP_POLLING
+    )
 
 
 @router.post("/api/sync/trigger", response_class=HTMLResponse)
 async def trigger_sync(request: Request, control: Control) -> HTMLResponse:
-    banner = SYNC_STARTED if control.trigger() else SYNC_ALREADY_RUNNING
+    started = control.trigger()
+    banner = SYNC_STARTED if started else SYNC_ALREADY_RUNNING
     if control.dry_run:
         banner += DRY_RUN_NOTE
-    return await _status(request, control, banner=banner)
+    return await _status(request, control, banner, force_poll=started)
 
 
 @router.post("/api/sync/vehicle", response_class=HTMLResponse)

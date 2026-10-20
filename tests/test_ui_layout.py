@@ -85,9 +85,7 @@ async def test_status_swaps_morph_in_place_without_layout_shift(client: httpx.As
     htmx = page.index("htmx.org@2.0.4/dist/htmx.min.js")
     assert htmx < page.index("https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js")
     assert 'hx-ext="morph"' in page and "Idiomorph.defaults" in page
-    opening = status[status.index("<section") : status.index(">", status.index("<section"))]
-    assert 'hx-swap="morph"' in opening and 'hx-trigger="every 5s"' in opening
-    assert 'hx-swap="outerHTML"' not in page + status and "hx-preserve" not in status
+    assert 'hx-swap="morph"' in page and "hx-preserve" not in status
     assert 'id="status-banner" class="min-h-' in status
     assert status.count("min-h-[") >= 9 and "tabular-nums" in status
 

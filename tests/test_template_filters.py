@@ -40,5 +40,5 @@ async def test_status_partial_renders_time_tags_through_the_route() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/partials/status")
 
-    assert response.status_code == 200
+    assert response.status_code == 286  # idle: final update, polling stops
     assert '<time datetime="2026-10-20T12:30:05Z">2026-10-20 12:30:05 UTC</time>' in response.text
