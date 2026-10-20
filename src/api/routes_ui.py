@@ -4,10 +4,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from src.api.cursor_handlers import (
+    CURSOR_LOCKED,
+    MAX_CURSOR_INPUT,
+    CursorInputError,
+    parse_cursor,
+)
 from src.pipelines.scheduler import SyncControl
 from src.pipelines.single_vehicle import SingleVehicleControl
 from src.schemas.sync import SingleSyncResult
@@ -72,9 +78,19 @@ Single = Annotated[SingleVehicleControl, Depends(get_single_sync)]
 router = APIRouter()
 
 
-async def _status(request: Request, control: SyncControl, banner: str | None) -> HTMLResponse:
+async def _status(
+    request: Request, control: SyncControl, banner: str | None, status_code: int = 200
+) -> HTMLResponse:
     context = {"snapshot": await control.snapshot(), "banner": banner, "dry_run": control.dry_run}
-    return TEMPLATES.TemplateResponse(request, "partials/status.html", context)
+    return TEMPLATES.TemplateResponse(
+        request, "partials/status.html", context, status_code=status_code
+    )
+
+
+async def _apply_cursor(request: Request, control: SyncControl, cursor: datetime) -> HTMLResponse:
+    if not await control.set_cursor(cursor):
+        return await _status(request, control, CURSOR_LOCKED, status.HTTP_409_CONFLICT)
+    return await _status(request, control, f"Cursor set to {format_utc(cursor)}")
 
 
 async def _vehicle_result(
@@ -125,3 +141,21 @@ async def sync_vehicle(
         return await _vehicle_result(request, control, BLANK_SERIAL, None)
     result = await single.sync_single_vehicle(serial, force_live=force_live)
     return await _vehicle_result(request, control, single_sync_banner(result), result)
+
+
+@router.post("/partials/cursor/reset-now", response_class=HTMLResponse)
+async def reset_cursor_now(request: Request, control: Control) -> HTMLResponse:
+    return await _apply_cursor(request, control, datetime.now(UTC))
+
+
+@router.post("/partials/cursor/set", response_class=HTMLResponse)
+async def set_cursor(
+    request: Request,
+    control: Control,
+    cursor_timestamp: Annotated[str, Form(max_length=MAX_CURSOR_INPUT)] = "",
+) -> HTMLResponse:
+    try:
+        cursor = parse_cursor(cursor_timestamp, datetime.now(UTC))
+    except CursorInputError as exc:
+        return await _status(request, control, str(exc), status.HTTP_422_UNPROCESSABLE_CONTENT)
+    return await _apply_cursor(request, control, cursor)

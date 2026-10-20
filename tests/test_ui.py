@@ -35,7 +35,7 @@ async def test_dashboard_renders_state_counters_and_audit(
     html = response.text
     assert html.lower().startswith("<!doctype html>")
     assert "https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" in html
-    assert "https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css" in html
+    assert "https://cdn.tailwindcss.com" in html and "bg-[#0B0F17]" in html
     assert 'hx-post="/api/sync/trigger"' in html
     for fragment in ("IDLE", "2026-10-20 12:30:05 UTC", "2026-10-20 12:15:00 UTC", ">12<", ">34<"):
         assert fragment in html

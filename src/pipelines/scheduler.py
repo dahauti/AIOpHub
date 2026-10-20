@@ -32,6 +32,7 @@ class SyncControl(Protocol):
     def dry_run(self) -> bool: ...
     def trigger(self) -> bool: ...
     async def snapshot(self) -> DashboardSnapshot: ...
+    async def set_cursor(self, cursor: datetime) -> bool: ...
 
 
 class SyncRunner:
@@ -68,6 +69,12 @@ class SyncRunner:
         self._tasks.add(task)
         task.add_done_callback(self._on_manual_done)
         return True
+
+    async def set_cursor(self, cursor: datetime) -> bool:
+        """Manually move the sync cursor; refused (False) while any run is active."""
+        if self._pipeline.is_running or self._tasks:
+            return False
+        return await self._repo.set_cursor(cursor, self._clock())
 
     async def snapshot(self) -> DashboardSnapshot:
         """Dashboard state with counters measured from today's UTC midnight."""

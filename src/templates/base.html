@@ -1,22 +1,51 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"409|422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
   <title>{% block title %}AIOpHub Sync Engine{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+            mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <style type="text/tailwindcss">
+    .card { @apply rounded-xl border border-slate-800/80 bg-slate-900/70 p-4 shadow-sm; }
+    .label { @apply text-xs font-medium uppercase tracking-wider text-slate-400; }
+    .btn { @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40; }
+    .btn-primary { @apply btn bg-indigo-500 text-white hover:bg-indigo-400; }
+    .btn-ghost { @apply btn border border-slate-700 bg-slate-800/60 text-slate-200 hover:bg-slate-700/70; }
+    .btn-mini { @apply px-2 py-1 text-xs; }
+    .field { @apply rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-40; }
+    .data-table { @apply w-full border-collapse text-left font-mono text-xs; }
+    .data-table th { @apply border-b border-slate-800 px-3 py-2 font-sans text-[11px] font-medium uppercase tracking-wider text-slate-500; }
+    .data-table td { @apply border-b border-slate-800/60 px-3 py-2 align-top text-slate-300; }
+  </style>
   <style>
-    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
     .error-cell { display: block; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
-    .badge-ok { background: #d1fae5; color: #065f46; }
-    .badge-err { background: #fee2e2; color: #991b1b; }
-    .badge-neutral { background: #e5e7eb; color: #374151; }
+    .badge { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.75em; font-weight: 600; }
+    .badge-ok { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.3); }
+    .badge-err { background: rgba(244, 63, 94, 0.15); color: #fda4af; box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.3); }
+    .badge-neutral { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-block; }
   </style>
   <script>
-    // Rewrite server-rendered UTC <time> tags into the viewer's local time zone.
     (() => {
+      // Rewrite server-rendered UTC <time> tags into the viewer's local time zone.
       const fmt = new Intl.DateTimeFormat("sv-SE", {
         year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit",
         minute: "2-digit", second: "2-digit", timeZoneName: "short",
@@ -31,11 +60,20 @@
         });
       document.addEventListener("DOMContentLoaded", localize);
       document.addEventListener("htmx:afterSettle", localize);
+      // datetime-local values are the viewer's local time: send them to the server as UTC.
+      document.addEventListener("htmx:configRequest", (event) => {
+        const params = event.detail.parameters;
+        const value = params.cursor_timestamp;
+        if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+          const instant = new Date(value);
+          if (!Number.isNaN(instant.getTime())) params.cursor_timestamp = instant.toISOString();
+        }
+      });
     })();
   </script>
 </head>
-<body>
-  <main class="container">
+<body class="min-h-screen bg-[#0B0F17] font-sans text-slate-200 antialiased">
+  <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
     {% block content %}{% endblock %}
   </main>
 </body>

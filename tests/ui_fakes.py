@@ -31,6 +31,8 @@ class FakeControl:
         self.accept = accept
         self.triggers = 0
         self.dry_run = False
+        self.cursor_locked = False
+        self.cursor_sets: list[datetime] = []
 
     def trigger(self) -> bool:
         self.triggers += 1
@@ -38,6 +40,13 @@ class FakeControl:
 
     async def snapshot(self) -> DashboardSnapshot:
         return self._snapshot
+
+    async def set_cursor(self, cursor: datetime) -> bool:
+        if self.cursor_locked:
+            return False
+        self.cursor_sets.append(cursor)
+        self._snapshot = self._snapshot.model_copy(update={"cursor_timestamp": cursor})
+        return True
 
 
 class FakeSingleSync:

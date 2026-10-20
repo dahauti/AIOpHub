@@ -85,7 +85,7 @@ async def test_dry_run_inspector_shows_bc_rows_resolution_and_payload(ports: Por
 
     html = await _sync(client)
 
-    assert '<div id="single-debug">' in html
+    assert '<div id="single-debug"' in html
     assert "<details open>" in html and DRY_RUN_LABEL in html
     for fragment in ("STANDART_FACTORY", "1Y", "5Y", "1000", "2026-10-21", "Active"):
         assert fragment in html
@@ -137,5 +137,5 @@ async def test_no_inspector_without_debug_data(ports: Ports, outcome: str) -> No
 
     html = await _sync(client)
 
-    assert '<div id="single-debug">' in html
+    assert '<div id="single-debug"' in html
     assert "<details" not in html

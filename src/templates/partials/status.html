@@ -1,43 +1,67 @@
-{% from "partials/macros.html" import local_time %}
-<section id="sync-status" {% if oob %}hx-swap-oob="true" {% endif %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML">
+{% from "partials/macros.html" import local_time, spinner %}
+{% set running = snapshot.status == "RUNNING" %}
+<section id="sync-status" {% if oob %}hx-swap-oob="true" {% endif %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML" class="space-y-4">
   {% if banner %}
-  <article role="status"><strong>{{ banner }}</strong></article>
+  <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ banner }}</strong></div>
   {% endif %}
-  <div class="grid">
-    <article><header>Mode</header><strong>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</strong></article>
-    <article><header>State</header><strong>{{ snapshot.status }}</strong></article>
-    <article><header>Last sync</header>{{ local_time(snapshot.updated_at) }}</article>
-    <article><header>Cursor</header>{{ local_time(snapshot.cursor_timestamp) }}</article>
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="card">
+      <p class="label">Mode</p>
+      <p class="mt-2 text-lg font-semibold {{ 'text-amber-300' if dry_run else 'text-emerald-300' }}">{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</p>
+    </div>
+    <div class="card">
+      <p class="label">State</p>
+      <p class="mt-2 flex items-center gap-2 text-lg font-semibold text-slate-100">
+        <span class="h-2 w-2 rounded-full {{ 'animate-pulse bg-indigo-400' if running else 'bg-slate-500' }}"></span>{{ snapshot.status }}
+      </p>
+    </div>
+    <div class="card">
+      <p class="label">Last sync</p>
+      <p class="mt-2 font-mono text-sm text-slate-200">{{ local_time(snapshot.updated_at) }}</p>
+    </div>
+    <div class="card">
+      <p class="label">Cursor</p>
+      <p class="mt-2 font-mono text-sm text-slate-200">{{ local_time(snapshot.cursor_timestamp) }}</p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <button hx-post="/partials/cursor/reset-now" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" hx-confirm="Move the cursor to now? BC changes made before now will not be synced." class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Reset to Now</button>
+        <form hx-post="/partials/cursor/set" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="find button" class="flex items-center gap-1">
+          <input id="cursor-input" hx-preserve="true" type="datetime-local" name="cursor_timestamp" step="1" required aria-label="New cursor (local time)" class="field btn-mini font-mono"{% if running %} disabled{% endif %}>
+          <button type="submit" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Set</button>
+        </form>
+      </div>
+    </div>
   </div>
-  <div class="grid">
-    <article><header>Processed today</header><h2>{{ snapshot.processed }}</h2></article>
-    <article><header>Skipped today</header><h2>{{ snapshot.skipped }}</h2></article>
-    <article><header>Errors today</header><h2>{{ snapshot.errors }}</h2></article>
+  <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div class="card"><p class="label">Processed today</p><p class="mt-2 text-2xl font-semibold text-slate-50">{{ snapshot.processed }}</p></div>
+    <div class="card"><p class="label">Skipped today</p><p class="mt-2 text-2xl font-semibold text-slate-50">{{ snapshot.skipped }}</p></div>
+    <div class="card"><p class="label">Errors today</p><p class="mt-2 text-2xl font-semibold {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</p></div>
     {% if dry_run or snapshot.planned %}
-    <article><header>Planned (dry run)</header><h2>{{ snapshot.planned }}</h2></article>
+    <div class="card"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold text-amber-200">{{ snapshot.planned }}</p></div>
     {% endif %}
   </div>
-  <table>
-    <thead>
-      <tr><th>Time</th><th>Vehicle</th><th>Action</th><th>HTTP</th><th>Error</th></tr>
-    </thead>
-    <tbody>
-      {% for row in snapshot.recent %}
-      <tr>
-        <td>{{ local_time(row.created_at) }}</td>
-        <td>{{ row.entity_key }}</td>
-        <td>{{ row.action }}</td>
-        <td>
-          {%- if row.status_code is not none -%}
-          {%- set code = row.status_code -%}
-          <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
-          {%- endif -%}
-        </td>
-        <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5">No sync activity yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="card overflow-x-auto p-0">
+    <table class="data-table">
+      <thead>
+        <tr><th>Time</th><th>Vehicle</th><th>Action</th><th>HTTP</th><th>Error</th></tr>
+      </thead>
+      <tbody>
+        {% for row in snapshot.recent %}
+        <tr class="hover:bg-slate-800/30">
+          <td>{{ local_time(row.created_at) }}</td>
+          <td>{{ row.entity_key }}</td>
+          <td>{{ row.action }}</td>
+          <td>
+            {%- if row.status_code is not none -%}
+            {%- set code = row.status_code -%}
+            <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
+            {%- endif -%}
+          </td>
+          <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center font-sans text-slate-500">No sync activity yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>

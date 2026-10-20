@@ -53,6 +53,12 @@ class FakeSyncRepository:
         if self.cursor is None or cursor > self.cursor:
             self.cursor = cursor
 
+    async def set_cursor(self, cursor: datetime, now: datetime) -> bool:
+        if self.status == RUNNING:
+            return False
+        self.cursor = cursor
+        return True
+
     async def get_fingerprints(self, keys: Sequence[str]) -> dict[str, str]:
         return {key: self.fingerprints[key] for key in keys if key in self.fingerprints}
 

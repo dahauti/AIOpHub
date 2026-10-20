@@ -62,7 +62,7 @@ async def test_vehicle_result_renders_in_canary_card_and_refreshes_status(
 ) -> None:
     html = (await client.post("/api/sync/vehicle", data={"serial_no": "SN-1"})).text
 
-    assert html.lstrip().startswith('<div id="single-debug">')
+    assert html.lstrip().startswith('<div id="single-debug"')
     assert "Synced vehicle SN-1: HTTP 201" in html
     status = html[html.index('<section id="sync-status"') :]
     assert 'hx-swap-oob="true"' in status.split(">", 1)[0]
@@ -74,4 +74,4 @@ async def test_blank_serial_message_stays_in_canary_card(client: httpx.AsyncClie
     html = (await client.post("/api/sync/vehicle", data={"serial_no": "  "})).text
 
     assert html.index(BLANK_SERIAL) < html.index('<section id="sync-status"')
-    assert html.lstrip().startswith('<div id="single-debug">')
+    assert html.lstrip().startswith('<div id="single-debug"')

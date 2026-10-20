@@ -27,6 +27,18 @@ def claim_state(
     ).returning(SyncState.module_name)
 
 
+def set_cursor(module: str, cursor: datetime, now: datetime) -> ReturningInsert[tuple[str]]:
+    """Set the cursor (also backwards) unless a fresh run holds the module; returns the row."""
+    statement = insert(SyncState).values(
+        module_name=module, cursor_timestamp=cursor, status="IDLE", updated_at=now
+    )
+    return statement.on_conflict_do_update(
+        index_elements=[SyncState.module_name],
+        set_={"cursor_timestamp": cursor},
+        where=or_(SyncState.status != RUNNING, SyncState.updated_at < now - STALE_RUN_AFTER),
+    ).returning(SyncState.module_name)
+
+
 def heartbeat_state(module: str, now: datetime) -> Update:
     return update(SyncState).where(SyncState.module_name == module).values(updated_at=now)
 
