@@ -32,7 +32,11 @@ def _respond(body: JsonValue) -> Handler:
     return lambda _request: httpx.Response(200, json=body)
 
 
-@pytest.mark.parametrize("body", [FIELDS, {"data": FIELDS}], ids=["list", "data-wrapped"])
+@pytest.mark.parametrize(
+    "body",
+    [FIELDS, {"data": FIELDS}, {"next_page": 0, "page": 1, "items": FIELDS}],
+    ids=["list", "data-wrapped", "items-paginated"],
+)
 @pytest.mark.asyncio
 async def test_resolves_field_ids_from_list_or_wrapped_response(body: JsonValue) -> None:
     mock = RecordingHandler(_respond(body))
@@ -123,3 +127,34 @@ def test_build_custom_values_omits_unresolved_fields_and_empty_values() -> None:
     assert partial.build_custom_values("ABC123", "Vilnius") == {REG_ID: "ABC123"}
     assert full.build_custom_values("ABC123", "Vilnius") == {REG_ID: "ABC123", SITE_ID: "Vilnius"}
     assert full.build_custom_values(None, "") is None
+
+
+@pytest.mark.parametrize(
+    "title", ["Registracijos Nr.", "  REGISTRACIJOS nr. "], ids=["exact", "case-and-space"]
+)
+@pytest.mark.asyncio
+async def test_live_paginated_items_envelope_resolves_case_insensitively(
+    title: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    body: JsonValue = {
+        "next_page": 0,
+        "items": [{"id": "guid-1", "title": title, "type": "string"}],
+    }
+    mock = RecordingHandler(_respond(body))
+
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+        ids = await _client(mock, FakeClock()).resolve_custom_fields()
+
+    assert ids == FrontuCustomFieldIds(registration_field_id="guid-1", site_field_id=None)
+    assert [r.getMessage() for r in caplog.records] == [
+        "Frontu custom field 'Padalinio pavadinimas' not found; its value will be omitted"
+    ]
+
+
+@pytest.mark.parametrize("body", [{"next_page": 0}, {"items": None}], ids=["no-list", "null"])
+@pytest.mark.asyncio
+async def test_envelope_without_field_list_raises_domain_error(body: JsonValue) -> None:
+    mock = RecordingHandler(_respond(body))
+
+    with pytest.raises(ExternalServiceError):
+        await _client(mock, FakeClock()).resolve_custom_fields()

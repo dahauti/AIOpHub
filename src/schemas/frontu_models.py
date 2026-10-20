@@ -1,6 +1,8 @@
 """Frontu FSM API v2 schemas (SPEC section 5.2)."""
 
-from pydantic import BaseModel, ConfigDict, JsonValue
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
 
 
 class FrontuWorkspaceUpsert(BaseModel):
@@ -31,11 +33,26 @@ class FrontuCustomField(BaseModel):
 
 
 class FrontuCustomFieldList(BaseModel):
-    """`{"data": [...]}` envelope variant of the custom-field listing."""
+    """Envelope variants: paginated `{"next_page": 0, "items": [...]}` or `{"data": [...]}`.
+
+    Pagination metadata (`next_page`, `page`, ...) is ignored; only the first page is read.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
-    data: list[FrontuCustomField]
+    items: list[FrontuCustomField] | None = None
+    data: list[FrontuCustomField] | None = None
+
+    @model_validator(mode="after")
+    def _require_field_list(self) -> Self:
+        if self.items is None and self.data is None:
+            raise ValueError("custom fields envelope has neither 'items' nor 'data'")
+        return self
+
+    @property
+    def fields(self) -> list[FrontuCustomField]:
+        """The field list, preferring `items` over `data`."""
+        return self.items if self.items is not None else self.data or []
 
 
 class FrontuCustomFieldIds(BaseModel):

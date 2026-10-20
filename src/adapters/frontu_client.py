@@ -129,7 +129,7 @@ class FrontuClient:
         except ValidationError as exc:
             detail = "unexpected custom fields payload"
             raise ExternalServiceError(SERVICE, response.status_code, detail) from exc
-        fields = parsed.data if isinstance(parsed, FrontuCustomFieldList) else parsed
+        fields = parsed.fields if isinstance(parsed, FrontuCustomFieldList) else parsed
         by_title: dict[str, str] = {}
         for field in fields:
             by_title.setdefault(field.title.strip().lower(), field.id)
