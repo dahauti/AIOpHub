@@ -8,12 +8,15 @@ from pydantic import JsonValue, SecretStr
 
 from src.adapters.bc_auth import EntraCredentials
 from src.adapters.bc_client import BCClient, BCConnection
+from src.adapters.frontu_client import FrontuClient, RatePacer
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
 TENANT = "tenant-guid"
 ONPREM_ROOT = "https://bc.local:7048/BC/ODataV4"
 SINCE = datetime(2026, 10, 19, 8, 0, tzinfo=UTC)
+REG_GUID = "3f9c2a1e-0b7d-4c55-9e1a-6d2f8b4a7c10"
+SITE_GUID = "a71e5d08-2c4f-4b9a-8f63-1e0d9c7b2a54"
 
 
 class FakeClock:
@@ -96,3 +99,13 @@ def raw_query(request: httpx.Request) -> str:
 
 async def drain(client: BCClient, since: datetime = SINCE) -> list[list[str]]:
     return [[v.SerialNo for v in page] async for page in client.fetch_vehicles(since)]
+
+
+def frontu_client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
+    http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
+    pacer = RatePacer(clock=clock, sleep=clock.sleep)
+    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
+
+
+def json_response(body: JsonValue) -> Handler:
+    return lambda _request: httpx.Response(200, json=body)

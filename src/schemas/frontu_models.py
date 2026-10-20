@@ -1,8 +1,12 @@
 """Frontu FSM API v2 schemas (SPEC section 5.2)."""
 
+from collections.abc import Mapping
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
+
+# Identifier keys seen in live payloads, in order of precedence.
+CUSTOM_FIELD_ID_KEYS = ("guid", "id", "field_id")
 
 
 class FrontuWorkspaceUpsert(BaseModel):
@@ -23,13 +27,29 @@ class FrontuWorkspaceUpsert(BaseModel):
 
 
 class FrontuCustomField(BaseModel):
-    """Workspace custom-field definition from GET /customfields/workspaces."""
+    """Workspace custom-field definition from GET /customfields/workspaces.
+
+    Live payloads carry the identifier as `guid` (preferred), `id` or `field_id`,
+    and `type` as an integer code.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
     id: str
     title: str
-    type: str | None = None
+    type: int | str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _identifier_from_known_keys(cls, data: object) -> object:
+        """Use the first present of `CUSTOM_FIELD_ID_KEYS` as `id`."""
+        if not isinstance(data, Mapping):
+            return data
+        for key in CUSTOM_FIELD_ID_KEYS:
+            value = data.get(key)
+            if value is not None:
+                return {**data, "id": value}
+        return data
 
 
 class FrontuCustomFieldList(BaseModel):

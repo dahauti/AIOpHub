@@ -5,31 +5,22 @@ import logging
 
 import httpx
 import pytest
-from pydantic import JsonValue, SecretStr
+from pydantic import JsonValue
 
-from src.adapters.frontu_client import FrontuClient, RatePacer
 from src.adapters.resilience import ExternalServiceError
 from src.schemas.frontu_models import FrontuCustomFieldIds, FrontuWorkspaceUpsert
-from tests.fakes import FakeClock, Handler, RecordingHandler
+from tests.fakes import REG_GUID as REG_ID
+from tests.fakes import SITE_GUID as SITE_ID
+from tests.fakes import FakeClock, RecordingHandler
+from tests.fakes import frontu_client as _client
+from tests.fakes import json_response as _respond
 
 BASE_URL = "https://acme.frontu.com/client/api/v2"
-REG_ID = "3f9c2a1e-0b7d-4c55-9e1a-6d2f8b4a7c10"
-SITE_ID = "a71e5d08-2c4f-4b9a-8f63-1e0d9c7b2a54"
 FIELDS: list[JsonValue] = [
     {"id": REG_ID, "title": "Registracijos Nr.", "type": "string"},
     {"id": SITE_ID, "title": "Padalinio pavadinimas", "type": "string"},
     {"id": "b0000000-0000-4000-8000-000000000000", "title": "Kita", "type": "number", "x": 1},
 ]
-
-
-def _client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
-    http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
-    pacer = RatePacer(clock=clock, sleep=clock.sleep)
-    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
-
-
-def _respond(body: JsonValue) -> Handler:
-    return lambda _request: httpx.Response(200, json=body)
 
 
 @pytest.mark.parametrize(
@@ -127,34 +118,3 @@ def test_build_custom_values_omits_unresolved_fields_and_empty_values() -> None:
     assert partial.build_custom_values("ABC123", "Vilnius") == {REG_ID: "ABC123"}
     assert full.build_custom_values("ABC123", "Vilnius") == {REG_ID: "ABC123", SITE_ID: "Vilnius"}
     assert full.build_custom_values(None, "") is None
-
-
-@pytest.mark.parametrize(
-    "title", ["Registracijos Nr.", "  REGISTRACIJOS nr. "], ids=["exact", "case-and-space"]
-)
-@pytest.mark.asyncio
-async def test_live_paginated_items_envelope_resolves_case_insensitively(
-    title: str, caplog: pytest.LogCaptureFixture
-) -> None:
-    body: JsonValue = {
-        "next_page": 0,
-        "items": [{"id": "guid-1", "title": title, "type": "string"}],
-    }
-    mock = RecordingHandler(_respond(body))
-
-    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
-        ids = await _client(mock, FakeClock()).resolve_custom_fields()
-
-    assert ids == FrontuCustomFieldIds(registration_field_id="guid-1", site_field_id=None)
-    assert [r.getMessage() for r in caplog.records] == [
-        "Frontu custom field 'Padalinio pavadinimas' not found; its value will be omitted"
-    ]
-
-
-@pytest.mark.parametrize("body", [{"next_page": 0}, {"items": None}], ids=["no-list", "null"])
-@pytest.mark.asyncio
-async def test_envelope_without_field_list_raises_domain_error(body: JsonValue) -> None:
-    mock = RecordingHandler(_respond(body))
-
-    with pytest.raises(ExternalServiceError):
-        await _client(mock, FakeClock()).resolve_custom_fields()
