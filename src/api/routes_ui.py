@@ -55,9 +55,8 @@ def single_sync_banner(result: SingleSyncResult) -> str:
     serial = result.serial_no
     match result.outcome:
         case "SYNCED":
-            note = {"SINGLE_ARCHIVE": " (archived)", "SINGLE_ADOPT": " (adopted legacy workspace)"}
-            suffix = note.get(result.action or "", "")
-            return f"Synced vehicle {serial}{suffix}: HTTP {result.status_code}"
+            archived = " (archived)" if result.action == "SINGLE_ARCHIVE" else ""
+            return f"Synced vehicle {serial}{archived}: HTTP {result.status_code}"
         case "DRY_RUN":
             return f"Dry run for {serial}: no changes sent to Frontu"
         case "NOT_FOUND":
@@ -73,21 +72,24 @@ Single = Annotated[SingleVehicleControl, Depends(get_single_sync)]
 router = APIRouter()
 
 
-async def _status(
-    request: Request,
-    control: SyncControl,
-    banner: str | None,
-    single: SingleSyncResult | None = None,
+async def _status(request: Request, control: SyncControl, banner: str | None) -> HTMLResponse:
+    context = {"snapshot": await control.snapshot(), "banner": banner, "dry_run": control.dry_run}
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", context)
+
+
+async def _vehicle_result(
+    request: Request, control: SyncControl, message: str, single: SingleSyncResult | None
 ) -> HTMLResponse:
-    """Status partial; a single-vehicle result also carries the out-of-band debug panel."""
+    """Canary card content, plus an out-of-band refresh of the batch status section."""
     context = {
         "snapshot": await control.snapshot(),
-        "banner": banner,
+        "banner": None,
         "dry_run": control.dry_run,
         "single": single,
+        "single_banner": message,
+        "oob": True,
     }
-    template = "partials/status.html" if single is None else "partials/vehicle_result.html"
-    return TEMPLATES.TemplateResponse(request, template, context)
+    return TEMPLATES.TemplateResponse(request, "partials/vehicle_result.html", context)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -120,6 +122,6 @@ async def sync_vehicle(
     """Targeted single-vehicle sync; programmatic default is NOT live."""
     serial = serial_no.strip()
     if not serial:
-        return await _status(request, control, banner=BLANK_SERIAL)
+        return await _vehicle_result(request, control, BLANK_SERIAL, None)
     result = await single.sync_single_vehicle(serial, force_live=force_live)
-    return await _status(request, control, single_sync_banner(result), result)
+    return await _vehicle_result(request, control, single_sync_banner(result), result)

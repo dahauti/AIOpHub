@@ -1,5 +1,5 @@
 {% from "partials/macros.html" import local_time %}
-<section id="sync-status" hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML">
+<section id="sync-status" {% if oob %}hx-swap-oob="true" {% endif %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML">
   {% if banner %}
   <article role="status"><strong>{{ banner }}</strong></article>
   {% endif %}
@@ -27,8 +27,13 @@
         <td>{{ local_time(row.created_at) }}</td>
         <td>{{ row.entity_key }}</td>
         <td>{{ row.action }}</td>
-        <td>{{ row.status_code if row.status_code is not none else "" }}</td>
-        <td>{{ row.error_message or "" }}</td>
+        <td>
+          {%- if row.status_code is not none -%}
+          {%- set code = row.status_code -%}
+          <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
+          {%- endif -%}
+        </td>
+        <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
       </tr>
       {% else %}
       <tr><td colspan="5">No sync activity yet.</td></tr>

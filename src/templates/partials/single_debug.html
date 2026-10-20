@@ -1,5 +1,8 @@
-<div id="single-debug" hx-swap-oob="true">
-  {% if single.debug %}
+<div id="single-debug">
+  {% if single_banner %}
+  <p role="status"><strong>{{ single_banner }}</strong></p>
+  {% endif %}
+  {% if single and single.debug %}
   {% set debug = single.debug %}
   <details open>
     <summary>Debug inspector: {{ single.serial_no }}</summary>

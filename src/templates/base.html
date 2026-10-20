@@ -6,6 +6,14 @@
   <title>{% block title %}AIOpHub Sync Engine{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <style>
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .error-cell { display: block; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+    .badge-ok { background: #d1fae5; color: #065f46; }
+    .badge-err { background: #fee2e2; color: #991b1b; }
+    .badge-neutral { background: #e5e7eb; color: #374151; }
+  </style>
   <script>
     // Rewrite server-rendered UTC <time> tags into the viewer's local time zone.
     (() => {

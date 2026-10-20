@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<nav>
-  <ul><li><strong>BC &rarr; Frontu vehicle sync</strong></li></ul>
-  <ul>
-    <li>
-      <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML">
-        Sync now
-      </button>
-    </li>
-    <li>
-      <form hx-post="/api/sync/vehicle" hx-target="#sync-status" hx-swap="outerHTML" role="group">
-        <input type="text" name="serial_no" placeholder="SerialNo" aria-label="Vehicle SerialNo" required maxlength="128">
-        <input type="hidden" name="force_live" value="true">
-        <button type="submit" class="secondary">Sync Vehicle (Live Single)</button>
-      </form>
-    </li>
-  </ul>
-</nav>
-{% include "partials/status.html" %}
-<div id="single-debug"></div>
+<h1>BC &rarr; Frontu vehicle sync</h1>
+<section id="batch-sync" aria-labelledby="batch-heading">
+  <div class="section-head">
+    <h2 id="batch-heading">Batch sync</h2>
+    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML">
+      Sync now
+    </button>
+  </div>
+  {% include "partials/status.html" %}
+</section>
+<hr>
+<section id="single-vehicle" aria-labelledby="single-heading">
+  <h2 id="single-heading">Single-vehicle canary</h2>
+  <form hx-post="/api/sync/vehicle" hx-target="#single-debug" hx-swap="outerHTML" role="group">
+    <input type="text" name="serial_no" placeholder="SerialNo" aria-label="Vehicle SerialNo" required maxlength="128">
+    <input type="hidden" name="force_live" value="true">
+    <button type="submit" class="secondary">Sync Vehicle (Live Single)</button>
+  </form>
+  <div id="single-debug"></div>
+</section>
 {% endblock %}
