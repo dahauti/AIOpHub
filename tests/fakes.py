@@ -105,9 +105,7 @@ async def drain(client: BCClient, since: datetime = SINCE) -> list[list[str]]:
 def frontu_client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
     http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
     pacer = RatePacer(clock=clock, sleep=clock.sleep)
-    return FrontuClient(
-        http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep, clock=clock
-    )
+    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
 
 
 def json_response(body: JsonValue) -> Handler:

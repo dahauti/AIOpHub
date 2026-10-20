@@ -11,8 +11,7 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from src.adapters.resilience import ExternalServiceError
-from src.pipelines.audit_helpers import record_audit, write_action, write_workspace
-from src.pipelines.identity_resolver import LegacyIndex
+from src.pipelines.audit_helpers import record_audit, write_action
 from src.pipelines.ports import WorkspaceSink, utc_now
 from src.pipelines.sync_vehicles import CONFIRMED_STATUSES
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
@@ -20,12 +19,9 @@ from src.pipelines.warranty_resolver import resolve_warranty
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
-from src.schemas.sync import AuditAction, SingleSyncDebug, SingleSyncResult
+from src.schemas.sync import SingleSyncDebug, SingleSyncResult
 
 logger = logging.getLogger(__name__)
-
-# Reuse a recent Frontu listing so repeated canary clicks skip the full index scan.
-SINGLE_INDEX_MAX_AGE = 300.0
 
 
 class SingleVehicleSource(Protocol):
@@ -89,13 +85,7 @@ class SingleVehicleSync:
                 vehicle, ship_to, field_ids, self._internal_client_id, warranty
             )
             debug = SingleSyncDebug(warranties=warranties, warranty=warranty, payload=payload)
-            listing = await self._sink.list_workspaces(max_age=SINGLE_INDEX_MAX_AGE)
-            decision = LegacyIndex(listing).resolve(vehicle)
-            if decision.kind == "AMBIGUOUS":
-                ambiguous: AuditAction = "FAILED_AMBIGUOUS_MATCH"
-                detail = decision.ambiguity_detail
-                return await self._fail(serial_no, None, detail, payload, debug, ambiguous, live)
-            action = write_action(vehicle, decision, single=True, dry_run=not live)
+            action = write_action(vehicle, single=True, dry_run=not live)
             if not live:
                 await record_audit(self._repo, serial_no, action, payload=payload)
                 return SingleSyncResult(
@@ -105,7 +95,7 @@ class SingleVehicleSync:
                     dry_run=True,
                     debug=debug,
                 )
-            result = await write_workspace(self._sink, decision, payload)
+            result = await self._sink.upsert_workspace(payload)
         except ExternalServiceError as exc:
             return await self._fail(serial_no, exc.status_code, str(exc), payload, debug)
         if result.status_code not in CONFIRMED_STATUSES:
@@ -139,21 +129,18 @@ class SingleVehicleSync:
         detail: str,
         payload: FrontuWorkspaceUpsert | None,
         debug: SingleSyncDebug | None,
-        action: AuditAction = "FAILED",
-        live: bool = True,
     ) -> SingleSyncResult:
         logger.warning(
             "Single vehicle sync failed: %s",
             detail,
             extra={"entity_key": serial_no, "status": status_code},
         )
-        await record_audit(self._repo, serial_no, action, status_code, payload, detail)
+        await record_audit(self._repo, serial_no, "FAILED", status_code, payload, detail)
         return SingleSyncResult(
             serial_no=serial_no,
             outcome="FAILED",
-            action=None if action == "FAILED" else action,
             status_code=status_code,
             error=detail,
-            dry_run=not live,
+            dry_run=False,
             debug=debug,
         )

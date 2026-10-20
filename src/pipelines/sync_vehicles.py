@@ -10,9 +10,7 @@ from src.pipelines.audit_helpers import (
     record_audit,
     record_failure,
     write_action,
-    write_workspace,
 )
-from src.pipelines.identity_resolver import IdentityDecision, LegacyIndex
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
@@ -112,26 +110,12 @@ class VehicleSyncPipeline:
                 await record_audit(self._repo, vehicle.SerialNo, "SKIPPED")
                 run.skipped += 1
                 return
-            decision = await self._identity(vehicle, run)
-            if decision.kind == "AMBIGUOUS":
-                # Needs a human fix in Frontu, so a retry cannot help: let the cursor advance.
-                await record_failure(
-                    self._repo,
-                    run,
-                    vehicle,
-                    None,
-                    decision.ambiguity_detail,
-                    payload,
-                    "FAILED_AMBIGUOUS_MATCH",
-                    hold_cursor=False,
-                )
-                return
-            action = write_action(vehicle, decision, single=False, dry_run=self._dry_run)
+            action = write_action(vehicle, single=False, dry_run=self._dry_run)
             if self._dry_run:
                 await record_audit(self._repo, vehicle.SerialNo, action, payload=payload)
                 run.planned += 1
                 return
-            result = await write_workspace(self._sink, decision, payload)
+            result = await self._sink.upsert_workspace(payload)
         except ExternalServiceError as exc:
             await record_failure(self._repo, run, vehicle, exc.status_code, str(exc), payload)
             return
@@ -145,21 +129,6 @@ class VehicleSyncPipeline:
             await self._repo.save_fingerprint(vehicle.SerialNo, digest, self._clock())
         await record_audit(self._repo, vehicle.SerialNo, action, result.status_code, payload)
         run.processed += 1
-
-    async def _identity(self, vehicle: BCODataVehicle, run: RunState) -> IdentityDecision:
-        """Resolve against a Frontu index loaded lazily, at most once per run.
-
-        A failed listing is remembered: later vehicles fail fast instead of re-paging Frontu.
-        """
-        if run.identity_error is not None:
-            raise run.identity_error
-        if run.identity is None:
-            try:
-                run.identity = LegacyIndex(await self._sink.list_workspaces())
-            except ExternalServiceError as exc:
-                run.identity_error = exc
-                raise
-        return run.identity.resolve(vehicle)
 
     async def _ship_to(self, vehicle: BCODataVehicle, run: RunState) -> BCODataShipToAddress | None:
         if not (vehicle.CustomerNo and vehicle.CustomerServiceAddressCode):

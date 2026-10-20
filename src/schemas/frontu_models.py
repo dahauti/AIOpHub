@@ -32,7 +32,7 @@ class FrontuWorkspaceUpsert(BaseModel):
 
 
 class FrontuWorkspaceSummary(BaseModel):
-    """Workspace row from GET /workspaces, reduced to the identity-resolution fields.
+    """Workspace row from GET /workspaces, reduced to the fields the operations reports match on.
 
     Live rows carry the identifier as `guid` (used for PUT /workspaces/{guid}); `id` is
     accepted as a fallback.

@@ -202,36 +202,18 @@ FrontuWorkspaceUpsert fields:
   - `extendedWarrantyEndDate`: Optional[str] = None
   - `warrantyIndicatorLimit`: Optional[int] = None
 
-## 10. Feature: Legacy Workspace Identity Resolution (Duplicate Prevention)
+## 10. Legacy Frontu Workspaces (Operational Remediation)
 
 ### 10.1 Problem
-Frontu may already hold a vehicle created manually or by a legacy import: `serialNumber` is set but `systemId` is `null`/blank. The native `POST /workspaces` upsert matches only by `systemId`, so it would create a duplicate and fragment service history.
+Frontu holds about 2,000 workspaces created manually or by a legacy import: `serialNumber` is set but `systemId` is `null`/blank. The `POST /workspaces` upsert matches only by `systemId`, so syncing such a vehicle creates a second workspace.
 
-### 10.2 Frontu Adapter Contract (src/adapters/frontu_client.py)
-- Listing: `GET /workspaces?type=object&pageSize=100&page={n}` starting at `page=1`. Rows identify workspaces by `guid` (`id` accepted as a fallback).
-  - Envelope: `{"items": [...], "next_page": n}` (live), `{"items": [...], "total": n}` or a bare JSON array. `next_page` is parsed but not used to stop paging (unconfirmed semantics; stopping early would yield a partial index).
-  - Paging stops on a short page or once `total` rows were read. More than 1000 pages raises an `ExternalServiceError` (fail closed: never resolve against a partial index).
-  - Rows are validated one by one (`FrontuWorkspaceSummary`: `guid`/`id`, `systemId`, `serialNumber`, `type`). Fail closed: an unreadable row that carries a `guid`, `id` or `serialNumber` aborts the whole listing (`ExternalServiceError`), because skipping it could hide a legacy twin. Rows with none of these are skipped, with one summary warning per page.
-- Adoption: `PUT /workspaces/{guid}` (URL-encoded) with the full `FrontuWorkspaceUpsert` body, `None` fields omitted, carrying `systemId = BC.SerialNo`.
-- Pacing (src/adapters/rate_limit.py) and retries apply to both calls.
+### 10.2 Decision (2026-10-20)
+- The sync pipelines do NOT resolve identities at runtime: every active vehicle is written with `POST /workspaces` (Frontu updates by `systemId` when it exists, otherwise inserts).
+- Frontu v2 offers no way to set `systemId` on an existing workspace (`OPTIONS /workspaces` -> `Allow: POST, GET`; `GET`/`OPTIONS`/`PUT` on `/workspaces/{guid}` return an HTML 404), so adoption is an operations task in the Frontu UI.
+- Required order: operations set `systemId = BC.SerialNo` on every workspace in `legacy_adoption_candidates.csv` BEFORE the first live sync touches that vehicle; otherwise a duplicate is created.
 
-### 10.3 Identity Index (src/pipelines/identity_resolver.py)
-- Built in memory from the listing: lazily once per batch run (only when a vehicle needs a write), always from a fresh listing. Single-vehicle syncs reuse the adapter's cached listing when it is younger than 5 minutes (`max_age=300`); a successful adoption through the adapter marks that workspace as managed in the cached listing, so a reused listing never offers it again.
-- Managed set: every non-blank `systemId` (stripped).
-- Unmanaged index: `type` is `object` (or absent), `systemId` is `null`/blank, `serialNumber` non-blank. Key = `serialNumber.strip().upper()` -> list of Frontu ids.
-
-### 10.4 Resolution Rules (evaluated per vehicle, in order)
-1. Blocked vehicle -> `UPSERT` (archive via `POST {"deleted": true}` by systemId). Legacy objects are never adopted just to be archived.
-2. SerialNo already adopted earlier in this run -> `ADOPT` the same id again (idempotent PUT).
-3. `BC.SerialNo` in the managed set -> `UPSERT` (native POST updates it; no PUT that would collide on systemId).
-4. Primary key: unmanaged matches for `BC.VIN` (normalized). Exactly one -> `ADOPT`; more than one -> `AMBIGUOUS`. No fallback to SerialNo when the VIN key is ambiguous.
-5. Fallback key: unmanaged matches for `BC.SerialNo` (normalized), same rule.
-6. Otherwise -> `UPSERT` (`POST /workspaces` creates it).
-- An adopted id is removed from the unmanaged index so no other vehicle in the run can claim it.
-
-### 10.5 Pipeline Behaviour & Audit
-- Fingerprint skip happens before identity resolution; unchanged vehicles never trigger the listing.
-- Audit actions: `ADOPT`, `SINGLE_ADOPT` (counted as processed), `DRY_RUN_ADOPT`, `DRY_RUN_SINGLE_ADOPT` (counted as planned), `FAILED_AMBIGUOUS_MATCH` (counted as an error).
-- `AMBIGUOUS` is strict fail-closed for the vehicle only: no Frontu write, audit `FAILED_AMBIGUOUS_MATCH` with the payload and an `error_message` listing the candidate Frontu ids, and the vehicle counts as failed/an error. The batch cursor is NOT held (no head-of-line blocking); the vehicle is re-evaluated the next time BC modifies it, or via a single-vehicle sync once the duplicates are resolved in Frontu.
-- A listing failure fails the vehicle (no write, cursor held) and is remembered for the rest of the batch run: remaining vehicles that need a write fail fast instead of re-paging Frontu. The next run retries.
-- Dry runs resolve identities too (read-only listing) so the planned ADOPT/UPSERT/AMBIGUOUS split is visible before live mode.
+### 10.3 Operations Reports (scripts/, read-only, output in data/reports/)
+- Listing source: `GET /workspaces?type=object&pageSize=100&page={n}` (`FrontuClient.iter_workspace_pages`), envelope `{"items": [...], "next_page": n}`; rows identify workspaces by `guid` (`id` as fallback). Paging stops on a short page or `total`; more than 1000 pages raises.
+- Matching (src/pipelines/identity_resolver.py, report use only): managed = non-blank `systemId`; unmanaged objects keyed by `serialNumber.strip().upper()`; per active vehicle the VIN key is tried first, then SerialNo. Exactly one unmanaged match -> LEGACY_MATCH; several -> AMBIGUOUS; a vehicle already managed or blocked is never matched.
+- `python -m scripts.export_legacy_candidates` -> `legacy_adoption_candidates.csv`: active BC vehicle, matched legacy guid, matched key and the action (set `systemId`).
+- `python -m scripts.export_ambiguous_frontu` -> `frontu_ambiguous_duplicates.csv`: unmanaged serial keys shared by several workspaces (merge candidates).

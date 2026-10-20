@@ -1,8 +1,9 @@
-"""Frontu workspace identity: adopt unmanaged legacy objects instead of duplicating them.
+"""Offline identity matching between BC vehicles and Frontu legacy workspaces (SPEC 10).
 
-SPEC section 10. Managed workspaces (non-blank `systemId`) are updated by the native
-`POST /workspaces` upsert; an unmanaged object whose `serialNumber` matches the vehicle's
-VIN (first) or SerialNo (fallback) is adopted; several matches fail closed.
+Used only by the read-only operations reports in scripts/; the sync pipelines always upsert
+by `systemId`. A workspace with a non-blank `systemId` is managed. An unmanaged object whose
+`serialNumber` matches a vehicle's VIN (first) or SerialNo (fallback) is a LEGACY_MATCH that
+operations must link by setting `systemId` in Frontu; several matches are AMBIGUOUS.
 """
 
 from collections.abc import Iterable
@@ -12,7 +13,8 @@ from typing import Literal
 from src.schemas.bc_vehicle import BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceSummary
 
-IdentityKind = Literal["UPSERT", "ADOPT", "AMBIGUOUS"]
+IdentityKind = Literal["UPSERT", "LEGACY_MATCH", "AMBIGUOUS"]
+MatchKey = Literal["VIN", "SerialNo"]
 OBJECT_TYPE = "object"
 
 
@@ -21,13 +23,7 @@ class IdentityDecision:
     kind: IdentityKind
     workspace_id: str | None = None
     candidates: tuple[str, ...] = ()
-
-    @property
-    def ambiguity_detail(self) -> str:
-        return (
-            f"ambiguous legacy match: Frontu workspaces {', '.join(self.candidates)} "
-            "share this serial number; resolve manually"
-        )
+    matched_on: MatchKey | None = None
 
 
 def normalize_key(value: str | None) -> str:
@@ -40,7 +36,7 @@ class LegacyIndex:
     def __init__(self, workspaces: Iterable[FrontuWorkspaceSummary]) -> None:
         self._managed: set[str] = set()
         self._by_serial: dict[str, list[str]] = {}
-        self._claimed: dict[str, str] = {}
+        self._claimed: dict[str, IdentityDecision] = {}
         for item in workspaces:
             system_id = (item.systemId or "").strip()
             if system_id:
@@ -51,29 +47,35 @@ class LegacyIndex:
                 self._by_serial.setdefault(key, []).append(item.id)
 
     def resolve(self, vehicle: BCODataVehicle) -> IdentityDecision:
-        """Decide how to write this vehicle; an adopted object is reserved for it."""
+        """Decide how to write this vehicle; a matched legacy object is reserved for it."""
         serial = vehicle.SerialNo.strip()
         if vehicle.Blocked:
             return IdentityDecision("UPSERT")
         if serial in self._claimed:
-            return IdentityDecision("ADOPT", self._claimed[serial])
+            return self._claimed[serial]
         if serial in self._managed:
             return IdentityDecision("UPSERT")
-        for key in (normalize_key(vehicle.VIN), normalize_key(vehicle.SerialNo)):
+        keys: tuple[tuple[MatchKey, str], ...] = (
+            ("VIN", normalize_key(vehicle.VIN)),
+            ("SerialNo", normalize_key(vehicle.SerialNo)),
+        )
+        for matched_on, key in keys:
             matches = self._by_serial.get(key, []) if key else []
             if len(matches) > 1:
                 return IdentityDecision("AMBIGUOUS", candidates=tuple(sorted(matches)))
             if matches:
-                return self._claim(serial, matches[0])
+                return self._claim(
+                    serial, IdentityDecision("LEGACY_MATCH", matches[0], (), matched_on)
+                )
         return IdentityDecision("UPSERT")
 
     def ambiguous_groups(self) -> dict[str, list[str]]:
         """Serial keys shared by several unmanaged objects: the matches `resolve` refuses."""
         return {key: list(ids) for key, ids in sorted(self._by_serial.items()) if len(ids) > 1}
 
-    def _claim(self, serial: str, workspace_id: str) -> IdentityDecision:
+    def _claim(self, serial: str, decision: IdentityDecision) -> IdentityDecision:
         for ids in self._by_serial.values():
-            if workspace_id in ids:
-                ids.remove(workspace_id)
-        self._claimed[serial] = workspace_id
-        return IdentityDecision("ADOPT", workspace_id)
+            if decision.workspace_id in ids:
+                ids.remove(decision.workspace_id)
+        self._claimed[serial] = decision
+        return decision

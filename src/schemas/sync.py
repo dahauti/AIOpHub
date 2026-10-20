@@ -20,11 +20,6 @@ AuditAction = Literal[
     "SINGLE_ARCHIVE",
     "DRY_RUN_SINGLE_UPSERT",
     "DRY_RUN_SINGLE_ARCHIVE",
-    "ADOPT",
-    "SINGLE_ADOPT",
-    "DRY_RUN_ADOPT",
-    "DRY_RUN_SINGLE_ADOPT",
-    "FAILED_AMBIGUOUS_MATCH",
 ]
 SingleSyncOutcome = Literal["SYNCED", "DRY_RUN", "NOT_FOUND", "FAILED", "BUSY"]
 ReleaseStatus = Literal["IDLE", "FAILED"]

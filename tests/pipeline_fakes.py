@@ -132,15 +132,10 @@ class FakeFrontu:
         self,
         status_code: int = 201,
         failures: dict[str, int] | None = None,
-        workspaces: list[FrontuWorkspaceSummary] | None = None,
     ) -> None:
         self.status_code = status_code
         self.failures = failures or {}
-        self.workspaces = workspaces or []
-        self.list_failure: int | None = None
         self.pushed: list[FrontuWorkspaceUpsert] = []
-        self.adopted: list[tuple[str, FrontuWorkspaceUpsert]] = []
-        self.list_max_ages: list[float] = []
 
     async def resolve_custom_fields(self) -> FrontuCustomFieldIds:
         return FIELD_IDS
@@ -150,17 +145,3 @@ class FakeFrontu:
         if payload.systemId in self.failures:
             raise ExternalServiceError("frontu", self.failures[payload.systemId], "rejected")
         return FrontuUpsertResult(status_code=self.status_code, body={"id": payload.systemId})
-
-    async def list_workspaces(self, max_age: float = 0.0) -> list[FrontuWorkspaceSummary]:
-        self.list_max_ages.append(max_age)
-        if self.list_failure is not None:
-            raise ExternalServiceError("frontu", self.list_failure, "listing failed")
-        return self.workspaces
-
-    async def adopt_workspace(
-        self, workspace_id: str, payload: FrontuWorkspaceUpsert
-    ) -> FrontuUpsertResult:
-        self.adopted.append((workspace_id, payload))
-        if payload.systemId in self.failures:
-            raise ExternalServiceError("frontu", self.failures[payload.systemId], "rejected")
-        return FrontuUpsertResult(status_code=200, body={"id": workspace_id})

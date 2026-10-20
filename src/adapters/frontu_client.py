@@ -1,9 +1,7 @@
-"""Frontu FSM API v2 adapter: bearer auth, pacing, custom fields and workspace identity."""
+"""Frontu FSM API v2 adapter: bearer auth, pacing, custom fields and workspace upserts."""
 
 import asyncio
-import time
-from collections.abc import AsyncIterator, Callable
-from urllib.parse import quote
+from collections.abc import AsyncIterator
 
 import httpx
 from pydantic import JsonValue, SecretStr
@@ -13,14 +11,12 @@ from src.adapters.frontu_payloads import (
     SERVICE,
     parse_upsert_result,
     parse_workspace_page,
-    valid_workspaces,
 )
 from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError, Sleep, send_with_retry
 from src.schemas.frontu_models import (
     FrontuCustomFieldIds,
     FrontuUpsertResult,
-    FrontuWorkspaceSummary,
     FrontuWorkspaceUpsert,
 )
 
@@ -41,7 +37,6 @@ class FrontuClient:
         *,
         pacer: RatePacer | None = None,
         sleep: Sleep = asyncio.sleep,
-        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._http = http
         self._base_url = BASE_URL.format(subdomain=subdomain)
@@ -50,10 +45,6 @@ class FrontuClient:
         self._pacer = pacer if pacer is not None else RatePacer(sleep=sleep)
         self._field_ids: FrontuCustomFieldIds | None = None
         self._field_lock = asyncio.Lock()
-        self._clock = clock
-        self._listing: list[FrontuWorkspaceSummary] | None = None
-        self._listed_at = 0.0
-        self._listing_lock = asyncio.Lock()
 
     async def resolve_custom_fields(self) -> FrontuCustomFieldIds:
         """Resolve sync custom-field GUIDs once per client; later calls hit the cache."""
@@ -67,33 +58,6 @@ class FrontuClient:
         """POST /workspaces (Frontu upserts by systemId); returns status and response object."""
         body = payload.model_dump(mode="json", exclude_none=True)
         return parse_upsert_result(await self._send("POST", "/workspaces", body))
-
-    async def adopt_workspace(
-        self, workspace_id: str, payload: FrontuWorkspaceUpsert
-    ) -> FrontuUpsertResult:
-        """PUT /workspaces/{id} with the full payload, assigning `systemId` to a legacy object."""
-        body = payload.model_dump(mode="json", exclude_none=True)
-        path = f"/workspaces/{quote(workspace_id, safe='')}"
-        result = parse_upsert_result(await self._send("PUT", path, body))
-        if self._listing is not None:
-            self._listing = [
-                w.model_copy(update={"systemId": payload.systemId}) if w.id == workspace_id else w
-                for w in self._listing
-            ]
-        return result
-
-    async def list_workspaces(self, max_age: float = 0.0) -> list[FrontuWorkspaceSummary]:
-        """Every `object` workspace; a listing younger than `max_age` seconds is reused.
-
-        Adoptions through this client update the cached listing, so a reused listing never
-        offers an already-adopted workspace again.
-        """
-        async with self._listing_lock:
-            now = self._clock()
-            if self._listing is None or max_age <= 0 or now - self._listed_at > max_age:
-                self._listing = await self._fetch_workspaces()
-                self._listed_at = now
-            return list(self._listing)
 
     async def iter_workspace_pages(self) -> AsyncIterator[tuple[int, list[JsonValue]]]:
         """Raw `object` workspace rows page by page; raises instead of ending early."""
@@ -109,12 +73,6 @@ class FrontuClient:
                 return
         detail = f"workspace listing exceeded the page cap of {MAX_WORKSPACE_PAGES}"
         raise ExternalServiceError(SERVICE, None, detail)
-
-    async def _fetch_workspaces(self) -> list[FrontuWorkspaceSummary]:
-        found: list[FrontuWorkspaceSummary] = []
-        async for page, rows in self.iter_workspace_pages():
-            found.extend(valid_workspaces(rows, page))
-        return found
 
     async def _send(
         self,

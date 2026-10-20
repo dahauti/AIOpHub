@@ -1,50 +1,33 @@
-"""Shared audit and workspace-write helpers for the batch and single-vehicle pipelines."""
+"""Shared audit helpers for the batch and single-vehicle pipelines."""
 
 import logging
 from typing import Literal
 
-from src.pipelines.identity_resolver import IdentityDecision
-from src.pipelines.ports import RunState, WorkspaceSink
+from src.pipelines.ports import RunState
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataVehicle
-from src.schemas.frontu_models import FrontuUpsertResult, FrontuWorkspaceUpsert
+from src.schemas.frontu_models import FrontuWorkspaceUpsert
 from src.schemas.sync import AuditAction, AuditEntry
 
 logger = logging.getLogger(__name__)
 
-WriteKind = Literal["UPSERT", "ADOPT", "ARCHIVE"]
+WriteKind = Literal["UPSERT", "ARCHIVE"]
 # (write kind, single-vehicle run, dry run) -> audit action
 _ACTIONS: dict[tuple[WriteKind, bool, bool], AuditAction] = {
     ("UPSERT", False, False): "UPSERT",
-    ("ADOPT", False, False): "ADOPT",
     ("ARCHIVE", False, False): "ARCHIVE",
     ("UPSERT", False, True): "DRY_RUN_UPSERT",
-    ("ADOPT", False, True): "DRY_RUN_ADOPT",
     ("ARCHIVE", False, True): "DRY_RUN_ARCHIVE",
     ("UPSERT", True, False): "SINGLE_UPSERT",
-    ("ADOPT", True, False): "SINGLE_ADOPT",
     ("ARCHIVE", True, False): "SINGLE_ARCHIVE",
     ("UPSERT", True, True): "DRY_RUN_SINGLE_UPSERT",
-    ("ADOPT", True, True): "DRY_RUN_SINGLE_ADOPT",
     ("ARCHIVE", True, True): "DRY_RUN_SINGLE_ARCHIVE",
 }
 
 
-def write_action(
-    vehicle: BCODataVehicle, decision: IdentityDecision, *, single: bool, dry_run: bool
-) -> AuditAction:
+def write_action(vehicle: BCODataVehicle, *, single: bool, dry_run: bool) -> AuditAction:
     """Audit action for a planned or confirmed workspace write."""
-    kind: WriteKind = "ADOPT" if decision.kind == "ADOPT" else "UPSERT"
-    return _ACTIONS[("ARCHIVE" if vehicle.Blocked else kind, single, dry_run)]
-
-
-async def write_workspace(
-    sink: WorkspaceSink, decision: IdentityDecision, payload: FrontuWorkspaceUpsert
-) -> FrontuUpsertResult:
-    """Adopt the resolved legacy object by id, otherwise use the native systemId upsert."""
-    if decision.kind == "ADOPT" and decision.workspace_id is not None:
-        return await sink.adopt_workspace(decision.workspace_id, payload)
-    return await sink.upsert_workspace(payload)
+    return _ACTIONS[("ARCHIVE" if vehicle.Blocked else "UPSERT", single, dry_run)]
 
 
 async def record_audit(
@@ -74,12 +57,10 @@ async def record_failure(
     detail: str,
     payload: FrontuWorkspaceUpsert | None,
     action: AuditAction = "FAILED",
-    *,
-    hold_cursor: bool = True,
 ) -> None:
-    """Count and audit a failed vehicle; retryable failures hold the cursor at the earliest."""
+    """Count and audit a failed vehicle; the cursor is held at the earliest failure."""
     modified = vehicle.SystemModifiedAt
-    if hold_cursor and (run.earliest_failure is None or modified < run.earliest_failure):
+    if run.earliest_failure is None or modified < run.earliest_failure:
         run.earliest_failure = modified
     run.failed += 1
     logger.warning(

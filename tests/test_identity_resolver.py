@@ -1,4 +1,4 @@
-"""Legacy workspace identity resolution: adopt, upsert or fail closed (SPEC section 10)."""
+"""Legacy workspace identity resolution: upsert, hold back for remediation, or fail closed."""
 
 from datetime import UTC, datetime
 
@@ -25,22 +25,28 @@ def test_no_match_upserts() -> None:
     assert _index(workspace("w1", "OTHER")).resolve(_vehicle("SN-1", "VIN-1")) == UPSERT
 
 
-def test_unique_vin_match_is_adopted_with_normalisation() -> None:
+def test_unique_vin_match_is_found_with_normalisation() -> None:
     index = _index(workspace("w1", "  vin-1 "))
 
-    assert index.resolve(_vehicle("SN-1", "VIN-1")) == IdentityDecision("ADOPT", "w1")
+    assert index.resolve(_vehicle("SN-1", "VIN-1")) == IdentityDecision(
+        "LEGACY_MATCH", "w1", matched_on="VIN"
+    )
 
 
 def test_serial_no_is_the_fallback_key() -> None:
     index = _index(workspace("w2", "sn-1"))
 
-    assert index.resolve(_vehicle(" SN-1", "VIN-1")) == IdentityDecision("ADOPT", "w2")
+    assert index.resolve(_vehicle(" SN-1", "VIN-1")) == IdentityDecision(
+        "LEGACY_MATCH", "w2", matched_on="SerialNo"
+    )
 
 
 def test_vin_match_takes_priority_over_serial_no_match() -> None:
     index = _index(workspace("by-serial", "SN-1"), workspace("by-vin", "VIN-1"))
 
-    assert index.resolve(_vehicle("SN-1", "VIN-1")) == IdentityDecision("ADOPT", "by-vin")
+    assert index.resolve(_vehicle("SN-1", "VIN-1")) == IdentityDecision(
+        "LEGACY_MATCH", "by-vin", matched_on="VIN"
+    )
 
 
 @pytest.mark.parametrize(("vin", "serial"), [("VIN-1", "SN-1"), (None, "SN-1")])
@@ -65,16 +71,16 @@ def test_already_managed_vehicle_is_upserted_even_with_legacy_match() -> None:
 def test_blank_system_id_counts_as_unmanaged(system_id: str | None) -> None:
     index = _index(workspace("w1", "VIN-1", system_id=system_id))
 
-    assert index.resolve(_vehicle("SN-1", "VIN-1")).kind == "ADOPT"
+    assert index.resolve(_vehicle("SN-1", "VIN-1")).kind == "LEGACY_MATCH"
 
 
-def test_workspace_managed_by_another_vehicle_is_never_adopted() -> None:
+def test_workspace_managed_by_another_vehicle_is_never_matched() -> None:
     index = _index(workspace("w1", "VIN-1", system_id="SN-OTHER"))
 
     assert index.resolve(_vehicle("SN-1", "VIN-1")) == UPSERT
 
 
-def test_blocked_vehicle_is_never_adopted() -> None:
+def test_blocked_vehicle_is_never_held_back() -> None:
     index = _index(workspace("w1", "VIN-1"))
 
     assert index.resolve(_vehicle("SN-1", "VIN-1", blocked=True)) == UPSERT
@@ -93,7 +99,7 @@ def test_claimed_workspace_is_reserved_for_its_vehicle() -> None:
     other = index.resolve(_vehicle("SN-2", "SHARED"))
     again = index.resolve(_vehicle("SN-1", "SHARED"))
 
-    assert first == again == IdentityDecision("ADOPT", "w1")
+    assert first == again == IdentityDecision("LEGACY_MATCH", "w1", matched_on="VIN")
     assert other == UPSERT
 
 

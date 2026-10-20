@@ -100,11 +100,6 @@ async def test_audit_rows_feed_counters_and_recent_list(repo: SqlSyncRepository)
         "SINGLE_ARCHIVE",
         "DRY_RUN_SINGLE_UPSERT",
         "DRY_RUN_SINGLE_ARCHIVE",
-        "ADOPT",
-        "SINGLE_ADOPT",
-        "DRY_RUN_ADOPT",
-        "DRY_RUN_SINGLE_ADOPT",
-        "FAILED_AMBIGUOUS_MATCH",
     ]
     for index, action in enumerate(actions):
         await repo.record_audit(
@@ -117,8 +112,8 @@ async def test_audit_rows_feed_counters_and_recent_list(repo: SqlSyncRepository)
     snapshot = await repo.dashboard_snapshot(since, limit=4)
     future = await repo.dashboard_snapshot(datetime.now(UTC) + timedelta(hours=1), limit=4)
 
-    assert (snapshot.processed, snapshot.skipped, snapshot.errors, snapshot.planned) == (6, 1, 2, 6)
-    assert [r.entity_key for r in snapshot.recent] == ["SN-14", "SN-13", "SN-12", "SN-11"]
+    assert (snapshot.processed, snapshot.skipped, snapshot.errors, snapshot.planned) == (4, 1, 1, 4)
+    assert [r.entity_key for r in snapshot.recent] == ["SN-9", "SN-8", "SN-7", "SN-6"]
     assert all(r.created_at.tzinfo is UTC for r in snapshot.recent)
     assert (future.processed, future.planned) == (0, 0)
     async with get_sessionmaker()() as session:
