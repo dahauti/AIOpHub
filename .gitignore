@@ -21,3 +21,6 @@ data/
 *.log
 *.sqlite
 *.sql
+
+# Local launchers
+*.bat
