@@ -37,6 +37,7 @@ class FakeControl:
         self._snapshot = snapshot
         self.accept = accept
         self.triggers = 0
+        self.dry_run = False
 
     def trigger(self) -> bool:
         self.triggers += 1
@@ -106,6 +107,8 @@ async def test_trigger_starts_sync_and_returns_status_partial(
     assert response.status_code == 200
     assert control.triggers == 1
     assert "Sync started" in response.text
+    assert "dry run" not in response.text.lower()
+    assert "LIVE" in response.text
     assert 'id="sync-status"' in response.text
 
 
@@ -135,3 +138,24 @@ def test_active_profile_selects_bc_connection(
     monkeypatch.setenv("BC_ACTIVE_PROFILE", profile)
 
     assert select_connection(get_settings()).company_url.startswith(url_prefix)
+
+
+@pytest.mark.parametrize(
+    ("accept", "banner"),
+    [
+        (True, "Sync started (dry run: no changes will be sent to Frontu)"),
+        (False, "Sync already in progress (dry run: no changes will be sent to Frontu)"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_trigger_banner_and_mode_flag_dry_run(
+    accept: bool, banner: str, control_and_client: tuple[FakeControl, httpx.AsyncClient]
+) -> None:
+    control, client = control_and_client
+    control.accept, control.dry_run = accept, True
+
+    response = await client.post("/api/sync/trigger")
+
+    assert response.status_code == 200
+    assert banner in response.text
+    assert "DRY RUN" in response.text

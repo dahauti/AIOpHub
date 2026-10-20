@@ -18,6 +18,7 @@ class FakePipeline:
         self.release = asyncio.Event()
         self.runs = 0
         self._running = False
+        self.dry_run = False
 
     @property
     def is_running(self) -> bool:
@@ -125,3 +126,41 @@ async def test_snapshot_counts_from_utc_midnight() -> None:
     await _runner(FakePipeline(), RecordingRepo(cursor=NOW)).snapshot()
 
     assert captured == [datetime(2026, 10, 20, tzinfo=UTC)]
+
+
+@pytest.mark.asyncio
+async def test_disabled_daemon_logs_and_schedules_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pipeline = FakePipeline()
+
+    with caplog.at_level(logging.WARNING):
+        task = _runner(pipeline).start_daemon(enabled=False, interval_seconds=300)
+    await asyncio.sleep(0)
+
+    assert task is None
+    assert pipeline.runs == 0
+    assert [r.getMessage() for r in caplog.records] == [
+        "Background sync daemon is disabled by config"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_enabled_daemon_starts_background_loop() -> None:
+    pipeline = FakePipeline()
+
+    task = _runner(pipeline).start_daemon(enabled=True, interval_seconds=300)
+    await asyncio.sleep(0)
+
+    assert task is not None
+    assert pipeline.runs == 1
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def test_runner_exposes_pipeline_dry_run_mode() -> None:
+    pipeline = FakePipeline()
+    pipeline.dry_run = True
+
+    assert _runner(pipeline).dry_run is True

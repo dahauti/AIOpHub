@@ -82,6 +82,7 @@ class SqlSyncRepository:
             processed=counts.get("UPSERT", 0) + counts.get("ARCHIVE", 0),
             skipped=counts.get("SKIPPED", 0),
             errors=counts.get("FAILED", 0),
+            planned=counts.get("DRY_RUN_UPSERT", 0) + counts.get("DRY_RUN_ARCHIVE", 0),
             recent=[AuditRecord.model_validate(row) for row in recent],
         )
 

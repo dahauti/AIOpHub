@@ -3,6 +3,7 @@
   <article role="status"><strong>{{ banner }}</strong></article>
   {% endif %}
   <div class="grid">
+    <article><header>Mode</header><strong>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</strong></article>
     <article><header>State</header><strong>{{ snapshot.status }}</strong></article>
     <article><header>Last sync</header>{{ snapshot.updated_at | utc }}</article>
     <article><header>Cursor</header>{{ snapshot.cursor_timestamp | utc }}</article>
@@ -11,6 +12,9 @@
     <article><header>Processed today</header><h2>{{ snapshot.processed }}</h2></article>
     <article><header>Skipped today</header><h2>{{ snapshot.skipped }}</h2></article>
     <article><header>Errors today</header><h2>{{ snapshot.errors }}</h2></article>
+    {% if dry_run or snapshot.planned %}
+    <article><header>Planned (dry run)</header><h2>{{ snapshot.planned }}</h2></article>
+    {% endif %}
   </div>
   <table>
     <thead>

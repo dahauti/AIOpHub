@@ -22,8 +22,12 @@ T0 = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)
 SHIP_TO = BCODataShipToAddress(Customer_No="C1", Code="VIL", Name="Vilnius site", City="Vilnius")
 
 
-def _pipeline(bc: FakeBC, frontu: FakeFrontu, repo: FakeSyncRepository) -> VehicleSyncPipeline:
-    return VehicleSyncPipeline(bc, frontu, repo, INTERNAL_CLIENT, clock=lambda: NOW)
+def _pipeline(
+    bc: FakeBC, frontu: FakeFrontu, repo: FakeSyncRepository, *, dry_run: bool = False
+) -> VehicleSyncPipeline:
+    return VehicleSyncPipeline(
+        bc, frontu, repo, INTERNAL_CLIENT, dry_run=dry_run, clock=lambda: NOW
+    )
 
 
 def _repo() -> FakeSyncRepository:
@@ -145,3 +149,37 @@ async def test_ship_to_lookup_failure_fails_only_that_record() -> None:
         ("SN-2", "UPSERT"),
     ]
     assert [p.systemId for p in frontu.pushed] == ["SN-2"]
+
+
+@pytest.mark.parametrize(
+    ("blocked", "action"), [(False, "DRY_RUN_UPSERT"), (True, "DRY_RUN_ARCHIVE")]
+)
+@pytest.mark.asyncio
+async def test_dry_run_audits_intended_payload_without_any_mutation(
+    blocked: bool, action: str
+) -> None:
+    repo, frontu = _repo(), FakeFrontu()
+    repo.fingerprints["SN-1"] = "stale-hash"
+    cursor_before = repo.cursor
+    bc = FakeBC([[vehicle("SN-1", T0, blocked=blocked)]])
+
+    result = await _pipeline(bc, frontu, repo, dry_run=True).run()
+
+    assert frontu.pushed == []
+    entry = repo.audit[0]
+    assert entry.action == action
+    assert entry.payload is not None and entry.payload["deleted"] is blocked
+    assert repo.fingerprints == {"SN-1": "stale-hash"}
+    assert repo.cursor == cursor_before
+    assert result is not None and (result.planned, result.processed) == (1, 0)
+
+
+@pytest.mark.asyncio
+async def test_dry_run_still_skips_unchanged_vehicles() -> None:
+    repo, frontu, source = _repo(), FakeFrontu(), vehicle("SN-1", T0)
+    _seed_fingerprint(repo, source)
+
+    await _pipeline(FakeBC([[source]]), frontu, repo, dry_run=True).run()
+
+    assert [e.action for e in repo.audit] == ["SKIPPED"]
+    assert frontu.pushed == []

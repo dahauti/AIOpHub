@@ -2,21 +2,15 @@
 
 import asyncio
 import logging
-import uuid
-from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from collections.abc import Callable
+from datetime import datetime, timedelta
 
 from src.adapters.resilience import ExternalServiceError
+from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
-from src.schemas.frontu_models import (
-    FrontuCustomFieldIds,
-    FrontuUpsertResult,
-    FrontuWorkspaceUpsert,
-)
+from src.schemas.frontu_models import FrontuWorkspaceUpsert
 from src.schemas.sync import AuditAction, AuditEntry, ReleaseStatus, SyncRunResult
 
 logger = logging.getLogger(__name__)
@@ -27,34 +21,12 @@ INITIAL_WINDOW = timedelta(days=30)
 CONFIRMED_STATUSES = frozenset({200, 201})
 
 
-class VehicleSource(Protocol):
-    def fetch_vehicles(self, modified_since: datetime) -> AsyncIterator[list[BCODataVehicle]]: ...
-    async def get_ship_to(self, customer_no: str, code: str) -> BCODataShipToAddress | None: ...
-
-
-class WorkspaceSink(Protocol):
-    async def resolve_custom_fields(self) -> FrontuCustomFieldIds: ...
-    async def upsert_workspace(self, payload: FrontuWorkspaceUpsert) -> FrontuUpsertResult: ...
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
-@dataclass
-class _RunState:
-    field_ids: FrontuCustomFieldIds
-    cursor: datetime
-    run_id: str = field(default_factory=lambda: uuid.uuid4().hex)
-    ship_to: dict[tuple[str, str], BCODataShipToAddress | None] = field(default_factory=dict)
-    earliest_failure: datetime | None = None
-    processed: int = 0
-    skipped: int = 0
-    failed: int = 0
-
-
 class VehicleSyncPipeline:
-    """One-module sync run guarded by an in-process lock plus the DB RUNNING claim."""
+    """One-module sync run guarded by an in-process lock plus the DB RUNNING claim.
+
+    In dry-run mode Frontu is never mutated, and fingerprints and the cursor are left
+    untouched so a later live run still processes every record the dry run saw.
+    """
 
     def __init__(
         self,
@@ -63,18 +35,24 @@ class VehicleSyncPipeline:
         repository: SyncRepository,
         internal_client_id: str,
         *,
+        dry_run: bool = True,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._source = source
         self._sink = sink
         self._repo = repository
         self._internal_client_id = internal_client_id
+        self._dry_run = dry_run
         self._clock = clock
         self._lock = asyncio.Lock()
 
     @property
     def is_running(self) -> bool:
         return self._lock.locked()
+
+    @property
+    def dry_run(self) -> bool:
+        return self._dry_run
 
     async def run(self) -> SyncRunResult | None:
         """Run one sync; returns None when another run already holds the module."""
@@ -95,7 +73,7 @@ class VehicleSyncPipeline:
 
     async def _sync(self) -> SyncRunResult:
         cursor = await self._repo.get_cursor()
-        run = _RunState(field_ids=await self._sink.resolve_custom_fields(), cursor=cursor)
+        run = RunState(field_ids=await self._sink.resolve_custom_fields(), cursor=cursor)
         async for page in self._source.fetch_vehicles(cursor - LOOKBACK):
             if not page:
                 continue
@@ -104,10 +82,14 @@ class VehicleSyncPipeline:
                 await self._process(vehicle, known.get(vehicle.SerialNo), run)
             await self._checkpoint(page, run)
         return SyncRunResult(
-            processed=run.processed, skipped=run.skipped, failed=run.failed, cursor=run.cursor
+            processed=run.processed,
+            skipped=run.skipped,
+            failed=run.failed,
+            planned=run.planned,
+            cursor=run.cursor,
         )
 
-    async def _process(self, vehicle: BCODataVehicle, known: str | None, run: _RunState) -> None:
+    async def _process(self, vehicle: BCODataVehicle, known: str | None, run: RunState) -> None:
         payload: FrontuWorkspaceUpsert | None = None
         try:
             ship_to = await self._ship_to(vehicle, run)
@@ -117,6 +99,11 @@ class VehicleSyncPipeline:
                 await self._audit(vehicle, "SKIPPED")
                 run.skipped += 1
                 return
+            if self._dry_run:
+                action: AuditAction = "DRY_RUN_ARCHIVE" if vehicle.Blocked else "DRY_RUN_UPSERT"
+                await self._audit(vehicle, action, payload=payload)
+                run.planned += 1
+                return
             result = await self._sink.upsert_workspace(payload)
         except ExternalServiceError as exc:
             await self._fail(vehicle, run, exc.status_code, str(exc), payload)
@@ -125,17 +112,15 @@ class VehicleSyncPipeline:
             detail = f"unexpected Frontu status {result.status_code}"
             await self._fail(vehicle, run, result.status_code, detail, payload)
             return
-        action: AuditAction = "ARCHIVE" if vehicle.Blocked else "UPSERT"
         if vehicle.Blocked:
             await self._repo.delete_fingerprint(vehicle.SerialNo)
         else:
             await self._repo.save_fingerprint(vehicle.SerialNo, digest, self._clock())
+        action = "ARCHIVE" if vehicle.Blocked else "UPSERT"
         await self._audit(vehicle, action, result.status_code, payload)
         run.processed += 1
 
-    async def _ship_to(
-        self, vehicle: BCODataVehicle, run: _RunState
-    ) -> BCODataShipToAddress | None:
+    async def _ship_to(self, vehicle: BCODataVehicle, run: RunState) -> BCODataShipToAddress | None:
         if not (vehicle.CustomerNo and vehicle.CustomerServiceAddressCode):
             return None
         key = (vehicle.CustomerNo, vehicle.CustomerServiceAddressCode)
@@ -143,21 +128,23 @@ class VehicleSyncPipeline:
             run.ship_to[key] = await self._source.get_ship_to(*key)
         return run.ship_to[key]
 
-    async def _checkpoint(self, page: list[BCODataVehicle], run: _RunState) -> None:
-        """Advance to the page maximum, but never past the earliest failed record."""
+    async def _checkpoint(self, page: list[BCODataVehicle], run: RunState) -> None:
+        """Advance to the page maximum, never past the earliest failure; never in dry run."""
+        now = self._clock()
+        await self._repo.heartbeat(now)
+        if self._dry_run:
+            return
         candidate = max(v.SystemModifiedAt for v in page)
         if run.earliest_failure is not None:
             candidate = min(candidate, run.earliest_failure)
-        now = self._clock()
         if candidate > run.cursor:
             await self._repo.advance_cursor(candidate, now)
             run.cursor = candidate
-        await self._repo.heartbeat(now)
 
     async def _fail(
         self,
         vehicle: BCODataVehicle,
-        run: _RunState,
+        run: RunState,
         status_code: int | None,
         detail: str,
         payload: FrontuWorkspaceUpsert | None,

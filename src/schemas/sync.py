@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-AuditAction = Literal["UPSERT", "ARCHIVE", "SKIPPED", "FAILED"]
+AuditAction = Literal["UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "DRY_RUN_UPSERT", "DRY_RUN_ARCHIVE"]
 ReleaseStatus = Literal["IDLE", "FAILED"]
 RUNNING = "RUNNING"
 
@@ -43,6 +43,7 @@ class DashboardSnapshot(BaseModel):
     processed: int = 0
     skipped: int = 0
     errors: int = 0
+    planned: int = 0
     recent: list[AuditRecord] = []
 
 
@@ -52,4 +53,5 @@ class SyncRunResult(BaseModel):
     processed: int = 0
     skipped: int = 0
     failed: int = 0
+    planned: int = 0
     cursor: datetime

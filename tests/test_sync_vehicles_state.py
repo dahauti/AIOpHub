@@ -22,7 +22,9 @@ T1, T2, T3, T4 = (datetime(2026, 10, 20, 10, m, tzinfo=UTC) for m in (1, 2, 3, 4
 def _pipeline(
     bc: FakeBC, repo: FakeSyncRepository, frontu: FakeFrontu | None = None
 ) -> VehicleSyncPipeline:
-    return VehicleSyncPipeline(bc, frontu or FakeFrontu(), repo, INTERNAL_CLIENT, clock=lambda: NOW)
+    return VehicleSyncPipeline(
+        bc, frontu or FakeFrontu(), repo, INTERNAL_CLIENT, dry_run=False, clock=lambda: NOW
+    )
 
 
 @pytest.mark.asyncio

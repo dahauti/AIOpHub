@@ -17,6 +17,8 @@ from src.pipelines.scheduler import SyncRunner
 from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
 
+logger = logging.getLogger(__name__)
+
 HTTP_TIMEOUT_SECONDS = 30.0
 
 
@@ -39,18 +41,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key),
             repository,
             settings.internal_company_client_id,
+            dry_run=settings.sync_dry_run,
         )
+        if settings.sync_dry_run:
+            logger.warning("SYNC_DRY_RUN is on: Frontu will not be modified")
         runner = SyncRunner(pipeline, repository)
         app.state.sync_control = runner
-        daemon = asyncio.create_task(
-            runner.run_forever(settings.sync_interval_seconds), name="vehicle-sync-daemon"
+        daemon = runner.start_daemon(
+            enabled=settings.sync_enabled, interval_seconds=settings.sync_interval_seconds
         )
         try:
             yield
         finally:
-            daemon.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await daemon
+            if daemon is not None:
+                daemon.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await daemon
             await runner.shutdown()
     await get_engine().dispose()
 

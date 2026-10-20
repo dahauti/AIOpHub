@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, ge=1, le=65535)
     bc_active_profile: Literal["saas", "onprem"] = "onprem"
     sync_interval_seconds: int = Field(default=300, ge=1)
+    sync_enabled: bool = False
+    sync_dry_run: bool = True
 
     # Business Central OnPrem Prod
     bc_tenant_id_onprem: str

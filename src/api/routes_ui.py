@@ -13,6 +13,7 @@ from src.pipelines.scheduler import SyncControl
 TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 SYNC_STARTED = "Sync started"
 SYNC_ALREADY_RUNNING = "Sync already in progress"
+DRY_RUN_NOTE = " (dry run: no changes will be sent to Frontu)"
 
 
 def format_utc(value: datetime | None) -> str:
@@ -37,13 +38,13 @@ router = APIRouter()
 
 
 async def _status(request: Request, control: SyncControl, banner: str | None) -> HTMLResponse:
-    context = {"snapshot": await control.snapshot(), "banner": banner}
+    context = {"snapshot": await control.snapshot(), "banner": banner, "dry_run": control.dry_run}
     return TEMPLATES.TemplateResponse(request, "partials/status.html", context)
 
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, control: Control) -> HTMLResponse:
-    context = {"snapshot": await control.snapshot(), "banner": None}
+    context = {"snapshot": await control.snapshot(), "banner": None, "dry_run": control.dry_run}
     return TEMPLATES.TemplateResponse(request, "dashboard.html", context)
 
 
@@ -55,4 +56,6 @@ async def status_partial(request: Request, control: Control) -> HTMLResponse:
 @router.post("/api/sync/trigger", response_class=HTMLResponse)
 async def trigger_sync(request: Request, control: Control) -> HTMLResponse:
     banner = SYNC_STARTED if control.trigger() else SYNC_ALREADY_RUNNING
+    if control.dry_run:
+        banner += DRY_RUN_NOTE
     return await _status(request, control, banner=banner)

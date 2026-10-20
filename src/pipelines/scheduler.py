@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
 from src.adapters.resilience import Sleep
-from src.pipelines.sync_vehicles import utc_now
+from src.pipelines.ports import utc_now
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.sync import DashboardSnapshot, SyncRunResult
 
@@ -19,6 +19,8 @@ RECENT_AUDIT_LIMIT = 15
 class RunnablePipeline(Protocol):
     @property
     def is_running(self) -> bool: ...
+    @property
+    def dry_run(self) -> bool: ...
     async def run(self) -> SyncRunResult | None: ...
 
 
@@ -26,6 +28,8 @@ class RunnablePipeline(Protocol):
 class SyncControl(Protocol):
     """Port consumed by the dashboard routes."""
 
+    @property
+    def dry_run(self) -> bool: ...
     def trigger(self) -> bool: ...
     async def snapshot(self) -> DashboardSnapshot: ...
 
@@ -44,6 +48,17 @@ class SyncRunner:
         self._repo = repository
         self._clock = clock
         self._tasks: set[asyncio.Task[SyncRunResult | None]] = set()
+
+    @property
+    def dry_run(self) -> bool:
+        return self._pipeline.dry_run
+
+    def start_daemon(self, *, enabled: bool, interval_seconds: float) -> asyncio.Task[None] | None:
+        """Start the periodic loop, or log and return None when disabled by config."""
+        if not enabled:
+            logger.warning("Background sync daemon is disabled by config")
+            return None
+        return asyncio.create_task(self.run_forever(interval_seconds), name="vehicle-sync-daemon")
 
     def trigger(self) -> bool:
         """Start a background run unless one is active; returns whether a run was started."""

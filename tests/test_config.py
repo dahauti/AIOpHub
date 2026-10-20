@@ -107,3 +107,29 @@ def test_runtime_settings_reject_invalid_values(
 
     with pytest.raises(ValidationError):
         get_settings()
+
+
+def test_safety_flag_code_defaults_are_fail_safe() -> None:
+    assert Settings.model_fields["sync_enabled"].default is False
+    assert Settings.model_fields["sync_dry_run"].default is True
+
+
+@pytest.mark.usefixtures("isolated_env")
+def test_env_example_ships_with_daemon_disabled_and_dry_run_on() -> None:
+    settings = get_settings()
+
+    assert settings.sync_enabled is False
+    assert settings.sync_dry_run is True
+
+
+@pytest.mark.parametrize(("enabled", "dry_run"), [("true", "false"), ("false", "true")])
+def test_safety_flags_parse_from_env(
+    enabled: str, dry_run: str, monkeypatch: pytest.MonkeyPatch, isolated_env: None
+) -> None:
+    monkeypatch.setenv("SYNC_ENABLED", enabled)
+    monkeypatch.setenv("SYNC_DRY_RUN", dry_run)
+
+    settings = get_settings()
+
+    assert settings.sync_enabled is (enabled == "true")
+    assert settings.sync_dry_run is (dry_run == "true")
