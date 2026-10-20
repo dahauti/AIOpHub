@@ -1,0 +1,21 @@
+# Virtual env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets & Config
+.env
+.env.*
+!.env.example
+
+# IDE & OS
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Logs & temp data
+*.log
+*.sqlite
+*.sql
