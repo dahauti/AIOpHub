@@ -1,11 +1,12 @@
 """BC adapter: profile URLs, OData delta paging and ship-to lookup (mocked HTTP)."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
 
-from src.adapters.bc_client import onprem_connection, saas_connection
+from src.adapters.bc_client import BCClient, BCConnection, onprem_connection, saas_connection
 from src.config import get_settings
 from tests.fakes import (
     ONPREM_ROOT,
@@ -105,3 +106,71 @@ async def test_get_ship_to_returns_none_when_missing() -> None:
     mock = MockBC(sequence(httpx.Response(200, json={"value": []})))
 
     assert await bc_client(mock, FakeClock()).get_ship_to("C01", "NONE") is None
+
+
+@pytest.mark.parametrize(
+    "root",
+    [
+        f"{ONPREM_ROOT}/Company('Alwark%20UAB')",
+        f"{ONPREM_ROOT}/Company('Alwark%20UAB')/",
+        f"{ONPREM_ROOT}/company('Alwark UAB')/VehicleCard",
+        f"{ONPREM_ROOT}/Company%28'Alwark%20UAB'%29",
+        f"{ONPREM_ROOT}/",
+        f"{ONPREM_ROOT}//",
+    ],
+    ids=[
+        "company",
+        "company-slash",
+        "company-lower-with-page",
+        "encoded-parens",
+        "slash",
+        "slashes",
+    ],
+)
+def test_odata_root_is_normalised_to_a_single_company_segment(root: str) -> None:
+    connection = BCConnection(
+        credentials=bc_connection().credentials, odata_root=root, company="Alwark UAB"
+    )
+
+    assert connection.odata_root == ONPREM_ROOT
+    assert connection.company_url == f"{ONPREM_ROOT}/Company('Alwark%20UAB')"
+
+
+def test_root_without_company_segment_is_untouched_and_not_warned(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    root = "https://bc.local:7048/CompanyPortal/ODataV4"
+
+    with caplog.at_level(logging.WARNING, logger="src.adapters.bc_client"):
+        connection = BCConnection(
+            credentials=bc_connection().credentials, odata_root=root, company="X"
+        )
+
+    assert connection.odata_root == root
+    assert caplog.records == []
+
+
+@pytest.mark.asyncio
+async def test_onprem_base_url_with_company_builds_one_segment_request(
+    monkeypatch: pytest.MonkeyPatch, isolated_env: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv(
+        "BC_ODATA_BASE_URL_ONPREM", "https://bc.company.local:7048/BC/ODataV4/Company('Alwark UAB')"
+    )
+    monkeypatch.setenv("BC_COMPANY_ID_ONPREM", "Alwark UAB")
+
+    with caplog.at_level(logging.WARNING, logger="src.adapters.bc_client"):
+        connection = onprem_connection(get_settings())
+    mock = MockBC(sequence(vehicle_page(1)))
+    http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
+    await drain(BCClient(http, connection, clock=FakeClock(), sleep=FakeClock().sleep))
+
+    url = str(mock.requests[0].url)
+    assert url.startswith(
+        "https://bc.company.local:7048/BC/ODataV4/Company('Alwark%20UAB')/VehicleCard?"
+    )
+    assert url.count("Company(") == 1
+    assert [r.getMessage() for r in caplog.records] == [
+        "BC OData base URL contained a Company(...) segment; it was removed so the "
+        "configured company is used"
+    ]

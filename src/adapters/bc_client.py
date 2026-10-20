@@ -1,18 +1,22 @@
 """Business Central OData V4 adapter for SaaS and OnPrem profiles (Entra ID bearer auth)."""
 
 import asyncio
+import logging
+import re
 import time
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from urllib.parse import quote
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 from src.adapters.bc_auth import EntraCredentials, EntraTokenProvider
 from src.adapters.resilience import ExternalServiceError, Sleep, send_with_retry
 from src.config import Settings
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, ODataCollection
+
+logger = logging.getLogger(__name__)
 
 SERVICE = "business-central"
 PAGE_SIZE = 500
@@ -21,6 +25,8 @@ SAAS_ODATA_ROOT = "https://api.businesscentral.dynamics.com/v2.0/{tenant}/{envir
 VEHICLES_PAGE = "VehicleCard"
 SHIP_TO_PAGE = "TG_ShipToAdress"
 _QUERY_SAFE = "',:()"
+# A `/Company(` (or `/Company%28`) segment already present in a configured root URL.
+_COMPANY_SEGMENT = re.compile(r"/Company(?:\(|%28)", re.IGNORECASE)
 
 
 def odata_literal(value: str) -> str:
@@ -44,10 +50,23 @@ class BCConnection(BaseModel):
     odata_root: str
     company: str
 
+    @field_validator("odata_root")
+    @classmethod
+    def _strip_company_segment(cls, value: str) -> str:
+        """Keep only the OData root so exactly one Company(...) segment is ever appended."""
+        root = _COMPANY_SEGMENT.split(value, maxsplit=1)[0].rstrip("/")
+        if root != value.rstrip("/"):
+            logger.warning(
+                "BC OData base URL contained a Company(...) segment; it was removed so the "
+                "configured company is used",
+                extra={"service": SERVICE},
+            )
+        return root
+
     @property
     def company_url(self) -> str:
         company = quote(odata_literal(self.company), safe="'")
-        return f"{self.odata_root.rstrip('/')}/Company({company})"
+        return f"{self.odata_root}/Company({company})"
 
 
 def saas_connection(settings: Settings) -> BCConnection:
