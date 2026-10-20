@@ -135,3 +135,31 @@ async def test_pacer_serialises_concurrent_callers() -> None:
     await asyncio.gather(*(pacer.acquire() for _ in range(3)))
 
     assert clock.sleeps == [0.5, 0.5]
+
+
+@pytest.mark.parametrize(
+    ("response", "detail"),
+    [
+        (
+            httpx.Response(
+                404,
+                text='<!DOCTYPE html>\n<html lang="lt"><body>Nerasta</body></html>',
+                headers={"content-type": "text/html; charset=UTF-8"},
+            ),
+            "frontu returned HTTP 404 (non-JSON response)",
+        ),
+        (httpx.Response(400, text="Bad request"), "frontu returned HTTP 400 (non-JSON response)"),
+        (httpx.Response(422, json={"error": "title required"}), '{"error":"title required"}'),
+    ],
+    ids=["html-page", "plain-text", "json-kept"],
+)
+@pytest.mark.asyncio
+async def test_error_detail_never_contains_html(response: httpx.Response, detail: str) -> None:
+    clock = FakeClock()
+    mock = RecordingHandler(lambda _request: response)
+
+    with pytest.raises(ExternalServiceError) as caught:
+        await _client(mock, clock).upsert_workspace(WORKSPACE)
+
+    assert caught.value.detail == detail
+    assert "<" not in str(caught.value)

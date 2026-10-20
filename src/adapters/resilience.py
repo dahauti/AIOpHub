@@ -1,6 +1,7 @@
 """Shared HTTP resilience: tenacity retries on 429/502/503/504 and domain error mapping."""
 
 import asyncio
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 RETRYABLE_STATUS_CODES = frozenset({429, 502, 503, 504})
 MAX_ATTEMPTS = 5
+MAX_ERROR_DETAIL_CHARS = 500
 _backoff = wait_exponential_jitter(initial=1, max=30)
 
 Sleep = Callable[[float], Awaitable[None]]
@@ -110,5 +112,17 @@ async def send_with_retry(
     except httpx.TransportError as exc:
         raise ExternalServiceError(service, None, f"{type(exc).__name__}: {exc}") from exc
     if response.is_error:
-        raise ExternalServiceError(service, response.status_code, response.text[:500])
+        raise ExternalServiceError(service, response.status_code, _error_detail(service, response))
     return response
+
+
+def _error_detail(service: str, response: httpx.Response) -> str:
+    """Keep JSON error bodies (vendor messages); never store an HTML or plain-text page."""
+    if not response.headers.get("content-type", "").startswith("text/html"):
+        try:
+            json.loads(response.content)
+        except ValueError:
+            pass
+        else:
+            return response.text[:MAX_ERROR_DETAIL_CHARS]
+    return f"{service} returned HTTP {response.status_code} (non-JSON response)"
