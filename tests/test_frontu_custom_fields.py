@@ -61,7 +61,7 @@ async def test_missing_field_is_logged_and_left_unresolved(
     fields: list[JsonValue] = [{"id": REG_ID, "title": "Registracijos Nr."}]
     mock = RecordingHandler(_respond(fields))
 
-    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_fields"):
         ids = await _client(mock, FakeClock()).resolve_custom_fields()
 
     assert ids.registration_field_id == REG_ID

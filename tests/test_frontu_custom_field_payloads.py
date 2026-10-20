@@ -27,7 +27,7 @@ async def test_live_paginated_items_envelope_resolves_case_insensitively(
     }
     mock = RecordingHandler(_respond(body))
 
-    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_fields"):
         ids = await _client(mock, FakeClock()).resolve_custom_fields()
 
     assert ids == FrontuCustomFieldIds(registration_field_id="guid-1", site_field_id=None)
@@ -104,7 +104,7 @@ async def test_malformed_items_are_skipped_with_warning_and_valid_ones_resolve(
 ) -> None:
     mock = RecordingHandler(_respond({"next_page": 0, "items": [bad_item, LIVE_ITEM, SITE_ITEM]}))
 
-    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_fields"):
         ids = await _client(mock, FakeClock()).resolve_custom_fields()
 
     assert ids == FrontuCustomFieldIds(registration_field_id=REG_ID, site_field_id=SITE_ID)
@@ -120,7 +120,7 @@ async def test_inactive_field_is_ignored_even_when_title_matches(
     inactive = SITE_ITEM | {"notUsedInApp": True}
     mock = RecordingHandler(_respond({"items": [LIVE_ITEM, inactive]}))
 
-    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_fields"):
         ids = await _client(mock, FakeClock()).resolve_custom_fields()
 
     assert ids == FrontuCustomFieldIds(registration_field_id=REG_ID, site_field_id=None)

@@ -7,7 +7,8 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from src.adapters.frontu_client import FrontuClient, RatePacer
+from src.adapters.frontu_client import FrontuClient
+from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
 from tests.fakes import FakeClock, RecordingHandler

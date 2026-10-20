@@ -201,3 +201,37 @@ FrontuWorkspaceUpsert fields:
   - `warrantyEndDate`: Optional[str] = None
   - `extendedWarrantyEndDate`: Optional[str] = None
   - `warrantyIndicatorLimit`: Optional[int] = None
+
+## 10. Feature: Legacy Workspace Identity Resolution (Duplicate Prevention)
+
+### 10.1 Problem
+Frontu may already hold a vehicle created manually or by a legacy import: `serialNumber` is set but `systemId` is `null`/blank. The native `POST /workspaces` upsert matches only by `systemId`, so it would create a duplicate and fragment service history.
+
+### 10.2 Frontu Adapter Contract (src/adapters/frontu_client.py)
+- Listing: `GET /workspaces?type=object&pageSize=100&page={n}` starting at `page=1`.
+  - Envelope: `{"items": [...], "total": n}` or a bare JSON array.
+  - Paging stops on a short page or once `total` rows were read. More than 1000 pages raises an `ExternalServiceError` (fail closed: never resolve against a partial index).
+  - Rows are validated one by one (`FrontuWorkspaceSummary`: `id`, `systemId`, `serialNumber`, `type`; numeric ids coerced to str); malformed rows are skipped with a warning.
+- Adoption: `PUT /workspaces/{id}` (id URL-encoded) with the full `FrontuWorkspaceUpsert` body, `None` fields omitted, carrying `systemId = BC.SerialNo`.
+- Pacing (src/adapters/rate_limit.py) and retries apply to both calls.
+
+### 10.3 Identity Index (src/pipelines/identity_resolver.py)
+- Built in memory from the listing: lazily once per batch run (only when a vehicle needs a write), always from a fresh listing. Single-vehicle syncs reuse the adapter's cached listing when it is younger than 5 minutes (`max_age=300`); a successful adoption through the adapter marks that workspace as managed in the cached listing, so a reused listing never offers it again.
+- Managed set: every non-blank `systemId` (stripped).
+- Unmanaged index: `type` is `object` (or absent), `systemId` is `null`/blank, `serialNumber` non-blank. Key = `serialNumber.strip().upper()` -> list of Frontu ids.
+
+### 10.4 Resolution Rules (evaluated per vehicle, in order)
+1. Blocked vehicle -> `UPSERT` (archive via `POST {"deleted": true}` by systemId). Legacy objects are never adopted just to be archived.
+2. SerialNo already adopted earlier in this run -> `ADOPT` the same id again (idempotent PUT).
+3. `BC.SerialNo` in the managed set -> `UPSERT` (native POST updates it; no PUT that would collide on systemId).
+4. Primary key: unmanaged matches for `BC.VIN` (normalized). Exactly one -> `ADOPT`; more than one -> `AMBIGUOUS`. No fallback to SerialNo when the VIN key is ambiguous.
+5. Fallback key: unmanaged matches for `BC.SerialNo` (normalized), same rule.
+6. Otherwise -> `UPSERT` (`POST /workspaces` creates it).
+- An adopted id is removed from the unmanaged index so no other vehicle in the run can claim it.
+
+### 10.5 Pipeline Behaviour & Audit
+- Fingerprint skip happens before identity resolution; unchanged vehicles never trigger the listing.
+- Audit actions: `ADOPT`, `SINGLE_ADOPT` (counted as processed), `DRY_RUN_ADOPT`, `DRY_RUN_SINGLE_ADOPT` (counted as planned), `FAILED_AMBIGUOUS_MATCH` (counted as an error).
+- `AMBIGUOUS` is strict fail-closed for the vehicle only: no Frontu write, audit `FAILED_AMBIGUOUS_MATCH` with the payload and an `error_message` listing the candidate Frontu ids, and the vehicle counts as failed/an error. The batch cursor is NOT held (no head-of-line blocking); the vehicle is re-evaluated the next time BC modifies it, or via a single-vehicle sync once the duplicates are resolved in Frontu.
+- A listing failure fails the vehicle (no write); the next vehicle in the run retries the listing.
+- Dry runs resolve identities too (read-only listing) so the planned ADOPT/UPSERT/AMBIGUOUS split is visible before live mode.

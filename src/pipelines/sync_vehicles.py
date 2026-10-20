@@ -6,13 +6,20 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from src.adapters.resilience import ExternalServiceError
+from src.pipelines.audit_helpers import (
+    record_audit,
+    record_failure,
+    write_action,
+    write_workspace,
+)
+from src.pipelines.identity_resolver import IdentityDecision, LegacyIndex
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
-from src.schemas.sync import AuditAction, AuditEntry, ReleaseStatus, SyncRunResult
+from src.schemas.sync import ReleaseStatus, SyncRunResult
 from src.schemas.warranty import ResolvedWarranty
 
 logger = logging.getLogger(__name__)
@@ -102,29 +109,48 @@ class VehicleSyncPipeline:
             )
             digest = payload_hash(payload)
             if not vehicle.Blocked and known == digest:
-                await self._audit(vehicle, "SKIPPED")
+                await record_audit(self._repo, vehicle.SerialNo, "SKIPPED")
                 run.skipped += 1
                 return
+            decision = await self._identity(vehicle, run)
+            if decision.kind == "AMBIGUOUS":
+                # Needs a human fix in Frontu, so a retry cannot help: let the cursor advance.
+                await record_failure(
+                    self._repo,
+                    run,
+                    vehicle,
+                    None,
+                    decision.ambiguity_detail,
+                    payload,
+                    "FAILED_AMBIGUOUS_MATCH",
+                    hold_cursor=False,
+                )
+                return
+            action = write_action(vehicle, decision, single=False, dry_run=self._dry_run)
             if self._dry_run:
-                action: AuditAction = "DRY_RUN_ARCHIVE" if vehicle.Blocked else "DRY_RUN_UPSERT"
-                await self._audit(vehicle, action, payload=payload)
+                await record_audit(self._repo, vehicle.SerialNo, action, payload=payload)
                 run.planned += 1
                 return
-            result = await self._sink.upsert_workspace(payload)
+            result = await write_workspace(self._sink, decision, payload)
         except ExternalServiceError as exc:
-            await self._fail(vehicle, run, exc.status_code, str(exc), payload)
+            await record_failure(self._repo, run, vehicle, exc.status_code, str(exc), payload)
             return
         if result.status_code not in CONFIRMED_STATUSES:
             detail = f"unexpected Frontu status {result.status_code}"
-            await self._fail(vehicle, run, result.status_code, detail, payload)
+            await record_failure(self._repo, run, vehicle, result.status_code, detail, payload)
             return
         if vehicle.Blocked:
             await self._repo.delete_fingerprint(vehicle.SerialNo)
         else:
             await self._repo.save_fingerprint(vehicle.SerialNo, digest, self._clock())
-        action = "ARCHIVE" if vehicle.Blocked else "UPSERT"
-        await self._audit(vehicle, action, result.status_code, payload)
+        await record_audit(self._repo, vehicle.SerialNo, action, result.status_code, payload)
         run.processed += 1
+
+    async def _identity(self, vehicle: BCODataVehicle, run: RunState) -> IdentityDecision:
+        """Resolve against a Frontu index loaded lazily, at most once per run."""
+        if run.identity is None:
+            run.identity = LegacyIndex(await self._sink.list_workspaces())
+        return run.identity.resolve(vehicle)
 
     async def _ship_to(self, vehicle: BCODataVehicle, run: RunState) -> BCODataShipToAddress | None:
         if not (vehicle.CustomerNo and vehicle.CustomerServiceAddressCode):
@@ -153,40 +179,3 @@ class VehicleSyncPipeline:
         if candidate > run.cursor:
             await self._repo.advance_cursor(candidate, now)
             run.cursor = candidate
-
-    async def _fail(
-        self,
-        vehicle: BCODataVehicle,
-        run: RunState,
-        status_code: int | None,
-        detail: str,
-        payload: FrontuWorkspaceUpsert | None,
-    ) -> None:
-        modified = vehicle.SystemModifiedAt
-        if run.earliest_failure is None or modified < run.earliest_failure:
-            run.earliest_failure = modified
-        run.failed += 1
-        logger.warning(
-            "Vehicle sync failed: %s",
-            detail,
-            extra={"run_id": run.run_id, "entity_key": vehicle.SerialNo, "status": status_code},
-        )
-        await self._audit(vehicle, "FAILED", status_code, payload, detail)
-
-    async def _audit(
-        self,
-        vehicle: BCODataVehicle,
-        action: AuditAction,
-        status_code: int | None = None,
-        payload: FrontuWorkspaceUpsert | None = None,
-        error_message: str | None = None,
-    ) -> None:
-        body = payload.model_dump(mode="json") if payload is not None else None
-        entry = AuditEntry(
-            entity_key=vehicle.SerialNo,
-            action=action,
-            status_code=status_code,
-            payload=body,
-            error_message=error_message,
-        )
-        await self._repo.record_audit(entry)

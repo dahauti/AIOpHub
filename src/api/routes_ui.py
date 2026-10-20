@@ -55,8 +55,9 @@ def single_sync_banner(result: SingleSyncResult) -> str:
     serial = result.serial_no
     match result.outcome:
         case "SYNCED":
-            archived = " (archived)" if result.action == "SINGLE_ARCHIVE" else ""
-            return f"Synced vehicle {serial}{archived}: HTTP {result.status_code}"
+            note = {"SINGLE_ARCHIVE": " (archived)", "SINGLE_ADOPT": " (adopted legacy workspace)"}
+            suffix = note.get(result.action or "", "")
+            return f"Synced vehicle {serial}{suffix}: HTTP {result.status_code}"
         case "DRY_RUN":
             return f"Dry run for {serial}: no changes sent to Frontu"
         case "NOT_FOUND":

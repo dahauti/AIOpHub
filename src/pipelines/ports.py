@@ -6,10 +6,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 
+from src.pipelines.identity_resolver import LegacyIndex
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import (
     FrontuCustomFieldIds,
     FrontuUpsertResult,
+    FrontuWorkspaceSummary,
     FrontuWorkspaceUpsert,
 )
 
@@ -23,6 +25,10 @@ class VehicleSource(Protocol):
 class WorkspaceSink(Protocol):
     async def resolve_custom_fields(self) -> FrontuCustomFieldIds: ...
     async def upsert_workspace(self, payload: FrontuWorkspaceUpsert) -> FrontuUpsertResult: ...
+    async def list_workspaces(self, max_age: float = 0.0) -> list[FrontuWorkspaceSummary]: ...
+    async def adopt_workspace(
+        self, workspace_id: str, payload: FrontuWorkspaceUpsert
+    ) -> FrontuUpsertResult: ...
 
 
 def utc_now() -> datetime:
@@ -38,6 +44,7 @@ class RunState:
     run_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     ship_to: dict[tuple[str, str], BCODataShipToAddress | None] = field(default_factory=dict)
     warranties: dict[str, list[BCVehicleWarranty]] = field(default_factory=dict)
+    identity: LegacyIndex | None = None
     earliest_failure: datetime | None = None
     processed: int = 0
     skipped: int = 0

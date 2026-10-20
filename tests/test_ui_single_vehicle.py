@@ -70,6 +70,10 @@ async def test_programmatic_default_is_not_live(ports: Ports) -> None:
             "Synced vehicle VSN9 (archived): HTTP 201",
         ),
         (
+            SYNCED.model_copy(update={"action": "SINGLE_ADOPT"}),
+            "Synced vehicle VSN9 (adopted legacy workspace): HTTP 200",
+        ),
+        (
             SingleSyncResult(serial_no="", outcome="DRY_RUN", dry_run=True),
             "Dry run for VSN9: no changes sent to Frontu",
         ),
@@ -86,7 +90,7 @@ async def test_programmatic_default_is_not_live(ports: Ports) -> None:
             "Sync of VSN9 failed: &lt;b&gt;boom&lt;/b&gt;",
         ),
     ],
-    ids=["archived", "dry-run", "not-found", "busy", "failed-escaped"],
+    ids=["archived", "adopted", "dry-run", "not-found", "busy", "failed-escaped"],
 )
 @pytest.mark.asyncio
 async def test_outcome_banners(ports: Ports, result: SingleSyncResult, banner: str) -> None:

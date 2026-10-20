@@ -30,6 +30,26 @@ class FrontuWorkspaceUpsert(BaseModel):
     deleted: bool = False
 
 
+class FrontuWorkspaceSummary(BaseModel):
+    """Workspace row from GET /workspaces, reduced to the identity-resolution fields."""
+
+    model_config = ConfigDict(extra="ignore", coerce_numbers_to_str=True)
+
+    id: str
+    systemId: str | None = None
+    serialNumber: str | None = None
+    type: str | None = None
+
+
+class FrontuWorkspaceList(BaseModel):
+    """Paginated envelope `{"items": [...], "total": n}`; items stay raw for per-row validation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[JsonValue]
+    total: int | None = None
+
+
 class FrontuCustomField(BaseModel):
     """Workspace custom-field definition from GET /customfields/workspaces.
 

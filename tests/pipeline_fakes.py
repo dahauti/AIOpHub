@@ -1,18 +1,18 @@
-"""In-memory fakes for the vehicle pipeline: BC source, Frontu sink and sync repository."""
+"""In-memory fakes for the vehicle pipeline: BC source and Frontu sink (repository re-exported)."""
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 from src.adapters.resilience import ExternalServiceError
-from src.repositories.sync_statements import STALE_RUN_AFTER
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import (
     FrontuCustomFieldIds,
     FrontuUpsertResult,
+    FrontuWorkspaceSummary,
     FrontuWorkspaceUpsert,
 )
-from src.schemas.sync import RUNNING, AuditEntry, DashboardSnapshot, ReleaseStatus
+from tests.repository_fakes import FakeSyncRepository as FakeSyncRepository
 
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
 INTERNAL_CLIENT = "INTERNAL-CO"
@@ -31,6 +31,7 @@ def vehicle(
     registration: str | None = None,
     make: str | None = None,
     model: str | None = None,
+    vin: str | None = None,
 ) -> BCODataVehicle:
     return BCODataVehicle(
         SerialNo=serial,
@@ -41,6 +42,7 @@ def vehicle(
         RegistrationNo=registration,
         MakeCode=make,
         ModelCode=model,
+        VIN=vin,
     )
 
 
@@ -113,11 +115,32 @@ class FakeBC:
         return self.warranties.get(serial_no, [])
 
 
+def workspace(
+    workspace_id: str,
+    serial_number: str | None,
+    *,
+    system_id: str | None = None,
+    kind: str = "object",
+) -> FrontuWorkspaceSummary:
+    return FrontuWorkspaceSummary(
+        id=workspace_id, systemId=system_id, serialNumber=serial_number, type=kind
+    )
+
+
 class FakeFrontu:
-    def __init__(self, status_code: int = 201, failures: dict[str, int] | None = None) -> None:
+    def __init__(
+        self,
+        status_code: int = 201,
+        failures: dict[str, int] | None = None,
+        workspaces: list[FrontuWorkspaceSummary] | None = None,
+    ) -> None:
         self.status_code = status_code
         self.failures = failures or {}
+        self.workspaces = workspaces or []
+        self.list_failure: int | None = None
         self.pushed: list[FrontuWorkspaceUpsert] = []
+        self.adopted: list[tuple[str, FrontuWorkspaceUpsert]] = []
+        self.list_max_ages: list[float] = []
 
     async def resolve_custom_fields(self) -> FrontuCustomFieldIds:
         return FIELD_IDS
@@ -128,64 +151,16 @@ class FakeFrontu:
             raise ExternalServiceError("frontu", self.failures[payload.systemId], "rejected")
         return FrontuUpsertResult(status_code=self.status_code, body={"id": payload.systemId})
 
+    async def list_workspaces(self, max_age: float = 0.0) -> list[FrontuWorkspaceSummary]:
+        self.list_max_ages.append(max_age)
+        if self.list_failure is not None:
+            raise ExternalServiceError("frontu", self.list_failure, "listing failed")
+        return self.workspaces
 
-class FakeSyncRepository:
-    """Mirrors the SQL repository semantics (atomic claim, forward-only cursor)."""
-
-    def __init__(
-        self,
-        cursor: datetime | None = None,
-        status: str = "IDLE",
-        updated_at: datetime | None = None,
-    ) -> None:
-        self.cursor = cursor
-        self.status = status
-        self.updated_at = updated_at
-        self.fingerprints: dict[str, str] = {}
-        self.audit: list[AuditEntry] = []
-        self.statuses: list[str] = []
-        self.heartbeats = 0
-
-    async def try_acquire(self, now: datetime, initial_cursor: datetime) -> bool:
-        if self.cursor is None:
-            self.cursor = initial_cursor
-        elif (
-            self.status == RUNNING
-            and self.updated_at is not None
-            and self.updated_at >= now - STALE_RUN_AFTER
-        ):
-            return False
-        self.status, self.updated_at = RUNNING, now
-        self.statuses.append(RUNNING)
-        return True
-
-    async def heartbeat(self, now: datetime) -> None:
-        self.heartbeats += 1
-        self.updated_at = now
-
-    async def release(self, status: ReleaseStatus, now: datetime) -> None:
-        self.status, self.updated_at = status, now
-        self.statuses.append(status)
-
-    async def get_cursor(self) -> datetime:
-        assert self.cursor is not None
-        return self.cursor
-
-    async def advance_cursor(self, cursor: datetime, now: datetime) -> None:
-        if self.cursor is None or cursor > self.cursor:
-            self.cursor = cursor
-
-    async def get_fingerprints(self, keys: Sequence[str]) -> dict[str, str]:
-        return {key: self.fingerprints[key] for key in keys if key in self.fingerprints}
-
-    async def save_fingerprint(self, key: str, payload_hash: str, now: datetime) -> None:
-        self.fingerprints[key] = payload_hash
-
-    async def delete_fingerprint(self, key: str) -> None:
-        self.fingerprints.pop(key, None)
-
-    async def record_audit(self, entry: AuditEntry) -> None:
-        self.audit.append(entry)
-
-    async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot:
-        return DashboardSnapshot(status=self.status, cursor_timestamp=self.cursor)
+    async def adopt_workspace(
+        self, workspace_id: str, payload: FrontuWorkspaceUpsert
+    ) -> FrontuUpsertResult:
+        self.adopted.append((workspace_id, payload))
+        if payload.systemId in self.failures:
+            raise ExternalServiceError("frontu", self.failures[payload.systemId], "rejected")
+        return FrontuUpsertResult(status_code=200, body={"id": workspace_id})

@@ -8,7 +8,8 @@ from pydantic import JsonValue, SecretStr
 
 from src.adapters.bc_auth import EntraCredentials
 from src.adapters.bc_client import BCClient, BCConnection
-from src.adapters.frontu_client import FrontuClient, RatePacer
+from src.adapters.frontu_client import FrontuClient
+from src.adapters.rate_limit import RatePacer
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -104,7 +105,9 @@ async def drain(client: BCClient, since: datetime = SINCE) -> list[list[str]]:
 def frontu_client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
     http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
     pacer = RatePacer(clock=clock, sleep=clock.sleep)
-    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
+    return FrontuClient(
+        http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep, clock=clock
+    )
 
 
 def json_response(body: JsonValue) -> Handler:
