@@ -19,3 +19,19 @@ def isolated_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def temp_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_env: None
+) -> Iterator[Path]:
+    """Point DATABASE_URL at a throwaway SQLite file and reset cached engine/sessionmaker."""
+    from src.database import get_engine, get_sessionmaker
+
+    db_path = tmp_path / "nested" / "sync.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path.as_posix()}")
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+    yield db_path
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()

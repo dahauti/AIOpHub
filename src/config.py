@@ -1,16 +1,15 @@
 """Typed application settings loaded from environment variables and `.env`."""
 
 from functools import lru_cache
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import Field, HttpUrl, SecretStr, UrlConstraints
-from pydantic_core import MultiHostUrl
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import make_url
+from sqlalchemy.exc import ArgumentError
 
-AsyncpgDsn = Annotated[
-    MultiHostUrl,
-    UrlConstraints(host_required=True, allowed_schemes=["postgresql+asyncpg"]),
-]
+DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./data/sync.db"
+SQLITE_DRIVER = "sqlite+aiosqlite"
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
@@ -24,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: AsyncpgDsn
+    database_url: str = DEFAULT_DATABASE_URL
 
     # Business Central SaaS (Entra ID)
     bc_tenant_id_saas: str = Field(min_length=1)
@@ -53,6 +52,17 @@ class Settings(BaseSettings):
     bc_scope_onprem: str = "https://api.businesscentral.dynamics.com/.default"
     bc_odata_base_url_onprem: HttpUrl
     bc_company_id_onprem: str = Field(min_length=1)
+
+    @field_validator("database_url")
+    @classmethod
+    def _require_aiosqlite(cls, value: str) -> str:
+        try:
+            driver = make_url(value).drivername
+        except ArgumentError as exc:
+            raise ValueError(f"DATABASE_URL must be a {SQLITE_DRIVER} URL") from exc
+        if driver != SQLITE_DRIVER:
+            raise ValueError(f"DATABASE_URL must use the {SQLITE_DRIVER} driver, got {driver!r}")
+        return value
 
 
 @lru_cache(maxsize=1)

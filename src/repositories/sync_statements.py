@@ -1,10 +1,10 @@
-"""SQLAlchemy statement builders for the sync_engine tables (pure, no I/O)."""
+"""SQLAlchemy statement builders for the sync tables, SQLite dialect (pure, no I/O)."""
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from sqlalchemy import Delete, Select, Update, delete, func, or_, select, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.sql.dml import Insert, ReturningInsert
 
 from src.models.audit import SyncAuditLog, SyncFingerprint, SyncState

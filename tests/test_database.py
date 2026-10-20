@@ -1,45 +1,62 @@
-"""Engine and session factory wiring (no live database required)."""
+"""Engine, WAL pragmas, data-dir creation and init_db against a temp SQLite file."""
+
+from pathlib import Path
 
 import pytest
-from sqlalchemy import create_mock_engine, make_url
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.ddl import ExecutableDDLElement
 
-from src.database import (
-    create_schema_statement,
-    get_engine,
-    get_session,
-    get_sessionmaker,
-    safe_database_label,
-)
-from src.models.audit import Base
-
-PG_DIALECT = make_url("postgresql://").get_dialect()()
+from src.database import get_engine, get_session, get_sessionmaker, init_db, safe_database_label
 
 
-@pytest.fixture(autouse=True)
-def _reset_db_caches(isolated_env: None) -> None:
-    get_engine.cache_clear()
-    get_sessionmaker.cache_clear()
-
-
-def test_engine_uses_asyncpg_driver_from_settings() -> None:
+@pytest.mark.usefixtures("temp_database")
+def test_engine_uses_aiosqlite_and_creates_data_directory(temp_database: Path) -> None:
     engine = get_engine()
 
-    assert engine.url.drivername == "postgresql+asyncpg"
-    assert engine.url.database == "aiophub"
+    assert engine.url.drivername == "sqlite+aiosqlite"
+    assert temp_database.parent.is_dir()
     assert get_engine() is engine
 
 
+@pytest.mark.usefixtures("temp_database")
 def test_sessionmaker_is_bound_and_keeps_objects_after_commit() -> None:
     factory = get_sessionmaker()
 
     assert factory.kw["bind"] is get_engine()
     assert factory.kw["expire_on_commit"] is False
-    assert get_sessionmaker() is factory
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("temp_database")
+async def test_connections_enable_wal_and_foreign_keys() -> None:
+    engine = get_engine()
+    async with engine.connect() as connection:
+        journal = (await connection.execute(text("PRAGMA journal_mode"))).scalar_one()
+        foreign_keys = (await connection.execute(text("PRAGMA foreign_keys"))).scalar_one()
+    await engine.dispose()
+
+    assert journal == "wal"
+    assert foreign_keys == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("temp_database")
+async def test_init_db_creates_tables_and_index_idempotently(temp_database: Path) -> None:
+    await init_db()
+    await init_db()
+
+    async with get_engine().connect() as connection:
+        tables = await connection.run_sync(lambda c: sorted(inspect(c).get_table_names()))
+        indexes = await connection.run_sync(lambda c: inspect(c).get_indexes("sync_audit_log"))
+    await get_engine().dispose()
+
+    assert tables == ["sync_audit_log", "sync_fingerprints", "sync_states"]
+    assert [ix["name"] for ix in indexes] == ["idx_audit_entity"]
+    assert temp_database.is_file()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("temp_database")
 async def test_get_session_yields_async_session() -> None:
     sessions = get_session()
     session = await anext(sessions)
@@ -48,32 +65,7 @@ async def test_get_session_yields_async_session() -> None:
     await sessions.aclose()
 
 
-def test_schema_statement_is_idempotent() -> None:
-    ddl = str(create_schema_statement().compile(dialect=PG_DIALECT))
-
-    assert ddl == "CREATE SCHEMA IF NOT EXISTS sync_engine"
-
-
-def test_create_all_emits_spec_tables_and_index() -> None:
-    emitted: list[str] = []
-
-    def capture(sql: ExecutableDDLElement, *_args: object, **_kwargs: object) -> None:
-        emitted.append(" ".join(str(sql.compile(dialect=PG_DIALECT)).split()))
-
-    mock_engine = create_mock_engine(make_url("postgresql://"), capture)
-    Base.metadata.create_all(mock_engine, checkfirst=False)
-
-    created = [s for s in emitted if s.startswith("CREATE TABLE")]
-    assert sorted(s.split(" (")[0] for s in created) == [
-        "CREATE TABLE sync_engine.sync_audit_log",
-        "CREATE TABLE sync_engine.sync_fingerprints",
-        "CREATE TABLE sync_engine.sync_states",
-    ]
-    assert "CREATE INDEX idx_audit_entity ON sync_engine.sync_audit_log (entity_key)" in emitted
-
-
-def test_safe_database_label_hides_password(isolated_env: None) -> None:
-    label = safe_database_label()
-
-    assert label == "postgresql+asyncpg://user:***@localhost:5432/aiophub"
-    assert "password" not in label
+def test_safe_database_label_masks_credentials(
+    monkeypatch: pytest.MonkeyPatch, isolated_env: None
+) -> None:
+    assert safe_database_label() == "sqlite+aiosqlite:///./data/sync.db"

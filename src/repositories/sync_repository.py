@@ -59,7 +59,7 @@ class SqlSyncRepository:
             return {}
         async with self._sessions() as session:
             result = await session.execute(sql.select_fingerprints(self._module, keys))
-            return dict(result.tuples().all())
+            return {key: payload_hash for key, payload_hash in result}
 
     async def save_fingerprint(self, key: str, payload_hash: str, now: datetime) -> None:
         await self._execute(sql.upsert_fingerprint(self._module, key, payload_hash, now))
@@ -73,7 +73,8 @@ class SqlSyncRepository:
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot:
         async with self._sessions() as session:
             state = await session.scalar(sql.select_state(self._module))
-            counts = dict((await session.execute(sql.count_actions_since(since))).tuples().all())
+            rows = await session.execute(sql.count_actions_since(since))
+            counts = {action: total for action, total in rows}
             recent = (await session.scalars(sql.recent_audit(limit))).all()
         return DashboardSnapshot(
             status=state.status if state is not None else "IDLE",

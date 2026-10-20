@@ -1,19 +1,36 @@
-"""Sync state, fingerprint and audit entities (SPEC section 4, schema `sync_engine`)."""
+"""Sync state, fingerprint and audit entities (SPEC section 4) on embedded SQLite."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import JsonValue
-from sqlalchemy import BigInteger, DateTime, Index, Integer, MetaData, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, BigInteger, DateTime, Dialect, Index, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
 
-SCHEMA = "sync_engine"
+
+class UtcDateTime(TypeDecorator[datetime]):
+    """Stores UTC as naive text (SQLite has no tz) and returns timezone-aware UTC."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: Dialect) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("UtcDateTime requires timezone-aware datetimes")
+        return value.astimezone(UTC).replace(tzinfo=None)
+
+    def process_result_value(self, value: datetime | None, dialect: Dialect) -> datetime | None:
+        return value.replace(tzinfo=UTC) if value is not None else None
+
+
+# SQLite only auto-increments an INTEGER PRIMARY KEY (rowid alias), not BIGINT.
+AUDIT_ID = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Base(DeclarativeBase):
     """Declarative base for all sync engine entities."""
-
-    metadata = MetaData(schema=SCHEMA)
 
 
 class SyncState(Base):
@@ -22,9 +39,9 @@ class SyncState(Base):
     __tablename__ = "sync_states"
 
     module_name: Mapped[str] = mapped_column(String(64), primary_key=True)
-    cursor_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    cursor_timestamp: Mapped[datetime] = mapped_column(UtcDateTime())
     status: Mapped[str] = mapped_column(String(32), server_default="IDLE")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
 
 
 class SyncFingerprint(Base):
@@ -35,7 +52,7 @@ class SyncFingerprint(Base):
     module_name: Mapped[str] = mapped_column(String(64), primary_key=True)
     entity_key: Mapped[str] = mapped_column(String(128), primary_key=True)
     payload_hash: Mapped[str] = mapped_column(String(64))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
 
 
 class SyncAuditLog(Base):
@@ -44,10 +61,10 @@ class SyncAuditLog(Base):
     __tablename__ = "sync_audit_log"
     __table_args__ = (Index("idx_audit_entity", "entity_key"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(AUDIT_ID, primary_key=True, autoincrement=True)
     entity_key: Mapped[str] = mapped_column(String(128))
     action: Mapped[str] = mapped_column(String(32))
     status_code: Mapped[int | None] = mapped_column(Integer)
-    payload: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB)
+    payload: Mapped[dict[str, JsonValue] | None] = mapped_column(JSON)
     error_message: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())

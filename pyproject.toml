@@ -12,6 +12,10 @@ known-first-party = ["src"]
 [tool.ruff.format]
 quote-style = "double"
 
+[tool.pytest.ini_options]
+# Keep tmp_path inside the project sandbox (.pytest_cache is self-gitignored)
+addopts = "--basetemp=.pytest_cache/tmp"
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

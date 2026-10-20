@@ -26,7 +26,7 @@ FRONTU_FIELDS = ("frontu_api_key", "frontu_subdomain", "internal_company_client_
 def test_settings_instantiate_from_env_example() -> None:
     settings = get_settings()
 
-    assert settings.database_url.scheme == "postgresql+asyncpg"
+    assert settings.database_url == "sqlite+aiosqlite:///./data/sync.db"
     assert settings.frontu_api_key.get_secret_value() == "your-frontu-api-token"
     assert settings.log_level == "INFO"
     assert settings.app_port == 8000
@@ -133,3 +133,20 @@ def test_safety_flags_parse_from_env(
 
     assert settings.sync_enabled is (enabled == "true")
     assert settings.sync_dry_run is (dry_run == "true")
+
+
+def test_database_url_defaults_to_embedded_sqlite() -> None:
+    assert Settings.model_fields["database_url"].default == "sqlite+aiosqlite:///./data/sync.db"
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["postgresql+asyncpg://user:pw@localhost:5432/aiophub", "sqlite:///./data/sync.db", "nonsense"],
+)
+def test_database_url_requires_aiosqlite_driver(
+    url: str, monkeypatch: pytest.MonkeyPatch, isolated_env: None
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", url)
+
+    with pytest.raises(ValidationError, match=r"sqlite\+aiosqlite"):
+        get_settings()
