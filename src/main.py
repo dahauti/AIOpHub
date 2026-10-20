@@ -8,10 +8,10 @@ from collections.abc import AsyncIterator
 import httpx
 from fastapi import FastAPI
 
-from src.adapters.bc_client import BCClient, BCConnection, onprem_connection, saas_connection
+from src.adapters.bc_client import BCClient, select_connection
 from src.adapters.frontu_client import FrontuClient
 from src.api.routes_ui import router
-from src.config import Settings, get_settings
+from src.config import get_settings
 from src.database import get_engine, get_sessionmaker
 from src.logging_setup import configure_logging
 from src.pipelines.scheduler import SyncRunner
@@ -22,13 +22,6 @@ from src.repositories.sync_repository import SqlSyncRepository
 logger = logging.getLogger(__name__)
 
 HTTP_TIMEOUT_SECONDS = 30.0
-
-
-def select_connection(settings: Settings) -> BCConnection:
-    """BC endpoint for the configured BC_ACTIVE_PROFILE."""
-    if settings.bc_active_profile == "saas":
-        return saas_connection(settings)
-    return onprem_connection(settings)
 
 
 @contextlib.asynccontextmanager

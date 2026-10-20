@@ -6,8 +6,9 @@ import httpx
 import pytest
 import pytest_asyncio
 
+from src.adapters.bc_client import select_connection
 from src.config import get_settings
-from src.main import create_app, select_connection
+from src.main import create_app
 from tests.ui_fakes import SNAPSHOT, FakeControl
 
 

@@ -24,9 +24,8 @@ from scripts.report_io import (
     parse_report_rows,
     write_csv,
 )
-from src.adapters.bc_client import BCClient
+from src.adapters.bc_client import BCClient, select_connection
 from src.config import get_settings
-from src.main import select_connection
 from src.pipelines.identity_resolver import LegacyIndex
 from src.schemas.bc_vehicle import BCODataVehicle
 

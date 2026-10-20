@@ -5,7 +5,13 @@ import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
+import httpx
+
+from src.adapters.bc_client import BCClient, select_connection
+from src.adapters.frontu_client import FrontuClient
 from src.adapters.resilience import ExternalServiceError
+from src.config import Settings
+from src.database import get_sessionmaker
 from src.pipelines.audit_helpers import (
     record_audit,
     record_failure,
@@ -14,7 +20,7 @@ from src.pipelines.audit_helpers import (
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
-from src.repositories.sync_repository import SyncRepository
+from src.repositories.sync_repository import SqlSyncRepository, SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
 from src.schemas.sync import ReleaseStatus, SyncRunResult
@@ -26,6 +32,7 @@ MODULE = "workspaces_vehicles"
 LOOKBACK = timedelta(minutes=15)
 INITIAL_WINDOW = timedelta(days=30)
 CONFIRMED_STATUSES = frozenset({200, 201})
+HTTP_TIMEOUT_SECONDS = 30.0
 
 
 class VehicleSyncPipeline:
@@ -157,3 +164,20 @@ class VehicleSyncPipeline:
         if candidate > run.cursor:
             await self._repo.advance_cursor(candidate, now)
             run.cursor = candidate
+
+
+async def sync_vehicles_batch(settings: Settings) -> SyncRunResult | None:
+    """One headless batch run (CLI / OS scheduler), wired like the web app.
+
+    Returns None when `sync_states` shows the module claimed by another run or process.
+    """
+    repository = SqlSyncRepository(get_sessionmaker(), MODULE)
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as http:
+        pipeline = VehicleSyncPipeline(
+            BCClient(http, select_connection(settings)),
+            FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key),
+            repository,
+            settings.internal_company_client_id,
+            dry_run=settings.sync_dry_run,
+        )
+        return await pipeline.run()
