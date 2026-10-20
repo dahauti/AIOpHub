@@ -24,7 +24,7 @@
   - Never call external HTTP endpoints directly from services or API routes.
 - Throttling & Fault Tolerance:
   - Wrap all external network requests with exponential backoff and jitter using `tenacity`.
-  - Explicitly handle HTTP 429 (Rate Limit/Throttling), HTTP 408/504 (Timeouts), and HTTP 5xx (Vendor Outages). Respect `Retry-After` headers.
+  - Retries target HTTP 429, 502, 503, and 504 with exponential backoff and jitter. Respect `Retry-After` headers.
 - Authentication Lifecycle:
   - Decouple token lifecycle from request logic.
   - Token-based clients (OAuth2 / Entra ID) must cache bearer tokens in memory and automatically refresh them 5 minutes prior to expiry. Do NOT re-authenticate per transaction.

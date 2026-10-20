@@ -86,3 +86,24 @@ def test_frontu_subdomain_rejects_non_label_values(
 
     with pytest.raises(ValidationError):
         get_settings()
+
+
+@pytest.mark.usefixtures("isolated_env")
+def test_runtime_defaults_select_onprem_and_five_minute_interval() -> None:
+    settings = get_settings()
+
+    assert settings.bc_active_profile == "onprem"
+    assert settings.sync_interval_seconds == 300
+
+
+@pytest.mark.parametrize(
+    ("env_key", "value"),
+    [("BC_ACTIVE_PROFILE", "cloud"), ("SYNC_INTERVAL_SECONDS", "0")],
+)
+def test_runtime_settings_reject_invalid_values(
+    env_key: str, value: str, monkeypatch: pytest.MonkeyPatch, isolated_env: None
+) -> None:
+    monkeypatch.setenv(env_key, value)
+
+    with pytest.raises(ValidationError):
+        get_settings()

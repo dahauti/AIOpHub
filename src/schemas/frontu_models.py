@@ -1,6 +1,6 @@
 """Frontu FSM API v2 schemas (SPEC section 5.2)."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, JsonValue
 
 
 class FrontuWorkspaceUpsert(BaseModel):
@@ -56,3 +56,12 @@ class FrontuCustomFieldIds(BaseModel):
             if field_id is not None and value:
                 values[field_id] = value
         return values or None
+
+
+class FrontuUpsertResult(BaseModel):
+    """Outcome of POST /workspaces: HTTP status plus the response object."""
+
+    model_config = ConfigDict(frozen=True)
+
+    status_code: int
+    body: dict[str, JsonValue]

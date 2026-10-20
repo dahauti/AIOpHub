@@ -14,6 +14,7 @@ from src.schemas.frontu_models import (
     FrontuCustomField,
     FrontuCustomFieldIds,
     FrontuCustomFieldList,
+    FrontuUpsertResult,
     FrontuWorkspaceUpsert,
 )
 
@@ -110,15 +111,16 @@ class FrontuClient:
                 self._field_ids = await self._fetch_custom_field_ids()
             return self._field_ids
 
-    async def upsert_workspace(self, payload: FrontuWorkspaceUpsert) -> dict[str, JsonValue]:
-        """POST /workspaces (Frontu upserts by systemId); returns the response object."""
+    async def upsert_workspace(self, payload: FrontuWorkspaceUpsert) -> FrontuUpsertResult:
+        """POST /workspaces (Frontu upserts by systemId); returns status and response object."""
         body = payload.model_dump(mode="json", exclude_none=True)
         response = await self._send("POST", "/workspaces", body)
         try:
-            return _JSON_OBJECT.validate_json(response.content)
+            body = _JSON_OBJECT.validate_json(response.content)
         except ValidationError as exc:
             detail = "workspace response is not a JSON object"
             raise ExternalServiceError(SERVICE, response.status_code, detail) from exc
+        return FrontuUpsertResult(status_code=response.status_code, body=body)
 
     async def _fetch_custom_field_ids(self) -> FrontuCustomFieldIds:
         response = await self._send("GET", "/customfields/workspaces")

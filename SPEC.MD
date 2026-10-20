@@ -9,7 +9,7 @@
 ## 2. Tech Stack & Infrastructure
 - Runtime: Python 3.12+ (isolated in C:\AIOpHub\.venv).
 - Frameworks: FastAPI, SQLAlchemy 2.0 (async), asyncpg, Pydantic v2, HTTPX.
-- Fault Tolerance: Tenacity (backoff on 429/503), client-side token bucket (150 req/min, 0.5s pace for Frontu).
+- Fault Tolerance: Tenacity. Retries target HTTP 429, 502, 503, and 504 with exponential backoff and jitter. Client-side token bucket (150 req/min, 0.5s pace for Frontu).
 - Database: PostgreSQL (schema sync_engine).
 
 ## 3. Directory Layout
@@ -35,9 +35,20 @@ C:\AIOpHub\
 |   |   |-- __init__.py
 |   |   |-- bc_client.py
 |   |   +-- frontu_client.py
-|   +-- pipelines/
-|       |-- __init__.py
-|       +-- sync_vehicles.py
+|   |-- api/
+|   |   |-- __init__.py
+|   |   +-- routes_ui.py
+|   |-- pipelines/
+|   |   |-- __init__.py
+|   |   +-- sync_vehicles.py
+|   |-- repositories/
+|   |   |-- __init__.py
+|   |   +-- sync_repository.py
+|   +-- templates/
+|       |-- base.html
+|       |-- dashboard.html
+|       +-- partials/
+|           +-- status.html
 +-- tests/
     |-- __init__.py
     |-- conftest.py
@@ -121,7 +132,7 @@ FrontuWorkspaceUpsert fields:
 - Auth Modes:
   - onprem: HTTP Basic (BC_USER : BC_WEB_SERVICE_ACCESS_KEY)
   - saas: Entra ID Client Credentials with in-memory token caching (refresh at expires_at - 300s)
-- Retries: Tenacity on HTTP 429 and 503 only.
+- Retries: Retries target HTTP 429, 502, 503, and 504 with exponential backoff and jitter.
 
 ### Frontu Adapter (src/adapters/frontu_client.py):
 - Base URL: https://{subdomain}.frontu.com/client/api/v2

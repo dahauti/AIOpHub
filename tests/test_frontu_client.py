@@ -32,7 +32,8 @@ async def test_upsert_posts_workspace_with_bearer_token() -> None:
 
     result = await _client(mock, FakeClock()).upsert_workspace(WORKSPACE)
 
-    assert result == {"id": 991, "systemId": "SN-0001"}
+    assert result.status_code == 201
+    assert result.body == {"id": 991, "systemId": "SN-0001"}
     request = mock.requests[0]
     assert request.method == "POST"
     assert str(request.url) == f"{BASE_URL}/workspaces"

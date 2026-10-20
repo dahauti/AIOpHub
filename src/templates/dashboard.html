@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<nav>
+  <ul><li><strong>BC &rarr; Frontu vehicle sync</strong></li></ul>
+  <ul>
+    <li>
+      <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML">
+        Sync now
+      </button>
+    </li>
+  </ul>
+</nav>
+{% include "partials/status.html" %}
+{% endblock %}

@@ -1,0 +1,33 @@
+<section id="sync-status" hx-get="/partials/status" hx-trigger="every 5s" hx-swap="outerHTML">
+  {% if banner %}
+  <article role="status"><strong>{{ banner }}</strong></article>
+  {% endif %}
+  <div class="grid">
+    <article><header>State</header><strong>{{ snapshot.status }}</strong></article>
+    <article><header>Last sync</header>{{ snapshot.updated_at | utc }}</article>
+    <article><header>Cursor</header>{{ snapshot.cursor_timestamp | utc }}</article>
+  </div>
+  <div class="grid">
+    <article><header>Processed today</header><h2>{{ snapshot.processed }}</h2></article>
+    <article><header>Skipped today</header><h2>{{ snapshot.skipped }}</h2></article>
+    <article><header>Errors today</header><h2>{{ snapshot.errors }}</h2></article>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Vehicle</th><th>Action</th><th>HTTP</th><th>Error</th></tr>
+    </thead>
+    <tbody>
+      {% for row in snapshot.recent %}
+      <tr>
+        <td>{{ row.created_at | utc }}</td>
+        <td>{{ row.entity_key }}</td>
+        <td>{{ row.action }}</td>
+        <td>{{ row.status_code if row.status_code is not none else "" }}</td>
+        <td>{{ row.error_message or "" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No sync activity yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
