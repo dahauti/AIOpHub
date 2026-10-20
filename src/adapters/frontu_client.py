@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from urllib.parse import quote
 
 import httpx
@@ -95,21 +95,26 @@ class FrontuClient:
                 self._listed_at = now
             return list(self._listing)
 
-    async def _fetch_workspaces(self) -> list[FrontuWorkspaceSummary]:
-        """Page through the listing; raises instead of returning a partial list."""
-        found: list[FrontuWorkspaceSummary] = []
+    async def iter_workspace_pages(self) -> AsyncIterator[tuple[int, list[JsonValue]]]:
+        """Raw `object` workspace rows page by page; raises instead of ending early."""
         seen = 0
         for page in range(1, MAX_WORKSPACE_PAGES + 1):
             params = {"type": "object", "pageSize": str(WORKSPACE_PAGE_SIZE), "page": str(page)}
             rows, total = parse_workspace_page(
                 await self._send("GET", "/workspaces", params=params)
             )
-            found.extend(valid_workspaces(rows, page))
+            yield page, rows
             seen += len(rows)
             if len(rows) < WORKSPACE_PAGE_SIZE or (total is not None and seen >= total):
-                return found
+                return
         detail = f"workspace listing exceeded the page cap of {MAX_WORKSPACE_PAGES}"
         raise ExternalServiceError(SERVICE, None, detail)
+
+    async def _fetch_workspaces(self) -> list[FrontuWorkspaceSummary]:
+        found: list[FrontuWorkspaceSummary] = []
+        async for page, rows in self.iter_workspace_pages():
+            found.extend(valid_workspaces(rows, page))
+        return found
 
     async def _send(
         self,

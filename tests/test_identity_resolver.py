@@ -95,3 +95,14 @@ def test_claimed_workspace_is_reserved_for_its_vehicle() -> None:
 
     assert first == again == IdentityDecision("ADOPT", "w1")
     assert other == UPSERT
+
+
+def test_ambiguous_groups_lists_shared_serial_keys_only() -> None:
+    index = _index(
+        workspace("a", "vin-1"),
+        workspace("b", " VIN-1"),
+        workspace("c", "VIN-2"),
+        workspace("d", "VIN-1", system_id="SN-9"),
+    )
+
+    assert index.ambiguous_groups() == {"VIN-1": ["a", "b"]}

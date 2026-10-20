@@ -67,6 +67,10 @@ class LegacyIndex:
                 return self._claim(serial, matches[0])
         return IdentityDecision("UPSERT")
 
+    def ambiguous_groups(self) -> dict[str, list[str]]:
+        """Serial keys shared by several unmanaged objects: the matches `resolve` refuses."""
+        return {key: list(ids) for key, ids in sorted(self._by_serial.items()) if len(ids) > 1}
+
     def _claim(self, serial: str, workspace_id: str) -> IdentityDecision:
         for ids in self._by_serial.values():
             if workspace_id in ids:
