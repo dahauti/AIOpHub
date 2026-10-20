@@ -22,6 +22,21 @@
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js"></script>
+  <script>
+    // Morph swaps patch the live DOM in place. Keep nodes whose content the browser owns:
+    // <time> tags already rewritten to local time, and a cursor the user is typing.
+    if (window.Idiomorph && Idiomorph.defaults) {
+      Idiomorph.defaults.ignoreActiveValue = true;
+      Idiomorph.defaults.callbacks.beforeNodeMorphed = (oldNode, newNode) => {
+        if (oldNode.id === "cursor-input" && oldNode.value) return false;
+        const sameInstant = oldNode.nodeName === "TIME" && newNode.nodeName === "TIME"
+          && oldNode.dataset.local !== undefined
+          && oldNode.getAttribute("datetime") === newNode.getAttribute("datetime");
+        return !sameInstant;
+      };
+    }
+  </script>
   <style type="text/tailwindcss">
     .card { @apply rounded-xl border border-slate-800/80 bg-slate-900/70 p-4 shadow-sm; }
     .label { @apply text-xs font-medium uppercase tracking-wider text-slate-400; }
@@ -72,7 +87,7 @@
     })();
   </script>
 </head>
-<body class="min-h-screen bg-[#0B0F17] font-sans text-slate-200 antialiased">
+<body hx-ext="morph" class="min-h-screen bg-[#0B0F17] font-sans text-slate-200 antialiased">
   <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
     {% block content %}{% endblock %}
   </main>

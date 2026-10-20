@@ -10,7 +10,7 @@
 <section id="batch-sync" aria-labelledby="batch-heading" class="mb-10">
   <div class="mb-4 flex items-center justify-between gap-4">
     <h2 id="batch-heading" class="label">Batch sync</h2>
-    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" class="btn-primary">
+    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="morph" hx-disabled-elt="this" class="btn-primary">
       {{ spinner() }}Sync now
     </button>
   </div>
@@ -18,7 +18,7 @@
 </section>
 <section id="single-vehicle" aria-labelledby="single-heading" class="card">
   <h2 id="single-heading" class="label">Single-vehicle canary</h2>
-  <form hx-post="/api/sync/vehicle" hx-target="#single-debug" hx-swap="outerHTML" hx-disabled-elt="find button" class="mt-3 flex flex-wrap items-center gap-2">
+  <form hx-post="/api/sync/vehicle" hx-target="#single-debug" hx-swap="morph" hx-disabled-elt="find button" class="mt-3 flex flex-wrap items-center gap-2">
     <input type="text" name="serial_no" placeholder="SerialNo" aria-label="Vehicle SerialNo" required maxlength="128" class="field w-64 font-mono">
     <input type="hidden" name="force_live" value="true">
     <button type="submit" class="btn-ghost">{{ spinner() }}Sync Vehicle (Live Single)</button>
