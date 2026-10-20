@@ -90,3 +90,17 @@ async def test_status_swaps_morph_in_place_without_layout_shift(client: httpx.As
     assert 'hx-swap="outerHTML"' not in page + status and "hx-preserve" not in status
     assert 'id="status-banner" class="min-h-' in status
     assert status.count("min-h-[") >= 9 and "tabular-nums" in status
+
+
+@pytest.mark.asyncio
+async def test_layout_dimensions_are_frozen_between_polls(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/")).text
+    status = (await client.get("/partials/status")).text
+
+    assert 'class="data-table table-fixed' in status
+    widths = ["w-[180px]", "w-[120px]", "w-[200px]", "w-[80px]"]
+    colgroup = status[status.index("<colgroup>") + len("<colgroup>") : status.index("</colgroup>")]
+    assert [w for w in widths if w in colgroup] == widths and colgroup.count("<col") == 5
+    assert status.count("min-h-[96px]") >= 7
+    assert "time { display: inline-block; min-width: 160px;" in page
+    assert "font-variant-numeric: tabular-nums" in page
