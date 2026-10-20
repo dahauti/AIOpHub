@@ -16,6 +16,8 @@ __pycache__/
 Thumbs.db
 
 # Logs & temp data
+logs/
+data/
 *.log
 *.sqlite
 *.sql

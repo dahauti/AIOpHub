@@ -13,6 +13,7 @@ from src.adapters.frontu_client import FrontuClient
 from src.api.routes_ui import router
 from src.config import Settings, get_settings
 from src.database import get_engine, get_sessionmaker
+from src.logging_setup import configure_logging
 from src.pipelines.scheduler import SyncRunner
 from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
@@ -33,7 +34,8 @@ def select_connection(settings: Settings) -> BCConnection:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Wire adapters, start the periodic sync daemon, and tear everything down on exit."""
     settings = get_settings()
-    logging.basicConfig(level=settings.log_level)
+    log_file = configure_logging(settings.log_level)
+    logger.info("Logging to %s", log_file)
     repository = SqlSyncRepository(get_sessionmaker(), MODULE)
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as http:
         pipeline = VehicleSyncPipeline(

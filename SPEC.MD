@@ -8,9 +8,9 @@
 
 ## 2. Tech Stack & Infrastructure
 - Runtime: Python 3.12+ (isolated in C:\AIOpHub\.venv).
-- Frameworks: FastAPI, SQLAlchemy 2.0 (async), asyncpg, Pydantic v2, HTTPX.
+- Frameworks: FastAPI, SQLAlchemy 2.1 (async), aiosqlite, Pydantic v2, HTTPX.
 - Fault Tolerance: Tenacity. Retries target HTTP 429, 502, 503, and 504 with exponential backoff and jitter. Client-side token bucket (150 req/min, 0.5s pace for Frontu).
-- Database: PostgreSQL (schema sync_engine).
+- Database: Embedded SQLite in WAL mode (`sqlite+aiosqlite:///./data/sync.db`), flat namespace (no schema prefix).
 
 ## 3. Directory Layout
 C:\AIOpHub\
@@ -54,36 +54,38 @@ C:\AIOpHub\
     |-- conftest.py
     +-- test_sync_vehicles.py
 
-## 4. Database Schema (PostgreSQL sync_engine)
+## 4. Database Schema (embedded SQLite)
+- Engine: `sqlite+aiosqlite:///./data/sync.db` (path relative to the working directory; `./data` is created on first use).
+- Every connection sets `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON`.
+- Flat namespace: no `sync_engine` schema prefix. Tables are created idempotently by `python -m src.database` (`Base.metadata.create_all`).
+- Timestamps are stored as UTC text and read back as timezone-aware UTC (`UtcDateTime` column type).
 
-CREATE SCHEMA IF NOT EXISTS sync_engine;
-
-CREATE TABLE IF NOT EXISTS sync_engine.sync_states (
-    module_name VARCHAR(64) PRIMARY KEY,
-    cursor_timestamp TIMESTAMPTZ NOT NULL,
+CREATE TABLE IF NOT EXISTS sync_states (
+    module_name VARCHAR(64) NOT NULL PRIMARY KEY,
+    cursor_timestamp DATETIME NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'IDLE',
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS sync_engine.sync_fingerprints (
+CREATE TABLE IF NOT EXISTS sync_fingerprints (
     module_name VARCHAR(64) NOT NULL,
     entity_key VARCHAR(128) NOT NULL,
     payload_hash VARCHAR(64) NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (module_name, entity_key)
 );
 
-CREATE TABLE IF NOT EXISTS sync_engine.sync_audit_log (
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS sync_audit_log (
+    id INTEGER PRIMARY KEY,  -- rowid alias; auto-increments (BIGINT would not on SQLite)
     entity_key VARCHAR(128) NOT NULL,
     action VARCHAR(32) NOT NULL,
-    status_code INT,
-    payload JSONB,
+    status_code INTEGER,
+    payload JSON,
     error_message TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_audit_entity ON sync_engine.sync_audit_log(entity_key);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON sync_audit_log(entity_key);
 
 ## 5. Domain Schemas & Contracts
 
@@ -148,7 +150,7 @@ FrontuWorkspaceUpsert fields:
 
 ## 7. Pipeline Execution Logic (src/pipelines/sync_vehicles.py)
 1. Acquire module execution lock for workspaces_vehicles.
-2. Read cursor from sync_engine.sync_states (fallback: NOW() - 30 days).
+2. Read cursor from sync_states (fallback: NOW() - 30 days).
 3. Compute fetch start window: cursor - 15 minutes.
 4. Read batch from BC VehicleCard ($top=500).
 5. For vehicles having CustomerNo + CustomerServiceAddressCode, resolve address via TG_ShipToAdress lookup.
