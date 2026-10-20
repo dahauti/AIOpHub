@@ -1,0 +1,1 @@
+"""Core synchronization business logic."""

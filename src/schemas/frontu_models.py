@@ -1,0 +1,1 @@
+"""Frontu payload schemas."""
