@@ -84,16 +84,74 @@ async def test_guid_takes_precedence_when_several_identifier_keys_exist() -> Non
     assert ids.registration_field_id == REG_ID
 
 
+SITE_ITEM: dict[str, JsonValue] = {"title": "Padalinio pavadinimas", "guid": SITE_ID, "type": 1}
+MALFORMED_LOG = "Skipping malformed Frontu custom field at index %d (%d validation errors)"
+
+
 @pytest.mark.parametrize(
-    "item",
-    [{"guid": REG_ID, "type": 0}, {"title": "Registracijos Nr.", "type": 0}],
-    ids=["missing-title", "missing-identifier"],
+    "bad_item",
+    [
+        {"guid": "no-title", "type": 0},
+        {"title": "Kita", "type": 0},
+        {"title": None, "guid": "null-title"},
+        "not-an-object",
+    ],
+    ids=["missing-title", "missing-identifier", "null-title", "non-object"],
 )
 @pytest.mark.asyncio
-async def test_item_without_title_or_identifier_raises_domain_error(
-    item: dict[str, JsonValue],
+async def test_malformed_items_are_skipped_with_warning_and_valid_ones_resolve(
+    bad_item: JsonValue, caplog: pytest.LogCaptureFixture
 ) -> None:
-    mock = RecordingHandler(_respond({"next_page": 0, "items": [item]}))
+    mock = RecordingHandler(_respond({"next_page": 0, "items": [bad_item, LIVE_ITEM, SITE_ITEM]}))
+
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+        ids = await _client(mock, FakeClock()).resolve_custom_fields()
+
+    assert ids == FrontuCustomFieldIds(registration_field_id=REG_ID, site_field_id=SITE_ID)
+    assert [(r.msg, r.args[0]) for r in caplog.records if isinstance(r.args, tuple)] == [
+        (MALFORMED_LOG, 0)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_inactive_field_is_ignored_even_when_title_matches(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    inactive = SITE_ITEM | {"notUsedInApp": True}
+    mock = RecordingHandler(_respond({"items": [LIVE_ITEM, inactive]}))
+
+    with caplog.at_level(logging.WARNING, logger="src.adapters.frontu_client"):
+        ids = await _client(mock, FakeClock()).resolve_custom_fields()
+
+    assert ids == FrontuCustomFieldIds(registration_field_id=REG_ID, site_field_id=None)
+    assert [r.getMessage() for r in caplog.records] == [
+        "Frontu custom field 'Padalinio pavadinimas' not found; its value will be omitted"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_active_field_wins_over_earlier_inactive_duplicate() -> None:
+    archived = LIVE_ITEM | {"guid": "archived-guid", "notUsedInApp": True}
+    mock = RecordingHandler(_respond({"items": [archived, LIVE_ITEM]}))
+
+    ids = await _client(mock, FakeClock()).resolve_custom_fields()
+
+    assert ids.registration_field_id == REG_ID
+
+
+@pytest.mark.asyncio
+async def test_envelope_items_that_are_not_a_list_still_fail_fast() -> None:
+    mock = RecordingHandler(_respond({"next_page": 0, "items": {"guid": REG_ID}}))
 
     with pytest.raises(ExternalServiceError):
         await _client(mock, FakeClock()).resolve_custom_fields()
+
+
+@pytest.mark.parametrize("flag", [False, None], ids=["false", "null"])
+@pytest.mark.asyncio
+async def test_field_with_false_or_null_not_used_flag_counts_as_active(flag: JsonValue) -> None:
+    mock = RecordingHandler(_respond({"items": [LIVE_ITEM | {"notUsedInApp": flag}]}))
+
+    ids = await _client(mock, FakeClock()).resolve_custom_fields()
+
+    assert ids.registration_field_id == REG_ID

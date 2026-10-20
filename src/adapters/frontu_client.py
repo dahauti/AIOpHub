@@ -28,7 +28,7 @@ REGISTRATION_FIELD_TITLE = "Registracijos Nr."
 SITE_FIELD_TITLE = "Padalinio pavadinimas"
 _WINDOW_SECONDS = 60.0
 _JSON_OBJECT = TypeAdapter(dict[str, JsonValue])
-_CUSTOM_FIELDS = TypeAdapter(list[FrontuCustomField] | FrontuCustomFieldList)
+_CUSTOM_FIELDS = TypeAdapter(list[JsonValue] | FrontuCustomFieldList)
 
 
 class RatePacer:
@@ -71,6 +71,27 @@ class RatePacer:
     def _prune(self, now: float) -> None:
         while self._sent and now - self._sent[0] >= _WINDOW_SECONDS:
             self._sent.popleft()
+
+
+def _active_fields(raw_fields: list[JsonValue]) -> list[FrontuCustomField]:
+    """Validate entries one by one: skip malformed (warning) and inactive (debug) fields."""
+    fields: list[FrontuCustomField] = []
+    for index, raw in enumerate(raw_fields):
+        try:
+            field = FrontuCustomField.model_validate(raw)
+        except ValidationError as exc:
+            logger.warning(
+                "Skipping malformed Frontu custom field at index %d (%d validation errors)",
+                index,
+                exc.error_count(),
+                extra={"service": SERVICE},
+            )
+            continue
+        if field.notUsedInApp:
+            logger.debug("Ignoring inactive Frontu custom field %r", field.title)
+            continue
+        fields.append(field)
+    return fields
 
 
 def _field_id(by_title: dict[str, str], title: str) -> str | None:
@@ -129,9 +150,9 @@ class FrontuClient:
         except ValidationError as exc:
             detail = "unexpected custom fields payload"
             raise ExternalServiceError(SERVICE, response.status_code, detail) from exc
-        fields = parsed.fields if isinstance(parsed, FrontuCustomFieldList) else parsed
+        raw_fields = parsed.raw_fields if isinstance(parsed, FrontuCustomFieldList) else parsed
         by_title: dict[str, str] = {}
-        for field in fields:
+        for field in _active_fields(raw_fields):
             by_title.setdefault(field.title.strip().lower(), field.id)
         return FrontuCustomFieldIds(
             registration_field_id=_field_id(by_title, REGISTRATION_FIELD_TITLE),

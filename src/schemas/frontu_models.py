@@ -38,6 +38,7 @@ class FrontuCustomField(BaseModel):
     id: str
     title: str
     type: int | str | None = None
+    notUsedInApp: bool | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -56,12 +57,13 @@ class FrontuCustomFieldList(BaseModel):
     """Envelope variants: paginated `{"next_page": 0, "items": [...]}` or `{"data": [...]}`.
 
     Pagination metadata (`next_page`, `page`, ...) is ignored; only the first page is read.
+    Items stay raw so one corrupt field never rejects the whole listing.
     """
 
     model_config = ConfigDict(extra="ignore")
 
-    items: list[FrontuCustomField] | None = None
-    data: list[FrontuCustomField] | None = None
+    items: list[JsonValue] | None = None
+    data: list[JsonValue] | None = None
 
     @model_validator(mode="after")
     def _require_field_list(self) -> Self:
@@ -70,8 +72,8 @@ class FrontuCustomFieldList(BaseModel):
         return self
 
     @property
-    def fields(self) -> list[FrontuCustomField]:
-        """The field list, preferring `items` over `data`."""
+    def raw_fields(self) -> list[JsonValue]:
+        """The unvalidated field entries, preferring `items` over `data`."""
         return self.items if self.items is not None else self.data or []
 
 
