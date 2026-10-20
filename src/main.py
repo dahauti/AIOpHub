@@ -15,6 +15,7 @@ from src.config import Settings, get_settings
 from src.database import get_engine, get_sessionmaker
 from src.logging_setup import configure_logging
 from src.pipelines.scheduler import SyncRunner
+from src.pipelines.single_vehicle import SingleVehicleSync
 from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
 
@@ -38,12 +39,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Logging to %s", log_file)
     repository = SqlSyncRepository(get_sessionmaker(), MODULE)
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as http:
+        bc = BCClient(http, select_connection(settings))
+        frontu = FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key)
+        client_id, dry_run = settings.internal_company_client_id, settings.sync_dry_run
+        run_lock = asyncio.Lock()
         pipeline = VehicleSyncPipeline(
-            BCClient(http, select_connection(settings)),
-            FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key),
-            repository,
-            settings.internal_company_client_id,
-            dry_run=settings.sync_dry_run,
+            bc, frontu, repository, client_id, dry_run=dry_run, lock=run_lock
+        )
+        app.state.single_sync = SingleVehicleSync(
+            bc, frontu, repository, client_id, lock=run_lock, dry_run=dry_run
         )
         if settings.sync_dry_run:
             logger.warning("SYNC_DRY_RUN is on: Frontu will not be modified")

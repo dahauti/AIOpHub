@@ -1,7 +1,6 @@
 """HTMX dashboard routes over ASGITransport with a fake SyncControl (no lifespan, no DB)."""
 
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -9,42 +8,7 @@ import pytest_asyncio
 
 from src.config import get_settings
 from src.main import create_app, select_connection
-from src.schemas.sync import AuditRecord, DashboardSnapshot
-
-NOW = datetime(2026, 10, 20, 12, 30, 5, tzinfo=UTC)
-SNAPSHOT = DashboardSnapshot(
-    status="IDLE",
-    cursor_timestamp=datetime(2026, 10, 20, 12, 15, tzinfo=UTC),
-    updated_at=NOW,
-    processed=12,
-    skipped=34,
-    errors=2,
-    recent=[
-        AuditRecord(created_at=NOW, entity_key="SN-0001", action="UPSERT", status_code=201),
-        AuditRecord(
-            created_at=NOW,
-            entity_key="SN-0002",
-            action="FAILED",
-            status_code=422,
-            error_message="<script>alert(1)</script>",
-        ),
-    ],
-)
-
-
-class FakeControl:
-    def __init__(self, snapshot: DashboardSnapshot, accept: bool = True) -> None:
-        self._snapshot = snapshot
-        self.accept = accept
-        self.triggers = 0
-        self.dry_run = False
-
-    def trigger(self) -> bool:
-        self.triggers += 1
-        return self.accept
-
-    async def snapshot(self) -> DashboardSnapshot:
-        return self._snapshot
+from tests.ui_fakes import SNAPSHOT, FakeControl
 
 
 @pytest_asyncio.fixture

@@ -51,11 +51,14 @@ class FakeBC:
         ship_to: dict[tuple[str, str], BCODataShipToAddress] | None = None,
         fail_at_page: int | None = None,
         failing_ship_to: frozenset[tuple[str, str]] = frozenset(),
+        failing_vehicles: frozenset[str] = frozenset(),
     ) -> None:
         self.pages = pages
         self.ship_to = ship_to or {}
         self.fail_at_page = fail_at_page
         self.failing_ship_to = failing_ship_to
+        self.failing_vehicles = failing_vehicles
+        self.vehicle_calls: list[str] = []
         self.since: list[datetime] = []
         self.ship_to_calls: list[tuple[str, str]] = []
 
@@ -66,6 +69,14 @@ class FakeBC:
             if index == self.fail_at_page:
                 raise ExternalServiceError("business-central", 503, "unavailable")
             yield page
+
+    async def get_vehicle(self, serial_no: str) -> BCODataVehicle | None:
+        self.vehicle_calls.append(serial_no)
+        await asyncio.sleep(0)
+        if serial_no in self.failing_vehicles:
+            raise ExternalServiceError("business-central", 503, "unavailable")
+        matches = [v for page in self.pages for v in page if v.SerialNo == serial_no]
+        return matches[0] if matches else None
 
     async def get_ship_to(self, customer_no: str, code: str) -> BCODataShipToAddress | None:
         self.ship_to_calls.append((customer_no, code))

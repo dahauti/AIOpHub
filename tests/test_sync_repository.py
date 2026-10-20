@@ -89,7 +89,18 @@ async def test_fingerprints_upsert_read_delete_and_module_scope(
 
 @pytest.mark.asyncio
 async def test_audit_rows_feed_counters_and_recent_list(repo: SqlSyncRepository) -> None:
-    actions = ["UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "DRY_RUN_UPSERT", "DRY_RUN_ARCHIVE"]
+    actions = [
+        "UPSERT",
+        "ARCHIVE",
+        "SKIPPED",
+        "FAILED",
+        "DRY_RUN_UPSERT",
+        "DRY_RUN_ARCHIVE",
+        "SINGLE_UPSERT",
+        "SINGLE_ARCHIVE",
+        "DRY_RUN_SINGLE_UPSERT",
+        "DRY_RUN_SINGLE_ARCHIVE",
+    ]
     for index, action in enumerate(actions):
         await repo.record_audit(
             AuditEntry.model_validate(
@@ -101,8 +112,8 @@ async def test_audit_rows_feed_counters_and_recent_list(repo: SqlSyncRepository)
     snapshot = await repo.dashboard_snapshot(since, limit=4)
     future = await repo.dashboard_snapshot(datetime.now(UTC) + timedelta(hours=1), limit=4)
 
-    assert (snapshot.processed, snapshot.skipped, snapshot.errors, snapshot.planned) == (2, 1, 1, 2)
-    assert [r.entity_key for r in snapshot.recent] == ["SN-5", "SN-4", "SN-3", "SN-2"]
+    assert (snapshot.processed, snapshot.skipped, snapshot.errors, snapshot.planned) == (4, 1, 1, 4)
+    assert [r.entity_key for r in snapshot.recent] == ["SN-9", "SN-8", "SN-7", "SN-6"]
     assert all(r.created_at.tzinfo is UTC for r in snapshot.recent)
     assert (future.processed, future.planned) == (0, 0)
     async with get_sessionmaker()() as session:

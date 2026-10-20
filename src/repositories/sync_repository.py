@@ -11,6 +11,10 @@ from src.repositories import sync_statements as sql
 from src.schemas.sync import AuditEntry, AuditRecord, DashboardSnapshot, ReleaseStatus
 
 
+def _total(counts: dict[str, int], *actions: str) -> int:
+    return sum(counts.get(action, 0) for action in actions)
+
+
 class SyncRepository(Protocol):
     """Storage port used by the pipeline and dashboard; bound to one module."""
 
@@ -80,10 +84,16 @@ class SqlSyncRepository:
             status=state.status if state is not None else "IDLE",
             cursor_timestamp=state.cursor_timestamp if state is not None else None,
             updated_at=state.updated_at if state is not None else None,
-            processed=counts.get("UPSERT", 0) + counts.get("ARCHIVE", 0),
+            processed=_total(counts, "UPSERT", "ARCHIVE", "SINGLE_UPSERT", "SINGLE_ARCHIVE"),
             skipped=counts.get("SKIPPED", 0),
             errors=counts.get("FAILED", 0),
-            planned=counts.get("DRY_RUN_UPSERT", 0) + counts.get("DRY_RUN_ARCHIVE", 0),
+            planned=_total(
+                counts,
+                "DRY_RUN_UPSERT",
+                "DRY_RUN_ARCHIVE",
+                "DRY_RUN_SINGLE_UPSERT",
+                "DRY_RUN_SINGLE_ARCHIVE",
+            ),
             recent=[AuditRecord.model_validate(row) for row in recent],
         )
 

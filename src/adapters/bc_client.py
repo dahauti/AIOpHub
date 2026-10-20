@@ -135,6 +135,12 @@ class BCClient:
                 return
             skip += PAGE_SIZE
 
+    async def get_vehicle(self, serial_no: str) -> BCODataVehicle | None:
+        """Return the VehicleCard row with this SerialNo, or None if BC has no match."""
+        params = {"$filter": f"SerialNo eq {odata_literal(serial_no)}", "$top": "1"}
+        rows = await self._get_rows(VEHICLES_PAGE, params, BCODataVehicle)
+        return rows[0] if rows else None
+
     async def get_ship_to(self, customer_no: str, code: str) -> BCODataShipToAddress | None:
         """Return the ship-to address for a customer/code pair, or None if absent."""
         params = {

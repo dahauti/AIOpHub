@@ -8,6 +8,13 @@
         Sync now
       </button>
     </li>
+    <li>
+      <form hx-post="/api/sync/vehicle" hx-target="#sync-status" hx-swap="outerHTML" role="group">
+        <input type="text" name="serial_no" placeholder="SerialNo" aria-label="Vehicle SerialNo" required maxlength="128">
+        <input type="hidden" name="force_live" value="true">
+        <button type="submit" class="secondary">Sync Vehicle (Live Single)</button>
+      </form>
+    </li>
   </ul>
 </nav>
 {% include "partials/status.html" %}

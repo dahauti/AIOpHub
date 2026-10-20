@@ -1,0 +1,52 @@
+"""Shared UI test doubles: a canned dashboard snapshot and fake control ports."""
+
+from datetime import UTC, datetime
+
+from src.schemas.sync import AuditRecord, DashboardSnapshot, SingleSyncResult
+
+NOW = datetime(2026, 10, 20, 12, 30, 5, tzinfo=UTC)
+SNAPSHOT = DashboardSnapshot(
+    status="IDLE",
+    cursor_timestamp=datetime(2026, 10, 20, 12, 15, tzinfo=UTC),
+    updated_at=NOW,
+    processed=12,
+    skipped=34,
+    errors=2,
+    recent=[
+        AuditRecord(created_at=NOW, entity_key="SN-0001", action="UPSERT", status_code=201),
+        AuditRecord(
+            created_at=NOW,
+            entity_key="SN-0002",
+            action="FAILED",
+            status_code=422,
+            error_message="<script>alert(1)</script>",
+        ),
+    ],
+)
+
+
+class FakeControl:
+    def __init__(self, snapshot: DashboardSnapshot, accept: bool = True) -> None:
+        self._snapshot = snapshot
+        self.accept = accept
+        self.triggers = 0
+        self.dry_run = False
+
+    def trigger(self) -> bool:
+        self.triggers += 1
+        return self.accept
+
+    async def snapshot(self) -> DashboardSnapshot:
+        return self._snapshot
+
+
+class FakeSingleSync:
+    def __init__(self, result: SingleSyncResult) -> None:
+        self.result = result
+        self.calls: list[tuple[str, bool]] = []
+
+    async def sync_single_vehicle(
+        self, serial_no: str, force_live: bool = False
+    ) -> SingleSyncResult:
+        self.calls.append((serial_no, force_live))
+        return self.result.model_copy(update={"serial_no": serial_no})

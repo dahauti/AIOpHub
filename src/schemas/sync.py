@@ -5,7 +5,19 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-AuditAction = Literal["UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "DRY_RUN_UPSERT", "DRY_RUN_ARCHIVE"]
+AuditAction = Literal[
+    "UPSERT",
+    "ARCHIVE",
+    "SKIPPED",
+    "FAILED",
+    "DRY_RUN_UPSERT",
+    "DRY_RUN_ARCHIVE",
+    "SINGLE_UPSERT",
+    "SINGLE_ARCHIVE",
+    "DRY_RUN_SINGLE_UPSERT",
+    "DRY_RUN_SINGLE_ARCHIVE",
+]
+SingleSyncOutcome = Literal["SYNCED", "DRY_RUN", "NOT_FOUND", "FAILED", "BUSY"]
 ReleaseStatus = Literal["IDLE", "FAILED"]
 RUNNING = "RUNNING"
 
@@ -55,3 +67,14 @@ class SyncRunResult(BaseModel):
     failed: int = 0
     planned: int = 0
     cursor: datetime
+
+
+class SingleSyncResult(BaseModel):
+    """Outcome of one targeted single-vehicle sync."""
+
+    serial_no: str
+    outcome: SingleSyncOutcome
+    dry_run: bool
+    action: AuditAction | None = None
+    status_code: int | None = None
+    error: str | None = None

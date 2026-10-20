@@ -4,16 +4,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from src.pipelines.scheduler import SyncControl
+from src.pipelines.single_vehicle import SingleVehicleControl
+from src.schemas.sync import SingleSyncResult
 
 TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 SYNC_STARTED = "Sync started"
 SYNC_ALREADY_RUNNING = "Sync already in progress"
 DRY_RUN_NOTE = " (dry run: no changes will be sent to Frontu)"
+SINGLE_BUSY = "Sync already in progress. Please wait for the current batch to complete."
+BLANK_SERIAL = "Enter a vehicle SerialNo"
 
 
 def format_utc(value: datetime | None) -> str:
@@ -33,7 +37,32 @@ def get_sync_control(request: Request) -> SyncControl:
     return control
 
 
+def get_single_sync(request: Request) -> SingleVehicleControl:
+    single = request.app.state.single_sync
+    if not isinstance(single, SingleVehicleControl):
+        raise RuntimeError("Single-vehicle sync is not initialised; is the app lifespan running?")
+    return single
+
+
+def single_sync_banner(result: SingleSyncResult) -> str:
+    """User-facing outcome line for a targeted single-vehicle sync."""
+    serial = result.serial_no
+    match result.outcome:
+        case "SYNCED":
+            archived = " (archived)" if result.action == "SINGLE_ARCHIVE" else ""
+            return f"Synced vehicle {serial}{archived}: HTTP {result.status_code}"
+        case "DRY_RUN":
+            return f"Dry run for {serial}: no changes sent to Frontu"
+        case "NOT_FOUND":
+            return f"Vehicle {serial} not found in BC"
+        case "BUSY":
+            return SINGLE_BUSY
+        case "FAILED":
+            return f"Sync of {serial} failed: {result.error}"
+
+
 Control = Annotated[SyncControl, Depends(get_sync_control)]
+Single = Annotated[SingleVehicleControl, Depends(get_single_sync)]
 router = APIRouter()
 
 
@@ -59,3 +88,19 @@ async def trigger_sync(request: Request, control: Control) -> HTMLResponse:
     if control.dry_run:
         banner += DRY_RUN_NOTE
     return await _status(request, control, banner=banner)
+
+
+@router.post("/api/sync/vehicle", response_class=HTMLResponse)
+async def sync_vehicle(
+    request: Request,
+    control: Control,
+    single: Single,
+    serial_no: Annotated[str, Form(max_length=128)],
+    force_live: Annotated[bool, Form()] = False,
+) -> HTMLResponse:
+    """Targeted single-vehicle sync; programmatic default is NOT live."""
+    serial = serial_no.strip()
+    if not serial:
+        return await _status(request, control, banner=BLANK_SERIAL)
+    result = await single.sync_single_vehicle(serial, force_live=force_live)
+    return await _status(request, control, banner=single_sync_banner(result))

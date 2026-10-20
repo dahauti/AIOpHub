@@ -36,6 +36,7 @@ class VehicleSyncPipeline:
         internal_client_id: str,
         *,
         dry_run: bool = True,
+        lock: asyncio.Lock | None = None,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._source = source
@@ -44,7 +45,7 @@ class VehicleSyncPipeline:
         self._internal_client_id = internal_client_id
         self._dry_run = dry_run
         self._clock = clock
-        self._lock = asyncio.Lock()
+        self._lock = lock if lock is not None else asyncio.Lock()
 
     @property
     def is_running(self) -> bool:
