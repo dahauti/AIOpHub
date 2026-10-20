@@ -35,7 +35,8 @@ class Settings(BaseSettings):
 
     # Frontu API Prod
     frontu_api_key: SecretStr
-    frontu_base_url: HttpUrl
+    frontu_subdomain: str = Field(pattern=r"^[A-Za-z0-9-]+$")
+    internal_company_client_id: str = Field(min_length=1)
 
     # App settings
     log_level: LogLevel = "INFO"
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
     bc_client_secret_onprem: SecretStr
     bc_scope_onprem: str = "https://api.businesscentral.dynamics.com/.default"
     bc_odata_base_url_onprem: HttpUrl
+    bc_company_id_onprem: str = Field(min_length=1)
 
 
 @lru_cache(maxsize=1)

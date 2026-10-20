@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class BCODataVehicle(BaseModel):
@@ -33,3 +33,11 @@ class BCODataShipToAddress(BaseModel):
     Address: str | None = None
     City: str | None = None
     Post_Code: str | None = None
+
+
+class ODataCollection(BaseModel):
+    """OData V4 collection envelope: `{"@odata.context": ..., "value": [...]}`."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    value: list[dict[str, JsonValue]]
