@@ -27,19 +27,26 @@ class Settings(BaseSettings):
     database_url: AsyncpgDsn
 
     # Business Central SaaS (Entra ID)
-    bc_tenant_id: str = Field(min_length=1)
-    bc_client_id: str = Field(min_length=1)
-    bc_client_secret: SecretStr
-    bc_environment: str = Field(min_length=1)
-    bc_company_id: str = Field(min_length=1)
+    bc_tenant_id_saas: str = Field(min_length=1)
+    bc_client_id_saas: str = Field(min_length=1)
+    bc_client_secret_saas: SecretStr
+    bc_environment_saas: str = Field(min_length=1)
+    bc_company_id_saas: str = Field(min_length=1)
 
-    # Frontu API
+    # Frontu API Prod
     frontu_api_key: SecretStr
     frontu_base_url: HttpUrl
 
     # App settings
     log_level: LogLevel = "INFO"
     app_port: int = Field(default=8000, ge=1, le=65535)
+
+    # Business Central OnPrem Prod
+    bc_tenant_id_onprem: str
+    bc_client_id_onprem: str
+    bc_client_secret_onprem: SecretStr
+    bc_scope_onprem: str = "https://api.businesscentral.dynamics.com/.default"
+    bc_odata_base_url_onprem: HttpUrl
 
 
 @lru_cache(maxsize=1)

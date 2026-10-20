@@ -47,3 +47,11 @@
   - Linting: `npx lint-staged` or `npm run lint`
   - Type Check: `npx tsc --noEmit`
   - Tests: `npm test`
+
+## 5. Security & Access Sandbox (Strict Isolation)
+- Filesystem Boundary: Operating directory is strictly restricted to `C:\AIOpHub`. You are FORBIDDEN from reading, searching, indexing, or writing to any directory outside this project root (e.g., `..`, `C:\Users\`, `AppData`, or parent directories).
+- Secret Protection: Never inspect, display, cat, or output contents of `.env` or files matching `*.key`, `*.pem`, `*.cert`. Read configuration exclusively via `.env.example`.
+- Network & Shell Guardrails:
+  - Do NOT execute outbound network requests (curl, wget, webfetch) to external domains without explicit instruction in the active prompt.
+  - Do NOT inspect or manipulate system-level environment variables outside the active `.venv`.
+  - Always request confirmation before executing filesystem mutations outside the standard `src/` and `tests/` directories.

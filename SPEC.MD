@@ -1,124 +1,159 @@
-# SPECIFICATION: BC SaaS ⇄ Frontu Core Sync Bridge (Plikas Edition MVP)
+# SPECIFICATION: BC ⇄ Frontu Vehicle to Workspace Sync Engine
 
-## 1. System Context & Core Objectives
-- Problem Statement: Replace legacy On-Premise Make.com pipelines with a resilient, self-hosted synchronization engine connecting Microsoft Business Central SaaS (v28) and Frontu FSM API v2.
-- Business Objective: Ensure bidirectional data consistency (Customers/Equipment: BC -> Frontu; Service Work Orders/Consumables: Frontu -> BC) with zero duplicate transactions and complete auditability.
-- Operational Surface: Provide a lightweight, zero-build web dashboard (FastAPI + HTMX) to monitor sync health, view dead-letter payloads, and trigger manual sync execution.
+## 1. System Context & Architecture
+- Problem Statement: Synchronize custom Vehicle master data from Microsoft Business Central (On-Prem transitioning to SaaS) to Frontu FSM API v2 Workspaces.
+- Source of Truth: BC OData V4 page VehicleCard with optional TG_ShipToAdress address resolution.
+- Target: Frontu FSM API v2 /workspaces (type: "object", keyed by systemId).
+- Core Strategy: High-water-mark cursor (SystemModifiedAt ge {watermark}) with 15-minute lookback + SHA-256 payload fingerprinting to bypass unmutated records.
 
-## 2. Tech Stack & Runtime
-- Runtime: Python 3.12+ (isolated virtual environment in `.venv/`).
-- Web Framework: FastAPI (REST API + Server-rendered HTMX UI).
-- External Clients: HTTPX (async), Tenacity (resilience, retries, jitter).
-- Persistence & State: PostgreSQL (via asyncpg and SQLAlchemy 2.0 async).
-- Validation: Pydantic v2 (strict validation for incoming and outgoing schemas).
-- Frontend: Jinja2 templates + HTMX (served directly via CDN, zero npm/node footprint).
+## 2. Tech Stack & Infrastructure
+- Runtime: Python 3.12+ (isolated in C:\AIOpHub\.venv).
+- Frameworks: FastAPI, SQLAlchemy 2.0 (async), asyncpg, Pydantic v2, HTTPX.
+- Fault Tolerance: Tenacity (backoff on 429/503), client-side token bucket (150 req/min, 0.5s pace for Frontu).
+- Database: PostgreSQL (schema sync_engine).
 
 ## 3. Directory Layout
 C:\AIOpHub\
-├── .env.example
-├── .gitignore
-├── CLAUDE.md
-├── SPEC.md
-├── requirements.txt
-├── src/
-│   ├── __init__.py
-│   ├── config.py             # Pydantic BaseSettings loading .env
-│   ├── database.py           # Postgres async engine & sessionmaker
-│   ├── main.py               # FastAPI app initialization & route mounting
-│   ├── models/               # SQLAlchemy DB entities (sync audit, watermark)
-│   │   ├── __init__.py
-│   │   └── audit.py
-│   ├── schemas/              # Pydantic DTOs for Frontu & BC payloads
-│   │   ├── __init__.py
-│   │   ├── bc_models.py
-│   │   └── frontu_models.py
-│   ├── adapters/             # Isolated third-party API clients
-│   │   ├── __init__.py
-│   │   ├── bc_client.py      # OAuth2 token lifecycle + OData/API v2 requests
-│   │   └── frontu_client.py  # Frontu v2 API client (header auth, pagination)
-│   ├── services/             # Core synchronization business logic
-│   │   ├── __init__.py
-│   │   ├── bc_to_frontu.py   # Outbound entity synchronizer
-│   │   └── frontu_to_bc.py   # Inbound service act/order processor
-│   ├── api/                  # API routers
-│   │   ├── __init__.py
-│   │   ├── routes_sync.py    # Trigger endpoints & webhook handlers
-│   │   └── routes_ui.py      # HTMX HTML views for dashboard
-│   └── templates/            # Minimal Jinja2 templates for UI
-│       ├── base.html
-│       ├── dashboard.html
-│       └── partials/
-│           ├── sync_status.html
-│           └── audit_table.html
-└── tests/
-    ├── __init__.py
-    ├── conftest.py
-    ├── test_bc_client.py
-    └── test_sync_engine.py
+|-- .env.example
+|-- .gitignore
+|-- CLAUDE.md
+|-- SPEC.md
+|-- requirements.txt
+|-- src/
+|   |-- __init__.py
+|   |-- config.py
+|   |-- database.py
+|   |-- main.py
+|   |-- models/
+|   |   |-- __init__.py
+|   |   +-- audit.py
+|   |-- schemas/
+|   |   |-- __init__.py
+|   |   |-- bc_vehicle.py
+|   |   +-- frontu_models.py
+|   |-- adapters/
+|   |   |-- __init__.py
+|   |   |-- bc_client.py
+|   |   +-- frontu_client.py
+|   +-- pipelines/
+|       |-- __init__.py
+|       +-- sync_vehicles.py
++-- tests/
+    |-- __init__.py
+    |-- conftest.py
+    +-- test_sync_vehicles.py
 
 ## 4. Database Schema (PostgreSQL sync_engine)
 
 CREATE SCHEMA IF NOT EXISTS sync_engine;
 
-CREATE TABLE IF NOT EXISTS sync_engine.sync_watermarks (
-    entity_name VARCHAR(64) PRIMARY KEY, -- e.g., 'frontu_acts', 'bc_customers'
-    last_sync_timestamp TIMESTAMPTZ NOT NULL,
+CREATE TABLE IF NOT EXISTS sync_engine.sync_states (
+    module_name VARCHAR(64) PRIMARY KEY,
+    cursor_timestamp TIMESTAMPTZ NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'IDLE',
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sync_engine.sync_fingerprints (
+    module_name VARCHAR(64) NOT NULL,
+    entity_key VARCHAR(128) NOT NULL,
+    payload_hash VARCHAR(64) NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (module_name, entity_key)
 );
 
 CREATE TABLE IF NOT EXISTS sync_engine.sync_audit_log (
     id BIGSERIAL PRIMARY KEY,
-    direction VARCHAR(16) NOT NULL,       -- 'FRONTU_TO_BC' or 'BC_TO_FRONTU'
-    entity_name VARCHAR(64) NOT NULL,
-    entity_external_id VARCHAR(128) NOT NULL,
-    idempotency_hash VARCHAR(64) NOT NULL UNIQUE,
-    status VARCHAR(32) NOT NULL,          -- 'SUCCESS', 'FAILED', 'RETRYING'
-    payload JSONB NOT NULL,
+    entity_key VARCHAR(128) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    status_code INT,
+    payload JSONB,
     error_message TEXT,
-    retry_count INT DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_status ON sync_engine.sync_audit_log (status);
-CREATE INDEX idx_audit_direction ON sync_engine.sync_audit_log (direction);
+CREATE INDEX idx_audit_entity ON sync_engine.sync_audit_log(entity_key);
 
-## 5. Core API Contracts & Resilience Rules
+## 5. Domain Schemas & Contracts
 
-### BC Client (adapters/bc_client.py):
-- Auth Protocol: OAuth2 Client Credentials (https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token).
-- Token Lifecycle: Store access token in memory with expires_at. Refresh 5 minutes before expiration. Never trigger a token request per transaction.
-- Throttling & Retries: Wrap all calls with @retry on HTTP 429 and HTTP 5xx. Exponential backoff factor 2, initial delay 1s, max delay 30s.
+### 5.1 BC Raw Schemas (src/schemas/bc_vehicle.py)
+BCODataVehicle fields:
+- SerialNo: str (required, min_length=1)
+- VIN: Optional[str] = None
+- MakeCode: Optional[str] = None
+- ModelCode: Optional[str] = None
+- RegistrationNo: Optional[str] = None
+- CustomerNo: Optional[str] = None
+- CustomerServiceAddressCode: Optional[str] = None
+- Blocked: bool = False
+- SystemModifiedAt: datetime (required)
+- LastDateModified: Optional[date] = None
 
-### Frontu Client (adapters/frontu_client.py):
-- Auth Protocol: API key / token header auth.
-- Pagination: Handle cursor/page-based delta fetching using updated_at > watermark.
+BCODataShipToAddress fields:
+- Customer_No: str (required)
+- Code: str (required)
+- Name: Optional[str] = None
+- Address: Optional[str] = None
+- City: Optional[str] = None
+- Post_Code: Optional[str] = None
 
-### Idempotency Enforcement:
-- Prior to pushing a record to BC, generate idempotency_hash = SHA256(external_id + modified_timestamp).
-- If hash exists in sync_audit_log with SUCCESS, skip processing.
+### 5.2 Frontu Schemas (src/schemas/frontu_models.py)
+FrontuWorkspaceUpsert fields:
+- systemId: str (BC SerialNo)
+- title: str (Constructed: MakeCode + " " + ModelCode, fallback to SerialNo)
+- client: str (BC CustomerNo, fallback to internal_company_client_id)
+- type: str = "object"
+- address: Optional[str] = None
+- city: Optional[str] = None
+- zipCode: Optional[str] = None
+- serialNumber: Optional[str] = None (BC VIN)
+- customValues: Optional[dict[str, str]] = None
+- deleted: bool = False (Mirrors BC Blocked)
 
-## 6. Implementation Roadmap for Claude
+## 6. Adapter Protocols & Throttling Guardrails
 
-### Phase 1: Foundation & Client Scaffolding
-1. Implement config.py using pydantic-settings to parse .env variables (BC_TENANT_ID, BC_CLIENT_ID, BC_CLIENT_SECRET, BC_ENVIRONMENT, BC_COMPANY_ID, FRONTU_API_KEY, DATABASE_URL).
-2. Scaffold database.py with SQLAlchemy async session management.
-3. Build adapters/bc_client.py with token caching and tenacity retry handler.
-4. Build adapters/frontu_client.py.
+### BC Adapter (src/adapters/bc_client.py):
+- Endpoints:
+  - Vehicles: {base_url}/Company('{company}')/VehicleCard
+  - Ship-To: {base_url}/Company('{company}')/TG_ShipToAdress
+- Pagination: $top=500&$skip={n}&$orderby=SystemModifiedAt asc,SerialNo asc
+- Delta Filter: $filter=SystemModifiedAt ge {cursor - 15min}
+- Auth Modes:
+  - onprem: HTTP Basic (BC_USER : BC_WEB_SERVICE_ACCESS_KEY)
+  - saas: Entra ID Client Credentials with in-memory token caching (refresh at expires_at - 300s)
+- Retries: Tenacity on HTTP 429 and 503 only.
 
-### Phase 2: Domain Schemas & Sync Logic
-1. Implement Pydantic models for Customers, Equipment, and Service Acts under schemas/.
-2. Implement services/frontu_to_bc.py mapping completed tasks to BC Draft Sales Orders or Service Invoices.
-3. Add audit persistence and watermark checkpointing to every sync run.
+### Frontu Adapter (src/adapters/frontu_client.py):
+- Base URL: https://{subdomain}.frontu.com/client/api/v2
+- Auth: Header Authorization: Bearer {token}
+- Dynamic Custom Fields Resolution:
+  - GET /customfields/workspaces on initialization.
+  - Resolve GUID for title "Registracijos Nr." (case-insensitive).
+  - Resolve GUID for title "Padalinio pavadinimas" (case-insensitive).
+- Throttling & Pacing:
+  - Max 150 requests per minute.
+  - Mandatory minimum 0.5s pause between network calls.
+- Target: POST /workspaces (Upserts matched by systemId).
 
-### Phase 3: Minimal Operational UI (HTMX)
-1. Configure Jinja2 templates under src/templates/.
-2. Build api/routes_ui.py returning dashboard components:
-   - Summary cards: Total synced today, failed items count.
-   - Audit log table with filter by status.
-   - "Sync Now" button firing an async background task via HTMX hx-post.
+## 7. Pipeline Execution Logic (src/pipelines/sync_vehicles.py)
+1. Acquire module execution lock for workspaces_vehicles.
+2. Read cursor from sync_engine.sync_states (fallback: NOW() - 30 days).
+3. Compute fetch start window: cursor - 15 minutes.
+4. Read batch from BC VehicleCard ($top=500).
+5. For vehicles having CustomerNo + CustomerServiceAddressCode, resolve address via TG_ShipToAdress lookup.
+6. For each record:
+   - Construct FrontuWorkspaceUpsert.
+   - Compute payload_hash = SHA256(json_dump_without_deleted).
+   - Check sync_fingerprints: if hash matches and not Blocked, SKIP.
+   - If Blocked == True: POST {"deleted": true} to Frontu.
+   - If Active: POST payload to Frontu /workspaces.
+   - Save fingerprint on HTTP 200/201.
+   - Record transaction to sync_audit_log.
+7. Advance cursor_timestamp to latest batch SystemModifiedAt.
+8. Release module lock.
 
-## 7. Hard Constraints for Claude
-- Zero additions of external JS frameworks (no Vue, React, Tailwind build steps). Use simple CDN CSS (Picocss or basic Bootstrap).
-- File size strictly capped below 200 lines. Split logic across layers cleanly.
-- Strict Python typing on all function signatures. No untyped dictionaries inside service logic.
+## 8. Hard Constraints for Claude
+- Zero untyped dictionaries; all transformations must use Pydantic models.
+- Maximum 200 LOC per file. Split logic across layers cleanly.
+- Strict Mypy compliance (no Any, no ignore flags).
+- No direct external network calls outside src/adapters/.
