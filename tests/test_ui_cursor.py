@@ -122,7 +122,7 @@ async def test_page_lets_htmx_swap_409_and_422_responses(ports: Ports) -> None:
     html = (await client.get("/")).text
 
     assert 'name="htmx-config"' in html and "409|422" in html
-    assert "https://cdn.tailwindcss.com" in html and "JetBrains+Mono" in html
+    assert "/static/app.css" in html and "JetBrains+Mono" in html
 
 
 @pytest.mark.asyncio

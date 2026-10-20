@@ -4,9 +4,11 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from src.adapters.bc_client import BCClient, select_connection
 from src.adapters.frontu_client import FrontuClient
@@ -20,6 +22,8 @@ from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
 
 logger = logging.getLogger(__name__)
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 HTTP_TIMEOUT_SECONDS = 30.0
 
@@ -62,6 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="AIOpHub Sync Engine", lifespan=lifespan)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(router)
     return app
 
