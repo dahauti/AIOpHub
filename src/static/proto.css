@@ -1,7 +1,10 @@
 /* Prototipas: Operacijų centro UX prototipas (/prototype, src/templates/prototype/). Loaded
    after hub.css by prototype templates only; colours come from --hub-* variables, so the
    light theme (ADR 0002) is the hub.css [data-theme="light"] set. Delete with the prototype. */
-.proto-body { min-height: 100vh; background-color: var(--hub-bg); color: var(--hub-text); }
+/* Open Sans, self-hosted (src/static/fonts/README.md): variable 300-800, latin + latin-ext (LT). */
+@font-face { font-family: "Open Sans"; font-style: normal; font-weight: 300 800; font-display: swap; src: url("/static/fonts/open-sans-latin-ext-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Open Sans"; font-style: normal; font-weight: 300 800; font-display: swap; src: url("/static/fonts/open-sans-latin-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+.proto-body { min-height: 100vh; background-color: var(--hub-bg); color: var(--hub-text); font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
 .proto-env { padding: 0.375rem 2rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; }
 .proto-env-dev { background-color: var(--hub-raised); color: var(--hub-text-soft); }
 .proto-env-prod { background-color: var(--hub-crimson); color: #fff; }
@@ -23,7 +26,9 @@
 .proto-link { color: var(--hub-link); }
 .proto-link:hover { color: var(--hub-link-hover); }
 .proto-head { display: flex; flex-direction: column; gap: 0.25rem; }
-.proto-kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--hub-crimson-hover); }
+/* Section labels: uppercase, weight 600 (alwark.lt); h2 section titles unchanged. */
+.proto-kicker { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--hub-accent-text); }
+.proto-body .label { font-weight: 600; }
 .proto-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-size: 1.25rem; font-weight: 800; color: var(--hub-text-strong); }
 .proto-purpose { max-width: 75ch; font-size: 0.8125rem; color: var(--hub-text-soft); }
 .proto-mode { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; }
@@ -61,7 +66,7 @@ a.proto-card:hover { border-color: var(--hub-border); }
 .proto-dialog-msg:empty { display: none; }
 .proto-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .proto-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.5rem 1rem; font-size: 0.8125rem; }
-.proto-facts dt { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-faint); }
+.proto-facts dt { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-faint); }
 .proto-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; color: var(--hub-text-soft); }
 .proto-reason { min-height: 4.5rem; resize: vertical; }
 .proto-reason-box { border-color: rgb(245 158 11 / 0.4); }
@@ -70,7 +75,7 @@ a.proto-card:hover { border-color: var(--hub-border); }
 .proto-result-ok { border: 1px solid rgb(16 185 129 / 0.4); background-color: rgb(16 185 129 / 0.1); color: var(--hub-ok-text); }
 .proto-result-err { border: 1px solid rgb(244 63 94 / 0.4); background-color: rgb(244 63 94 / 0.1); color: var(--hub-err-text); }
 .proto-table { width: 100%; font-size: 0.8125rem; border-collapse: collapse; }
-.proto-table th { padding: 0.375rem 0.75rem; text-align: left; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-faint); border-bottom: 1px solid var(--hub-line); }
+.proto-table th { padding: 0.375rem 0.75rem; text-align: left; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-faint); border-bottom: 1px solid var(--hub-line); }
 .proto-table td { padding: 0.375rem 0.75rem; border-bottom: 1px solid var(--hub-line); color: var(--hub-text); }
 .proto-url { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proto-pre { max-height: 16rem; overflow: auto; padding: 0.625rem 0.75rem; border-radius: 0.375rem; background-color: var(--hub-code-bg); color: var(--hub-code-text); font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; }

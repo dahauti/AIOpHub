@@ -11,6 +11,7 @@ AIOpHub ir AlwarkOperationHub_Dev taps vienu produktu. Šiuo metu jų vizualinia
 
 1. **Tokenų struktūra**: CSS kintamieji `src/static/hub.css` (AIOpHub būdas) yra tikslas abiem repo.
 2. **Tokenų reikšmės**: etalono brand reikšmės (akcentas `#A6192E`) pakeičia dabartines crimson reikšmes. Laukia brand spalvų patvirtinimo.
+   - Stebėta alwark.lt 2026-10-21: akcentas `#B7202E`, grafitas `#27333B`, šriftas Open Sans. Laukia brand book patvirtinimo. Kol kas taikoma tik prototipo temose (ADR 0002); dashboard nepakeistas.
 3. **UI kalba**: lietuvių, `lang="lt"`, abiem repo.
 4. **Šviesi tema**: ATVIRA – bus nuspręsta vėliau.
 

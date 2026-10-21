@@ -9,14 +9,26 @@
   --hub-text-faint: #64748b; --hub-link: #38bdf8; --hub-link-hover: #7dd3fc;
   --hub-code-bg: #020617; --hub-code-text: #a5f3fc; --hub-ok-text: #6ee7b7; --hub-warn-text: #fcd34d;
   --hub-err-text: #fda4af; --hub-err-border: #fb7185; --hub-backdrop: rgb(2 6 23 / 0.7); }
-/* Light theme (ADR 0002): only pages that set data-theme="light" use it. Provisional values until
-   the brand palette is approved (ADR 0001 p. 2); the crimson accent is unchanged. */
-:root[data-theme="light"] { --hub-bg: #f1f5f9; --hub-surface: #fff; --hub-raised: #e2e8f0;
-  --hub-line: #e2e8f0; --hub-border: #cbd5e1; --hub-sunken: #f8fafc; --hub-field: #fff;
-  --hub-text-strong: #0f172a; --hub-text: #1e293b; --hub-text-soft: #334155; --hub-text-muted: #475569;
-  --hub-text-faint: #64748b; --hub-link: #0369a1; --hub-link-hover: #075985;
-  --hub-code-bg: #f8fafc; --hub-code-text: #0e7490; --hub-ok-text: #047857; --hub-warn-text: #b45309;
-  --hub-err-text: #be123c; --hub-err-border: #e11d48; --hub-backdrop: rgb(15 23 42 / 0.4); }
+/* Themes (ADR 0002): only pages that set data-theme use these, so the dashboard keeps :root.
+   Palette observed on alwark.lt 2026-10-21 (ADR 0001 p. 2), pending brand-book confirmation:
+   accent #B7202E, graphite #27333B. --hub-accent-text is the accent as readable text (WCAG 4.5:1,
+   tests/test_prototype_theme.py). */
+:root[data-theme="dark"] { --hub-bg: #27333b; --hub-surface: #2e3b44; --hub-raised: #37454f;
+  --hub-line: #3a4852; --hub-border: #46555f; --hub-sunken: #2a363f; --hub-field: #222d34;
+  --hub-text-strong: #fff; --hub-text: #e8ecee; --hub-text-soft: #c5ccd1; --hub-text-muted: #a3adb4;
+  --hub-text-faint: #9aa5ac; --hub-link: #7cc4f0; --hub-link-hover: #a8d8f5;
+  --hub-code-bg: #1f292f; --hub-code-text: #a5f3fc; --hub-ok-text: #6ee7b7; --hub-warn-text: #fcd34d;
+  --hub-err-text: #fda4af; --hub-err-border: #fb7185; --hub-backdrop: rgb(15 20 24 / 0.7);
+  --hub-crimson: #b7202e; --hub-crimson-2: #b7202e; --hub-crimson-hover: #c93542;
+  --hub-accent-text: #f0959c; }
+:root[data-theme="light"] { --hub-bg: #fff; --hub-surface: #f5f5f5; --hub-raised: #ebebeb;
+  --hub-line: #e3e3e3; --hub-border: #cfcfcf; --hub-sunken: #fff; --hub-field: #fff;
+  --hub-text-strong: #27333b; --hub-text: #27333b; --hub-text-soft: #58595b; --hub-text-muted: #58595b;
+  --hub-text-faint: #6e6f71; --hub-link: #0b5e8e; --hub-link-hover: #084467;
+  --hub-code-bg: #fff; --hub-code-text: #0e7490; --hub-ok-text: #047857; --hub-warn-text: #a14a07;
+  --hub-err-text: #be123c; --hub-err-border: #e11d48; --hub-backdrop: rgb(39 51 59 / 0.4);
+  --hub-crimson: #b7202e; --hub-crimson-2: #b7202e; --hub-crimson-hover: #9e1b27;
+  --hub-accent-text: #b7202e; }
 .bg-\[\#0a0e17\] { background-color: #0a0e17; }
 body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
 .mono-id { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.8125rem; color: #e2e8f0; font-variant-numeric: tabular-nums; }

@@ -6,9 +6,6 @@
   <meta name="color-scheme" content="{{ tema }}">
   <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"403|422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
   <title>{% block title %}{{ t("app.pavadinimas") }}{% endblock %} &middot; {{ t("app.prototipas") }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/hub.css">
   <link rel="stylesheet" href="/static/proto.css">
@@ -16,7 +13,7 @@
 </head>
 {#- Operacijų centro UX prototipas: duomenys iš src/prototype/fixtures.json, jokių integracijų.
     Tema ir kalba ateina iš slapukų ir piešiamos serveryje (ADR 0002), todėl nėra mirgėjimo. -#}
-<body class="proto-body font-sans antialiased">
+<body class="proto-body antialiased">
   {% if aplinka == "PROD" %}
   <div class="proto-env proto-env-prod" role="note">{{ t("aplinka.prod_juosta") }}</div>
   {% else %}

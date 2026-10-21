@@ -19,6 +19,10 @@ Perkelta iš `docs/UX_GUIDELINES.md` 8 sk. („Inžinerinis backlog (ne UX)“).
 - **(b)** Išversti AIOpHub UI į lietuvių kalbą, `lang="lt"`.
 - **(c)** Įvesti tą patį tokenų sluoksnį (CSS kintamieji) AlwarkOperationHub_Dev.
 
+## Duomenų bazė
+
+- SQLite → PostgreSQL 14 migracija (CLAUDE.md tikslas); sync_repository.py docstring'ai klaidingai mini Postgres.
+
 ## Glass Box peržiūros radiniai (2026-10-21)
 
 - **Cockpit be autentifikacijos.** Dashboard'as rodo vidinius URL (pvz., BC serverio vardą), užsakymų numerius ir neapdorotą klaidų tekstą be prisijungimo. Būtina ištaisyti prieš bet kokią prieigą tinkle už localhost ribų.
