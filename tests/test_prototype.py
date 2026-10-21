@@ -1,5 +1,6 @@
-"""Operacijų centro prototipas: fixture screens, preview levels, env banner, no-op actions."""
+"""Operacijų centro prototipas: fixture screens, preview levels, env badge, no-op actions."""
 
+import re
 from collections.abc import AsyncIterator
 
 import httpx
@@ -104,11 +105,22 @@ async def test_settings_need_admin_level(client: Client) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("env", "marker"), [("DEV", "proto-env-dev"), ("PROD", "proto-env-prod")])
-async def test_environment_banner_variants(client: Client, env: str, marker: str) -> None:
+@pytest.mark.parametrize(
+    ("env", "header", "note"),
+    [
+        ("DEV", '<header class="proto-top">', "DEV · BC Copy LT + alwarktest"),
+        ("PROD", '<header class="proto-top proto-top-prod">', "PROD · produkcinės sistemos"),
+    ],
+)
+async def test_environment_badge_and_prod_header(
+    client: Client, env: str, header: str, note: str
+) -> None:
     html = (await _as(client, "administruoti", env).get("/prototype/")).text
+    badge = re.search(r'<span role="note" class="proto-env-badge ([a-z-]+)" title="([^"]+)"', html)
 
-    assert marker in html
+    assert header in html and "proto-env " not in html and 'class="proto-env"' not in html
+    assert badge and badge.group(1) == f"proto-env-badge-{env.lower()}"
+    assert badge.group(2).startswith(note) and f'aria-label="{badge.group(2)}">{env}</span>' in html
 
 
 @pytest.mark.asyncio
@@ -159,17 +171,17 @@ def _between(html: str, start: str, end: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_prototype_controls_sit_in_header_and_environment_bar(client: Client) -> None:
+async def test_prototype_controls_sit_in_the_header_in_order(client: Client) -> None:
     html = (await _as(client, "valdyti", "PROD").get("/prototype/")).text
-    header = _between(html, '<header class="proto-top">', "</header>")
-    env_bar = _between(html, '<div class="proto-env proto-env-prod">', "</form>")
+    header = _between(html, '<header class="proto-top proto-top-prod">', "</header>")
+    order = ["proto-flag", 'id="seg-lygis"', 'id="seg-aplinka"', 'id="user-menu"']
 
     assert "proto-switch" not in html
-    assert '<select name="lygis"' in header and "proto-only" in header
-    assert '<option value="valdyti" selected>Vaizdas: Valdyti</option>' in header
+    assert [header.index(marker) for marker in order] == sorted(header.index(m) for m in order)
+    assert 'name="lygis" value="valdyti" checked' in header
     assert '<input type="hidden" name="aplinka" value="PROD">' in header
-    assert 'name="aplinka" value="PROD" checked' in env_bar and "proto-env-toggle" in env_bar
-    assert '<input type="hidden" name="lygis" value="valdyti">' in env_bar
+    assert 'name="aplinka" value="PROD" checked' in header
+    assert '<input type="hidden" name="lygis" value="valdyti">' in header
 
 
 @pytest.mark.asyncio

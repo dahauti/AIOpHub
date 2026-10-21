@@ -1,18 +1,19 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import grafikas, pavadinimas, rezimo_juosta, veiksmas with context %}
+{% from "prototype/_macros.html" import grafikas, page_head, pavadinimas, rezimas, rezimo_juosta, veiksmas with context %}
 {% block title %}{{ t("nustatymai.pavadinimas") }}{% endblock %}
 {% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ pavadinimas(procesas) }}</a> / {{ t("nustatymai.pavadinimas") }}{% endblock %}
 {% block content %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("nustatymai.pavadinimas") }} &middot; {{ t("nustatymai.tik_admin") }}</p>
-  <h1 class="proto-title">{{ pavadinimas(procesas) }}</h1>
-  <p class="proto-purpose">{{ t("nustatymai.paskirtis") }}</p>
-</header>
+{% set kursorius %}<span class="mono-id">{{ laikas(procesas.kursorius) }}</span>{% endset %}
+{% set facts = [
+  (t("nustatymai.rezimas"), rezimas(procesas)),
+  (t("nustatymai.kursorius"), kursorius),
+  (t("nustatymai.grafikas"), grafikas(procesas)),
+] %}
+{{ page_head(t("nustatymai.pavadinimas") ~ " · " ~ t("nustatymai.tik_admin"), pavadinimas(procesas), facts, t("nustatymai.paskirtis")) }}
 {{ rezimo_juosta(procesas, aplinka) }}
 <div class="proto-grid">
   <section class="proto-card" aria-labelledby="rezimas-h">
     <h2 id="rezimas-h" class="label">{{ t("nustatymai.rezimas") }}</h2>
-    <p class="proto-card-line">{{ t("nustatymai.rezimo_aprasas." ~ procesas.rezimas) }}</p>
     <div class="proto-actions">
       {% if procesas.rezimas == "LIVE" %}{{ veiksmas("dryrun", procesas, lygis, aplinka) }}
       {% else %}{{ veiksmas("live", procesas, lygis, aplinka, t("nustatymai.kiek_live")) }}{% endif %}
@@ -20,12 +21,10 @@
   </section>
   <section class="proto-card" aria-labelledby="kursorius-h">
     <h2 id="kursorius-h" class="label">{{ t("nustatymai.kursorius") }}</h2>
-    <p class="proto-card-line mono-id">{{ laikas(procesas.kursorius) }}</p>
     <div class="proto-actions">{{ veiksmas("kursorius", procesas, lygis, aplinka, t("nustatymai.kiek_kursorius")) }}</div>
   </section>
   <section class="proto-card" aria-labelledby="grafikas-h">
     <h2 id="grafikas-h" class="label">{{ t("nustatymai.grafikas") }}</h2>
-    <p class="proto-card-line">{{ grafikas(procesas) }}</p>
     <p class="proto-muted proto-prose">{{ t("nustatymai.grafikas_veliau") }}</p>
   </section>
   <section class="proto-card" aria-labelledby="teises-h">

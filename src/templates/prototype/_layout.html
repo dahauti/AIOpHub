@@ -6,51 +6,41 @@
   <meta name="color-scheme" content="{{ tema }}">
   <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"403|422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
   <title>{% block title %}{{ t("app.pavadinimas") }}{% endblock %} &middot; {{ t("app.prototipas") }}</title>
-  <link rel="stylesheet" href="/static/app.css">
-  <link rel="stylesheet" href="/static/hub.css">
-  <link rel="stylesheet" href="/static/proto.css">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('hub.css') }}">
+  <link rel="stylesheet" href="{{ asset('proto.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="{{ asset('proto.js') }}" defer></script>
 </head>
 {#- Operacijų centro UX prototipas: duomenys iš src/prototype/fixtures.json, jokių integracijų.
     Tema ir kalba ateina iš slapukų ir piešiamos serveryje (ADR 0002), todėl nėra mirgėjimo.
-    Prototipo valdikliai (lygis, aplinka) pažymėti amber rėmeliu .proto-only; /prototype/vaizdas
-    reikia abiejų laukų, todėl kiekviena forma kitą reikšmę siunčia paslėptame lauke. -#}
+    Prototipo valdikliai (lygis, aplinka, ženklelis) pažymėti amber rėmeliu. -#}
 <body class="proto-body antialiased">
-  <div class="proto-env {{ 'proto-env-prod' if aplinka == 'PROD' else 'proto-env-dev' }}">
-    <span role="note">{{ t("aplinka.prod_juosta") if aplinka == "PROD" else t("aplinka.dev_juosta") }}</span>
-    <form class="proto-only proto-env-toggle" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none" role="radiogroup" aria-label="{{ t('vaizdas.aplinka_aria') }}">
-      <input type="hidden" name="lygis" value="{{ lygis }}">
-      {% for value in aplinkos %}
-      <label class="proto-env-option"><input type="radio" name="aplinka" value="{{ value }}"{% if aplinka == value %} checked{% endif %}>{{ value }}</label>
-      {% endfor %}
-    </form>
-  </div>
-  <header class="proto-top">
-    <a href="/prototype/" class="proto-brand">{{ t("app.pavadinimas") }}</a>
+  {% from "prototype/_macros.html" import segment, vartotojo_meniu with context %}
+  {#- One form per group (500 ms delay settles arrow-key moves); each endpoint needs both of its
+      fields, so the other one travels hidden. data-focus drives focus restore in static/proto.js. -#}
+  {#- Environment (UX_GUIDELINES 6 sk.): badge next to the title; in PROD the whole row is crimson. -#}
+  {% set aplinkos_tekstas = t("aplinka.prod_juosta") if aplinka == "PROD" else t("aplinka.dev_juosta") %}
+  <header class="proto-top{% if aplinka == "PROD" %} proto-top-prod{% endif %}">
+    <div class="proto-brand-group">
+      <a href="/prototype/" class="proto-brand">{{ t("app.pavadinimas") }}</a>
+      <span role="note" class="proto-env-badge {{ 'proto-env-badge-prod' if aplinka == 'PROD' else 'proto-env-badge-dev' }}" title="{{ aplinkos_tekstas }}" aria-label="{{ aplinkos_tekstas }}">{{ aplinka }}</span>
+    </div>
     <div class="proto-prefs">
       <span role="note" class="proto-only proto-flag" title="{{ t('prototipas.pastaba') }}" aria-label="{{ t('prototipas.pastaba') }}">{{ t("prototipas.zenklas") }}</span>
-      <form class="proto-pref" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none">
+      <form hx-post="/prototype/vaizdas" hx-trigger="change delay:500ms" hx-swap="none" data-focus="seg-lygis">
         <input type="hidden" name="aplinka" value="{{ aplinka }}">
-        <select name="lygis" aria-label="{{ t('vaizdas.lygis_aria') }}" class="field proto-only proto-pref-select">
-          {% for value in lygiai %}<option value="{{ value }}"{% if lygis == value %} selected{% endif %}>{{ t("vaizdas.parinktis", lygis=t("lygis." ~ value)) }}</option>{% endfor %}
-        </select>
+        {{ segment("lygis", "vaizdas.antraste", lygis, lygiai, label_key="lygis.", prototype=true) }}
       </form>
-      <form class="proto-prefs" hx-post="/prototype/nuostatos" hx-trigger="change" hx-swap="none" aria-label="{{ t('nuostatos.aria') }}">
-        <label class="proto-pref">{{ t("nuostatos.tema") }}
-          <select name="tema" class="field proto-pref-select">
-            {% for value in temos %}<option value="{{ value }}"{% if tema == value %} selected{% endif %}>{{ t("tema." ~ value) }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="proto-pref">{{ t("nuostatos.kalba") }}
-          <select name="kalba" class="field proto-pref-select">
-            {% for value in kalbos %}<option value="{{ value }}" lang="{{ value }}"{% if kalba == value %} selected{% endif %}>{{ t("kalba." ~ value) }}</option>{% endfor %}
-          </select>
-        </label>
+      <form hx-post="/prototype/vaizdas" hx-trigger="change delay:500ms" hx-swap="none" data-focus="seg-aplinka">
+        <input type="hidden" name="lygis" value="{{ lygis }}">
+        {{ segment("aplinka", "aplinka.antraste", aplinka, aplinkos, prototype=true) }}
       </form>
+      {{ vartotojo_meniu(vartotojas, tema, kalba) }}
     </div>
   </header>
   <main class="proto-main">
-    <nav class="proto-crumbs" aria-label="{{ t('kelias.aria') }}"><a href="/prototype/" class="proto-link">{{ t("app.pavadinimas") }}</a>{% block crumbs %}{% endblock %}</nav>
+    {% block breadcrumb %}<nav class="proto-crumbs" aria-label="{{ t('kelias.aria') }}"><a href="/prototype/" class="proto-link">{{ t("app.pavadinimas") }}</a>{% block crumbs %}{% endblock %}</nav>{% endblock %}
     {% block content %}{% endblock %}
     <div id="proto-atsakymas" aria-live="polite"></div>
   </main>

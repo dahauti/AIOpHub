@@ -54,6 +54,7 @@ def _literal_ok(literal: str) -> bool:
     return (
         not LETTER.search(literal)
         or literal.endswith(".html")
+        or re.fullmatch(r"[a-z]+\.(css|js)", literal) is not None  # asset("proto.css")
         or literal.startswith("proto-")
         or literal in ENUMS | TECHNICAL
         or any(f".{core}." in f".{key}." for key in catalog("lt"))
@@ -121,9 +122,9 @@ def test_plural_text_uses_the_right_form() -> None:
     lt = Vertejas("lt")
 
     assert [lt.tn("zurnalas.kiek", n) for n in (1, 3, 11)] == [
-        "Rodomas 1 įvykis.",
-        "Rodomi 3 įvykiai.",
-        "Rodoma 11 įvykių.",
+        "1 įvykis",
+        "3 įvykiai",
+        "11 įvykių",
     ]
 
 
@@ -178,9 +179,10 @@ async def test_english_light_page_is_rendered_by_the_server(client: Client) -> N
     assert '<html lang="en" data-theme="light">' in record
     assert "No technician assigned" in record and "BC order SO029748" in record
     assert "Nenurodytas" not in record
-    assert "Needs action: 2 records" in overview and "21 Oct 2026" in overview
+    assert ">LIVE processes</dt>" in overview and ">Name</th>" in overview
+    assert "21 Oct 2026" in overview
     assert ">PROTOTYPE</span>" in overview and 'aria-label="Prototype only:' in overview
-    assert "Preview: Administer" in overview
+    assert ">Preview</legend>" in overview and ">Administer</span>" in overview
 
 
 @pytest.mark.asyncio

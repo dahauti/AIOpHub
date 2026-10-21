@@ -1,22 +1,21 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import busena, grafikas, kas, pavadinimas, pranesimas, rezimo_juosta, rezultatas, tipas, veiksmas with context %}
+{% from "prototype/_macros.html" import busena, grafikas, kas, page_head, pavadinimas, pranesimas, rezimas, rezimo_juosta, rezultatas, tipas, veiksmas with context %}
 {% block title %}{{ pavadinimas(procesas) }}{% endblock %}
 {% block crumbs %} / {{ pavadinimas(procesas) }}{% endblock %}
 {% block content %}
 {% set klaidos = visible_errors(lygis, procesas.id) %}
 {% set paleidimai = runs_of(procesas.id) %}
 {% set paskutinis = paleidimai[0] if paleidimai else none %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("procesas.antraste", savininkas=procesas.savininkas) }}</p>
-  <h1 class="proto-title">{{ pavadinimas(procesas) }}</h1>
-  <p class="proto-purpose">{{ procesas.kryptis }}: {{ procesas.saltinis }} → {{ procesas.tikslas }}.</p>
-</header>
+{% set grafiko_reiksme %}{{ grafikas(procesas) }}<span class="proto-fact-sub">{{ t("procesas.kitas") }}: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else t("procesas.nesuplanuotas") }}</span>{% endset %}
+{% set paskutinio_reiksme %}{% if paskutinis %}<span class="mono-id">{{ laikas(paskutinis.pradzia) }}</span><span class="proto-fact-sub">{{ rezultatas(paskutinis) }}</span>{% else %}—{% endif %}{% endset %}
+{% set facts = [
+  (t("nustatymai.rezimas"), rezimas(procesas)),
+  (t("procesas.grafikas"), grafiko_reiksme),
+  (t("procesas.paskutinis"), paskutinio_reiksme),
+  (t("procesas.atviros_klaidos"), sk(klaidos | length, 0)),
+] %}
+{% call page_head(t("procesas.antraste", savininkas=procesas.savininkas), pavadinimas(procesas), facts, procesas.kryptis ~ ": " ~ procesas.saltinis ~ " → " ~ procesas.tikslas ~ ".") %}{{ busena(klaidos | length) }}{% endcall %}
 {{ rezimo_juosta(procesas, aplinka) }}
-<div class="proto-grid">
-  <div class="proto-card"><p class="label">{{ t("procesas.busena") }}</p><p class="proto-card-line">{{ busena(klaidos | length) }}</p>{% if paskutinis %}<p class="proto-muted">{{ rezultatas(paskutinis) }}</p>{% endif %}</div>
-  <div class="proto-card"><p class="label">{{ t("procesas.grafikas") }}</p><p class="proto-card-line">{{ grafikas(procesas) }}</p><p class="proto-muted">{{ t("procesas.kitas") }}: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else t("procesas.nesuplanuotas") }} &middot; {{ t("rezimas." ~ procesas.rezimas) }}</p></div>
-  <div class="proto-card"><p class="label">{{ t("procesas.atviros_klaidos") }}</p><p class="proto-num">{{ sk(klaidos | length, 0) }}</p></div>
-</div>
 {% if can(lygis, "valdyti") %}
 <div class="proto-actions">
   {{ veiksmas("paleisti", procesas, lygis, aplinka, t("procesas.kiek_paleisti", n=sk(paskutinis.rezultatas.apdorota if paskutinis else 0, 0))) }}
@@ -28,7 +27,7 @@
 <section class="proto-section" aria-labelledby="klaidos-h">
   <h2 id="klaidos-h" class="proto-section-title">{{ t("procesas.atviros_klaidos") }}</h2>
   {% for irasas in klaidos %}
-  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id">{{ irasas.objektas }}</span>{{ tipas(irasas) }}<span class="proto-row-main">{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}</span></a>
+  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id proto-row-name">{{ irasas.objektas }}</span>{{ tipas(irasas) }}<span class="proto-row-main">{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}</span></a>
   {% else %}
   <p class="proto-muted">{{ t("procesas.nera_klaidu") }}</p>
   {% endfor %}

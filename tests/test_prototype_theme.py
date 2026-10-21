@@ -79,7 +79,7 @@ def test_white_text_on_accent_fills_meets_wcag_aa(theme: str, fill: str) -> None
 
 def test_prototype_amber_on_prod_bar_meets_wcag_aa() -> None:
     proto = (STATIC / "proto.css").read_text(encoding="utf-8")
-    amber = re.search(r"\.proto-env-prod \{ --proto-amber: #([0-9a-f]{6});", proto)
+    amber = re.search(r"\.proto-top-prod \{ --proto-amber: #([0-9a-f]{6});", proto)
 
     assert amber is not None
     for theme in ("dark", "light"):
@@ -119,3 +119,58 @@ async def test_rendered_prototype_page_has_no_font_cdn(client: httpx.AsyncClient
 
     assert not [cdn for cdn in FONT_CDNS if cdn in html]
     assert font.status_code == 200
+
+
+def _proto_var(selector: str, name: str) -> str:
+    """Hex value of one custom property inside a proto.css rule that starts with `selector`."""
+    css = (STATIC / "proto.css").read_text(encoding="utf-8")
+    rules = re.findall(rf"^{re.escape(selector)} \{{([^}}]*)\}}", css, re.M)
+    found = [m for r in rules for m in re.findall(rf"--{name}: #([0-9a-f]{{3,6}});", r)]
+    assert len(found) == 1, (selector, name, found)
+    return "".join(c * 2 for c in found[0]) if len(found[0]) == 3 else found[0]
+
+
+def segment_pairs(theme: str) -> list[tuple[str, str, str, float]]:
+    """(case, foreground, background, minimum) for segmented controls on every bar."""
+    tok = theme_tokens(theme)
+    ink_selector = ':root[data-theme="light"] .proto-body' if theme == "light" else ".proto-body"
+    ink = _proto_var(ink_selector, "proto-amber-ink")
+    prod_amber = _proto_var(".proto-top-prod", "proto-amber")
+    prod_ink = _proto_var(".proto-top-prod", "proto-amber-ink")
+    white, crimson = "ffffff", tok["crimson"]
+    return [
+        ("header unselected", tok["text-soft"], tok["surface"], WCAG_AA),
+        ("header accent selected", white, tok["crimson-2"], WCAG_AA),
+        ("header amber selected", ink, tok["warn-text"], WCAG_AA),
+        ("header focus ring", tok["link"], tok["surface"], 3.0),
+        ("dev bar unselected", tok["text-soft"], tok["raised"], WCAG_AA),
+        ("dev bar amber selected", ink, tok["warn-text"], WCAG_AA),
+        ("dev bar amber outline", tok["warn-text"], tok["raised"], 3.0),
+        ("dev bar focus ring", tok["link"], tok["raised"], 3.0),
+        ("prod bar unselected", white, crimson, WCAG_AA),
+        ("prod bar amber selected", prod_ink, prod_amber, WCAG_AA),
+        ("prod bar focus ring", white, crimson, 3.0),
+        ("prod header title", white, crimson, WCAG_AA),
+        ("prod header env badge", crimson, white, WCAG_AA),
+        ("prod header PROTOTIPAS badge", prod_amber, crimson, WCAG_AA),
+        ("prod header menu trigger", white, crimson, WCAG_AA),
+        ("dev header env badge", tok["text"], tok["raised"], WCAG_AA),
+        ("dev header title", tok["text-strong"], tok["surface"], WCAG_AA),
+        ("dev header PROTOTIPAS badge", tok["warn-text"], tok["surface"], WCAG_AA),
+        ("menu trigger", tok["text"], tok["surface"], WCAG_AA),
+        ("menu option", tok["text-soft"], tok["surface"], WCAG_AA),
+        ("menu current option", tok["text-strong"], tok["surface"], WCAG_AA),
+        ("menu group label", tok["text-muted"], tok["surface"], WCAG_AA),
+        ("menu focus ring", tok["link"], tok["surface"], 3.0),
+    ]
+
+
+@pytest.mark.parametrize("theme", ["dark", "light"])
+def test_segmented_controls_meet_wcag(theme: str) -> None:
+    failing = [
+        (case, round(contrast(fg, bg), 2))
+        for case, fg, bg, minimum in segment_pairs(theme)
+        if contrast(fg, bg) < minimum
+    ]
+
+    assert failing == []

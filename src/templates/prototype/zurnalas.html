@@ -1,13 +1,14 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import kas, pavadinimas, pranesimas with context %}
+{% from "prototype/_macros.html" import kas, page_head, pavadinimas, pranesimas with context %}
 {% block title %}{{ t("zurnalas.pavadinimas") }}{% endblock %}
 {% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ pavadinimas(procesas) }}</a> / {{ t("zurnalas.pavadinimas") }}{% endblock %}
 {% block content %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("zurnalas.pavadinimas") }} &middot; {{ pavadinimas(procesas) }}</p>
-  <h1 class="proto-title">{{ t("zurnalas.antraste") }}</h1>
-  <p class="proto-purpose">{{ t("zurnalas.paskirtis") }} {{ tn("zurnalas.kiek", zurnalas | length) }}</p>
-</header>
+{% set facts = [
+  (t("irasas.procesas"), pavadinimas(procesas)),
+  (t("zurnalas.ivykiu"), tn("zurnalas.kiek", zurnalas | length)),
+  (t("zurnalas.paskutinis"), laikas(zurnalas[0].laikas) if zurnalas else "—"),
+] %}
+{{ page_head(t("zurnalas.pavadinimas"), t("zurnalas.antraste"), facts, t("zurnalas.paskirtis")) }}
 <table class="proto-table">
   <thead><tr><th>{{ t("zurnalas.laikas") }}</th><th>{{ t("zurnalas.lygis") }}</th><th>{{ t("zurnalas.ivykis") }}</th><th>{{ t("zurnalas.kas") }}</th><th>{{ t("technine.trace") }}</th></tr></thead>
   <tbody>

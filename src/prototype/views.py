@@ -94,3 +94,13 @@ def run_records(level: Lygis, run_id: str) -> list[Irasas]:
 def journal(process_id: str) -> list[ZurnaloIrasas]:
     entries = [e for e in fixtures().zurnalas if e.procesas_id == process_id]
     return sorted(entries, key=lambda e: e.laikas, reverse=True)
+
+
+def overview_errors(level: Lygis) -> list[Irasas]:
+    """Apžvalga „Reikia veiksmo“: system errors first, then data errors (stable otherwise)."""
+    return sorted(visible_errors(level), key=lambda item: item.tipas != "sistemos")
+
+
+def processes_by_attention(level: Lygis) -> list[Procesas]:
+    """Processes with errors visible at this level first; Matyti counts only data errors."""
+    return sorted(fixtures().procesai, key=lambda p: not visible_errors(level, p.id))

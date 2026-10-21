@@ -1,8 +1,7 @@
 {% extends "prototype/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
 {% block title %}{{ t("draudziama.antraste") }}{% endblock %}
 {% block content %}
-<section class="proto-section" role="alert">
-  <h1 class="proto-title">{{ t("draudziama.antraste") }}</h1>
-  <p class="proto-purpose">{{ t("draudziama.paaiskinimas", lygis=t("lygis." ~ reikia)) }}</p>
-</section>
+{#- Error page: the one exception to the facts row (UX_GUIDELINES 2 sk.). -#}
+{{ page_head(t("app.pavadinimas"), t("draudziama.antraste"), purpose=t("draudziama.paaiskinimas", lygis=t("lygis." ~ reikia)), alert=true) }}
 {% endblock %}

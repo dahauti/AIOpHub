@@ -1,19 +1,21 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import busena, pavadinimas, pranesimas, rezimas, rezultatas, tipas with context %}
+{% from "prototype/_macros.html" import busena, page_head, pavadinimas, pranesimas, rezimas, rezultatas, tipas with context %}
 {% block title %}{{ t("apzvalga.pavadinimas") }}{% endblock %}
+{% block breadcrumb %}{% endblock %}
 {% block content %}
-{% set klaidos = visible_errors(lygis) %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("app.pavadinimas") }} &middot; {{ t("apzvalga.pavadinimas") }}</p>
-  <h1 class="proto-title">{{ t("apzvalga.antraste") }}</h1>
-  <p class="proto-purpose">{{ t("apzvalga.paskirtis") }}{% if lygis == "matyti" %} {{ t("apzvalga.paskirtis_matyti") }}{% endif %}</p>
-</header>
+{% set purpose = t("apzvalga.paskirtis") ~ (" " ~ t("apzvalga.paskirtis_matyti") if lygis == "matyti" else "") %}
+{% set live = procesai | selectattr("rezimas", "equalto", "LIVE") | list %}
+{% set facts = [
+  (t("apzvalga.procesu"), sk(procesai | length, 0)),
+  (t("apzvalga.live_procesu"), sk(live | length, 0)),
+] %}
+{{ page_head(t("apzvalga.pavadinimas"), t("apzvalga.antraste"), facts, purpose) }}
 <section class="proto-section" aria-labelledby="veiksmo-h">
-  <h2 id="veiksmo-h" class="proto-section-title">{{ tn("apzvalga.reikia_veiksmo", klaidos | length) }}</h2>
-  {% for irasas in klaidos %}
+  <h2 id="veiksmo-h" class="proto-section-title">{{ t("apzvalga.reikia_veiksmo") }}</h2>
+  {% for irasas in overview_errors(lygis) %}
   {% set procesas = (procesai | selectattr("id", "equalto", irasas.procesas_id) | first) %}
   <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row">
-    <span class="mono-id">{{ irasas.objektas }}</span>
+    <span class="mono-id proto-row-name">{{ irasas.objektas }}</span>
     {{ tipas(irasas) }}
     <span class="proto-row-main">{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}{% if can(lygis, "valdyti") and irasas.techninis and irasas.techninis.http_statusas %} <span class="proto-muted">&middot; {{ t("technine.frontu_http", statusas=irasas.techninis.http_statusas) }}</span>{% endif %}</span>
     <span class="proto-muted">{{ pavadinimas(procesas) }}</span>
@@ -24,17 +26,22 @@
 </section>
 <section class="proto-section" aria-labelledby="procesai-h">
   <h2 id="procesai-h" class="proto-section-title">{{ t("apzvalga.procesai") }}</h2>
-  <div class="proto-grid">
-    {% for procesas in procesai %}
-    {% set paskutinis = last_run(procesas.id) %}
-    <a href="/prototype/procesai/{{ procesas.id }}" class="proto-card">
-      <div class="proto-card-head"><h3 class="proto-card-title">{{ pavadinimas(procesas) }}</h3>{{ busena(visible_errors(lygis, procesas.id) | length) }}</div>
-      <p class="proto-muted">{{ procesas.kryptis }} &middot; {{ procesas.saltinis }} → {{ procesas.tikslas }}</p>
-      <p class="proto-card-line">{{ rezimas(procesas) }}{% if paskutinis %}<span>{{ t("procesas.paskutinis") }}: <span class="mono-id">{{ laikas(paskutinis.pradzia) }}</span></span>{% endif %}</p>
-      {% if paskutinis %}<p class="proto-card-line">{{ rezultatas(paskutinis) }}</p>{% endif %}
-      <p class="proto-muted">{{ t("procesas.kitas") }}: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else t("procesas.nesuplanuotas") }} &middot; {{ t("rezimas." ~ procesas.rezimas) }}</p>
-    </a>
-    {% endfor %}
-  </div>
+  {#- One row per process (UX_GUIDELINES 3 sk.): the name is the only link; its ::after covers the row. -#}
+  <table class="proto-table">
+    <thead><tr><th>{{ t("apzvalga.pavadinimas_stulpelis") }}</th><th>{{ t("nustatymai.rezimas") }}</th><th>{{ t("procesas.busena") }}</th><th>{{ t("procesas.paskutinis") }}</th><th>{{ t("procesas.rezultatas") }}</th><th>{{ t("procesas.kitas") }}</th></tr></thead>
+    <tbody>
+      {% for procesas in processes_by_attention(lygis) %}
+      {% set paskutinis = last_run(procesas.id) %}
+      <tr class="proto-link-row">
+        <td><a href="/prototype/procesai/{{ procesas.id }}" class="proto-row-name proto-stretched">{{ pavadinimas(procesas) }}</a><span class="proto-cell-sub">{{ procesas.kryptis }}</span></td>
+        <td>{{ rezimas(procesas) }}</td>
+        <td>{{ busena(visible_errors(lygis, procesas.id) | length) }}</td>
+        <td class="mono-id">{{ laikas(paskutinis.pradzia) if paskutinis else "—" }}</td>
+        <td>{{ rezultatas(paskutinis) if paskutinis else "—" }}</td>
+        <td class="mono-id">{{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else t("procesas.nesuplanuotas") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
 {% endblock %}

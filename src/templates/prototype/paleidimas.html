@@ -1,29 +1,24 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import kas, pavadinimas, pranesimas, tipas with context %}
+{% from "prototype/_macros.html" import kas, page_head, pavadinimas, pranesimas, rezultatas, tipas with context %}
 {% block title %}{{ t("paleidimas.pavadinimas") }} {{ paleidimas.id }}{% endblock %}
 {% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ pavadinimas(procesas) }}</a> / {{ t("paleidimas.pavadinimas") }}{% endblock %}
 {% block content %}
-{% set r = paleidimas.rezultatas %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("paleidimas.pavadinimas") }} &middot; {{ t("rezimas." ~ paleidimas.rezimas) }}</p>
-  <h1 class="proto-title">{{ pavadinimas(procesas) }}: <span class="mono-id">{{ laikas(paleidimas.pradzia) }}</span></h1>
-</header>
-<div class="proto-grid">
-  {% if r.butu_sinchronizuota is not none %}
-  <div class="proto-card"><p class="label">{{ t("paleidimas.butu") }}</p><p class="proto-num">{{ sk(r.butu_sinchronizuota, 0) }}</p></div>
-  {% else %}
-  <div class="proto-card"><p class="label">{{ t("paleidimas.pavyko") }}</p><p class="proto-num">{{ sk(r.pavyko, 0) }}</p></div>
-  {% endif %}
-  <div class="proto-card"><p class="label">{{ t("paleidimas.praleista") }}</p><p class="proto-num">{{ sk(r.praleista, 0) }}</p></div>
-  <div class="proto-card"><p class="label">{{ t("paleidimas.klaidos") }}</p><p class="proto-num">{{ sk(r.klaidos, 0) }}</p></div>
-  <div class="proto-card"><p class="label">{{ t("paleidimas.apdorota") }}</p><p class="proto-num">{{ sk(r.apdorota, 0) }}</p></div>
-</div>
+{% set facts = [
+  (t("procesas.pradzia"), laikas(paleidimas.pradzia)),
+  (t("nustatymai.rezimas"), t("rezimas." ~ paleidimas.rezimas)),
+  (t("procesas.rezultatas"), rezultatas(paleidimas)),
+] %}
+{% if can(lygis, "valdyti") %}
+{% set facts = facts + [
+  (t("paleidimas.trukme"), t("vienetai.s", n=sk(paleidimas.trukme_s))),
+  (t("paleidimas.paleido"), kas(paleidimas.paleido)),
+] %}
+{% endif %}
+{{ page_head(t("paleidimas.pavadinimas"), pavadinimas(procesas), facts) }}
 {% if can(lygis, "valdyti") %}
 <section class="proto-section" aria-labelledby="detales-h">
   <h2 id="detales-h" class="proto-section-title">{{ t("paleidimas.detales") }}</h2>
   <dl class="proto-facts">
-    <div><dt>{{ t("paleidimas.trukme") }}</dt><dd class="mono-id">{{ t("vienetai.s", n=sk(paleidimas.trukme_s)) }}</dd></div>
-    <div><dt>{{ t("paleidimas.paleido") }}</dt><dd>{{ kas(paleidimas.paleido) }}</dd></div>
     <div><dt>{{ t("paleidimas.watermark") }}</dt><dd class="mono-id" title="{{ paleidimas.watermark.isoformat() }}">{{ laikas(paleidimas.watermark) }}</dd></div>
     <div><dt>{{ t("technine.trace") }}</dt><dd class="mono-id">{{ paleidimas.trace_id }}</dd></div>
   </dl>
@@ -40,7 +35,7 @@
 <section class="proto-section" aria-labelledby="irasai-h">
   <h2 id="irasai-h" class="proto-section-title">{{ t("paleidimas.irasai") }}</h2>
   {% for irasas in run_records(lygis, paleidimas.id) %}
-  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id">{{ irasas.objektas }}</span>{% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% else %}<span class="pill pill-ok">{{ t("irasas.pavyko") }}</span>{% endif %}<span class="proto-row-main">{% if irasas.klaida %}{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}{% endif %}</span></a>
+  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id proto-row-name">{{ irasas.objektas }}</span>{% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% else %}<span class="pill pill-ok">{{ t("irasas.pavyko") }}</span>{% endif %}<span class="proto-row-main">{% if irasas.klaida %}{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}{% endif %}</span></a>
   {% else %}
   <p class="proto-muted">{{ t("paleidimas.nera_irasu") }}</p>
   {% endfor %}

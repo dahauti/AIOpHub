@@ -45,8 +45,8 @@
 
 {% macro rezultatas(paleidimas) -%}
 {% set r = paleidimas.rezultatas %}
-{% if r.butu_sinchronizuota is not none %}{{ t("rezultatas.dry_run", butu=sk(r.butu_sinchronizuota, 0), praleista=sk(r.praleista, 0)) }}
-{% else %}{{ t("rezultatas.live", pavyko=sk(r.pavyko, 0), praleista=sk(r.praleista, 0), klaidu=sk(r.klaidos, 0)) }}{% endif %}
+{% if r.butu_sinchronizuota is not none %}{{ t("rezultatas.dry_run", butu=sk(r.butu_sinchronizuota, 0), praleista=sk(r.praleista, 0), apdorota=sk(r.apdorota, 0)) }}
+{% else %}{{ t("rezultatas.live", pavyko=sk(r.pavyko, 0), praleista=sk(r.praleista, 0), klaidu=sk(r.klaidos, 0), apdorota=sk(r.apdorota, 0)) }}{% endif %}
 {%- endmacro %}
 
 {% macro veiksmas(key, procesas, lygis, aplinka, kiek="—") -%}
@@ -84,4 +84,67 @@
 </dialog>
 {% endif %}
 {% endif %}
+{%- endmacro %}
+
+{#- Segmented control (UX_GUIDELINES 3 sk.): real radios, visible legend, selected = fill + bold + ✓.
+    `#seg-<id>` is also the focus fragment (data-focus) that static/proto.js restores after reload. -#}
+{% macro segment(id, legend_key, current, values, label_key="", title_key="", icons={}, prototype=false) -%}
+<fieldset id="seg-{{ id }}" class="proto-seg{% if prototype %} proto-seg-proto{% endif %}">
+  <legend class="proto-seg-legend">{{ t(legend_key) }}</legend>
+  <div class="proto-seg-options">
+    {% for value in values %}
+    <label class="proto-seg-option"{% if title_key %} title="{{ t(title_key ~ value) }}"{% endif %}><input type="radio" class="proto-seg-input" name="{{ id }}" value="{{ value }}"{% if value == current %} checked{% endif %}{% if title_key %} aria-label="{{ t(title_key ~ value) }}"{% endif %}><span class="proto-seg-text">{% if icons[value] %}<span aria-hidden="true">{{ icons[value] }}</span> {% endif %}{{ t(label_key ~ value) if label_key else value | upper }}</span></label>
+    {% endfor %}
+  </div>
+</fieldset>
+{%- endmacro %}
+
+{#- Rarely changed personal preferences (UX_GUIDELINES 3 sk.): radio list, current = ✓ + bold. -#}
+{% macro pasirinkimai(id, legend_key, current, values, label_key) -%}
+<fieldset id="menu-{{ id }}" class="proto-menu-group">
+  <legend class="proto-menu-legend">{{ t(legend_key) }}</legend>
+  {% for value in values %}
+  <label class="proto-menu-option"><input type="radio" class="proto-menu-input" name="{{ id }}" value="{{ value }}"{% if value == current %} checked{% endif %}><span class="proto-menu-text"{% if id == "kalba" %} lang="{{ value }}"{% endif %}>{{ t(label_key ~ value) }}</span></label>
+  {% endfor %}
+</fieldset>
+{%- endmacro %}
+
+{#- User menu: trigger shows initials + current language; Esc / outside click close it and
+    `#user-menu` returns focus to the trigger after the reload (static/proto.js). -#}
+{% macro vartotojo_meniu(vartotojas, tema, kalba) -%}
+<details class="proto-user" id="user-menu">
+  <summary class="proto-user-trigger" aria-label="{{ t('meniu.aria', vardas=vartotojas.vardas, kalba=kalba | upper) }}">{{ vartotojas.inicialai }} &middot; {{ kalba | upper }} &#9662;</summary>
+  <div class="proto-user-panel">
+    <p class="proto-user-name">{{ vartotojas.vardas }}</p>
+    <form hx-post="/prototype/nuostatos" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
+      <input type="hidden" name="kalba" value="{{ kalba }}">
+      {{ pasirinkimai("tema", "nuostatos.tema", tema, temos, "tema.") }}
+    </form>
+    <form hx-post="/prototype/nuostatos" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
+      <input type="hidden" name="tema" value="{{ tema }}">
+      {{ pasirinkimai("kalba", "nuostatos.kalba", kalba, kalbos, "kalba.") }}
+    </form>
+    <button type="button" class="proto-user-signout" disabled title="{{ t('meniu.atsijungti_pastaba') }}">{{ t("meniu.atsijungti") }}</button>
+  </div>
+</details>
+{%- endmacro %}
+
+
+{#- Compact page header panel (UX_GUIDELINES 2 sk.): label, title + badges (call body) and purpose on
+    the left, 2-5 key facts inline on the right. `facts` = [(label, value)]; error pages pass none. -#}
+{% macro page_head(label, title, facts=[], purpose="", alert=false) -%}
+<header class="proto-page-head"{% if alert %} role="alert"{% endif %}>
+  <div class="proto-page-head-main">
+    {% if label %}<p class="proto-kicker">{{ label }}</p>{% endif %}
+    <h1 class="proto-title">{{ title }}{% if caller is defined %} {{ caller() }}{% endif %}</h1>
+    {% if purpose %}<p class="proto-purpose">{{ purpose }}</p>{% endif %}
+  </div>
+  {% if facts %}
+  <dl class="proto-page-facts">
+    {% for fact_label, value in facts %}
+    <div class="proto-fact"><dt class="proto-fact-label">{{ fact_label }}</dt><dd class="proto-fact-value">{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% endif %}
+</header>
 {%- endmacro %}

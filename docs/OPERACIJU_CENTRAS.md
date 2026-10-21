@@ -74,7 +74,7 @@ Aplinka ir režimas yra dvi nepriklausomos ašys. UI visada rodo abi.
 
 **Aplinkos perjungiamos ne UI'e, o instancijomis.** DEV ir PROD yra atskiros instancijos su atskirais `.env`, DB, watermark'ais, kursoriais ir audit log'u. UI'e gali būti tik nuoroda „Atidaryti PROD“, vedanti į kitą instanciją. Lentelių pavadinimai be `_dev` priesagų: aplinką nustato instancija.
 
-**Aplinkos žyma** visada matoma header'yje. PROD – raudona juosta per visą plotį, DEV – neutrali.
+**Aplinkos žyma** – ženklelis (DEV / PROD) šalia aplikacijos pavadinimo header'yje; pilnas aplinkos aprašas – jo tooltip'e. PROD aplinkoje visa header eilutė raudona, DEV – įprasta. Atskiros aplinkos juostos nėra.
 
 **Režimas:**
 

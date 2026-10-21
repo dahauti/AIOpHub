@@ -72,6 +72,8 @@
 
 [PROPOSED] Kiekvienas naujas sąrašo ekranas laikosi 1–8 tvarkos; nereikalingus blokus praleisti, bet nekeisti tvarkos.
 
+[STANDARD] **Rėmeliai ir antraštės panelė.** Frames group related content or controls; single text elements (breadcrumb, title) are never framed alone. Every page starts with a framed header panel: label, title, badges, 2–5 key facts. Compact layout: label, title and purpose sentence on the left, facts inline on the right (below the title only on narrow screens). Header facts are not on the card grid; cards and sections keep the shared column grid and the 8 px spacing scale. Išimtis: klaidų puslapiai (pvz. „Nepakanka teisių“) – panelė be faktų eilutės.
+
 [STANDARD] **Pilnas plotis.** Turinys neturi `max-width` konteinerio: visas ekrano plotis, šonuose 32 px (siauruose ekranuose 24 px). Lentelės, žurnalai, kortelės ir sąrašai užima visą plotį. Prozos tekstas (paskirties sakiniai, paaiškinimai, dialogo tekstas) – ne daugiau ~75 simbolių eilutėje (`max-width: 75ch`).
 
 ## 3. Sąveikos šablonai
@@ -86,9 +88,12 @@
 - Numatytai paslėptos reikšmės ateina iš serverio; [REFERENCE] `default_hidden_statuses`.
 - Būsenų filtrų reikšmės rikiuojamos nuo blogiausios, ne abėcėliškai.
 
+**Perjungikliai** [STANDARD] Rarely changed personal preferences (theme, language) → user menu. Frequently changed controls with 2–4 options → segmented control. Current value always visible on the trigger; current option = ✓ + bold, never colour alone.
+
 **KPI ir filtrai** [STANDARD] Kortelės skaičiuoja pagal matomas eilutes; filtruojant etiketė „(filtr.)“ ir „iš N“.
 
 **Lentelė**
+- [STANDARD] Lists of processes/records use tables (one row per item), not cards. Only the item name is underlined; the whole row is clickable.
 - [STANDARD] Rikiavimas paspaudus `th`, ▲/▼, kategorijos pagal prasmės tvarką.
 - [REFERENCE] Stulpeliai aprašyti vienu `COLUMNS` masyvu antraštei, celėms ir meniu.
 - [STANDARD] `fixed` stulpelis visada pirmas, neslepiamas.
@@ -152,7 +157,7 @@ Kiekvienas ekranas priklauso vienam tipui. Tipas nustato, ką privaloma deklaruo
 - Stilius: outline rose + ⚠ ikona. Pavojingas veiksmas **nenaudoja** pagrindinio `#A6192E` užpildo ir niekada nėra vizualiai dominuojantis ekrano veiksmas.
 - Varnelė niekada neperjungia saugumo režimo (pvz., „Dry-run bypass“). Tam skirtas atskiras, aiškiai pavadintas veiksmas su dialogu.
 - Pavojingi veiksmai rodomi tik vartotojams, turintiems reikiamą rolę. **Serveris tikrina rolę nepriklausomai nuo UI.**
-- Aplinkos žyma (DEV/TEST/PROD) visada matoma header'yje. PROD žyma ryški, kitos – neutralios.
+- Environment badge next to the app title; in PROD the whole header row is crimson. No separate environment bar.
 
 ## 7. Mašininės reikšmės ir terminai
 

@@ -5,35 +5,84 @@
 @font-face { font-family: "Open Sans"; font-style: normal; font-weight: 300 800; font-display: swap; src: url("/static/fonts/open-sans-latin-ext-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: "Open Sans"; font-style: normal; font-weight: 300 800; font-display: swap; src: url("/static/fonts/open-sans-latin-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 .proto-body { min-height: 100vh; background-color: var(--hub-bg); color: var(--hub-text); font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
-.proto-env { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.375rem 2rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; }
-.proto-env-dev { background-color: var(--hub-raised); color: var(--hub-text-soft); }
-.proto-env-prod { background-color: var(--hub-crimson); color: #fff; }
-.proto-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.5rem 2rem; border-bottom: 1px solid var(--hub-line); background-color: var(--hub-surface); }
+.proto-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--proto-space-2); padding: var(--proto-space-1) var(--proto-space-4); border-bottom: 1px solid var(--hub-line); background-color: var(--hub-surface); }
 .proto-brand { font-size: 0.9375rem; font-weight: 700; color: var(--hub-text-strong); }
+/* Environment (UX_GUIDELINES 6 sk.): badge next to the title; PROD turns the whole header row
+   crimson, and every header element switches to white / light amber (tests/test_prototype_theme.py). */
+.proto-brand-group { display: flex; align-items: center; gap: 0.5rem; }
+.proto-env-badge { display: inline-flex; align-items: center; height: 1.375rem; padding: 0 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; cursor: help; }
+.proto-env-badge-dev { border: 1px solid var(--hub-border); background-color: var(--hub-raised); color: var(--hub-text); }
+.proto-env-badge-prod { background-color: #fff; color: var(--hub-crimson); }
+.proto-top-prod { border-bottom-color: var(--hub-crimson); background-color: var(--hub-crimson); }
+.proto-top-prod .proto-brand { color: #fff; }
 .proto-prefs { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
-.proto-pref { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--hub-text-muted); }
-.proto-pref-select { height: 1.75rem; padding: 0 0.5rem; }
 /* Prototype-only controls (level, environment, badge): amber outline. --proto-amber is the theme's
    warning text colour; on the crimson PROD bar a lighter amber keeps 4.5:1 (tests/test_prototype_theme.py). */
 .proto-body { --proto-amber: var(--hub-warn-text); --proto-amber-ink: #27333b; }
 :root[data-theme="light"] .proto-body { --proto-amber-ink: #fff; }
-.proto-env-prod { --proto-amber: #fde68a; --proto-amber-ink: #27333b; }
+.proto-top-prod { --proto-amber: #fde68a; --proto-amber-ink: #27333b; }
 .proto-only { border: 1px solid var(--proto-amber); }
-/* :root raises specificity above the light-theme .field override below. */
-:root .proto-body select.proto-only { border-color: var(--proto-amber); }
 .proto-flag { display: inline-flex; align-items: center; height: 1.375rem; padding: 0 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; color: var(--proto-amber); cursor: help; }
-.proto-env-toggle { display: inline-flex; flex-shrink: 0; border-radius: 0.25rem; overflow: hidden; }
-.proto-env-option { position: relative; display: inline-flex; align-items: center; height: 1.375rem; padding: 0 0.5rem; color: var(--proto-amber); cursor: pointer; }
-.proto-env-option input { position: absolute; opacity: 0; pointer-events: none; }
-.proto-env-option:has(input:checked) { background-color: var(--proto-amber); color: var(--proto-amber-ink); }
-.proto-env-option:has(input:focus-visible) { outline: 2px solid var(--proto-amber); outline-offset: 2px; }
+/* Segmented controls (UX_GUIDELINES 3 sk.): one selected state everywhere = fill + bold + ✓;
+   unselected = transparent, normal weight, secondary text; hover = light tint only; focus ring
+   uses a separate colour. Fill: accent for real settings, amber for prototype-only groups.
+   Contrast pairs are checked in tests/test_prototype_theme.py. */
+.proto-seg { --seg-fill: var(--hub-crimson-2); --seg-ink: #fff; --seg-text: var(--hub-text-soft); --seg-ring: var(--hub-link); display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+.proto-seg-proto { --seg-fill: var(--proto-amber); --seg-ink: var(--proto-amber-ink); }
+.proto-top-prod .proto-seg { --seg-text: #fff; --seg-ring: #fff; }
+.proto-seg-legend { float: left; padding: 0; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--seg-text); }
+.proto-seg-options { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--hub-border); border-radius: 0.375rem; }
+.proto-seg-proto .proto-seg-options { border-color: var(--proto-amber); }
+.proto-seg-option { position: relative; display: inline-flex; cursor: pointer; }
+.proto-seg-input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.proto-seg-text { display: inline-flex; align-items: center; height: 1.5rem; padding: 0 0.625rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 400; letter-spacing: 0.02em; color: var(--seg-text); white-space: nowrap; }
+.proto-seg-option:hover .proto-seg-input:not(:checked) + .proto-seg-text { background-color: color-mix(in srgb, currentColor 14%, transparent); }
+.proto-seg-input:checked + .proto-seg-text { background-color: var(--seg-fill); color: var(--seg-ink); font-weight: 700; }
+.proto-seg-input:checked + .proto-seg-text::before { content: "\2713\00a0"; content: "\2713\00a0" / ""; }
+.proto-seg-input:focus-visible + .proto-seg-text { outline: 2px solid var(--seg-ring); outline-offset: 2px; }
+/* User menu (UX_GUIDELINES 3 sk.): theme and language; current option = ✓ + bold (no fill).
+   Unselected options keep the ✓ slot empty so labels stay aligned. */
+.proto-user { position: relative; }
+.proto-user-trigger { display: inline-flex; align-items: center; gap: 0.375rem; height: 1.75rem; padding: 0 0.625rem; border: 1px solid var(--hub-border); border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; color: var(--hub-text); cursor: pointer; list-style: none; }
+.proto-user-trigger::-webkit-details-marker { display: none; }
+.proto-user-trigger:hover { background-color: color-mix(in srgb, currentColor 10%, transparent); }
+.proto-user-trigger:focus-visible { outline: 2px solid var(--hub-link); outline-offset: 2px; }
+.proto-top-prod .proto-user-trigger { border-color: #fff; color: #fff; }
+.proto-top-prod .proto-user-trigger:focus-visible { outline-color: #fff; }
+.proto-user-panel { position: absolute; right: 0; top: calc(100% + 0.375rem); z-index: 50; display: flex; flex-direction: column; gap: 0.75rem; min-width: 14rem; padding: 0.75rem; border: 1px solid var(--hub-border); border-radius: 0.5rem; background-color: var(--hub-surface); box-shadow: 0 12px 32px rgb(0 0 0 / 0.25); }
+.proto-user-name { font-size: 0.8125rem; font-weight: 700; color: var(--hub-text-strong); }
+.proto-menu-group { display: flex; flex-direction: column; gap: 0.125rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+.proto-menu-legend { margin-bottom: 0.25rem; padding: 0; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-muted); }
+.proto-menu-option { position: relative; display: flex; cursor: pointer; }
+.proto-menu-input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.proto-menu-text { display: flex; align-items: center; width: 100%; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8125rem; font-weight: 400; color: var(--hub-text-soft); }
+.proto-menu-text::before { content: ""; display: inline-block; width: 1.25em; }
+.proto-menu-option:hover .proto-menu-input:not(:checked) + .proto-menu-text { background-color: color-mix(in srgb, currentColor 10%, transparent); }
+.proto-menu-input:checked + .proto-menu-text { font-weight: 700; color: var(--hub-text-strong); }
+.proto-menu-input:checked + .proto-menu-text::before { content: "\2713"; content: "\2713" / ""; }
+.proto-menu-input:focus-visible + .proto-menu-text { outline: 2px solid var(--hub-link); outline-offset: 1px; }
+.proto-user-signout { align-self: flex-start; padding: 0.25rem 0.5rem; border: 1px solid var(--hub-border); border-radius: 0.25rem; background: transparent; font-size: 0.75rem; color: var(--hub-text-faint); cursor: not-allowed; }
 /* Full width (UX_GUIDELINES 2 sk.): no max-width container; prose keeps a ~75 character measure. */
-.proto-main { padding: 1rem 2rem 3rem; display: flex; flex-direction: column; gap: 1rem; }
+/* Spacing scale (8 px steps) and one column grid shared by the page header facts and the cards
+   below, so left edges and gaps line up across a page: 4 columns from 1024 px, 2 from 640 px. */
+.proto-body { --proto-space-1: 0.5rem; --proto-space-2: 1rem; --proto-space-3: 1.5rem; --proto-space-4: 2rem; --proto-space-5: 2.5rem; --proto-cols: 1; }
+@media (min-width: 640px) { .proto-body { --proto-cols: 2; } }
+@media (min-width: 1024px) { .proto-body { --proto-cols: 4; } }
+.proto-main { padding: var(--proto-space-2) var(--proto-space-4) var(--proto-space-5); display: flex; flex-direction: column; gap: var(--proto-space-2); }
 .proto-prose { max-width: 75ch; }
 .proto-crumbs { font-size: 0.75rem; color: var(--hub-text-faint); }
 .proto-link { color: var(--hub-link); }
 .proto-link:hover { color: var(--hub-link-hover); }
-.proto-head { display: flex; flex-direction: column; gap: 0.25rem; }
+/* Compact page header panel (UX_GUIDELINES 2 sk.): title block left, facts inline right (they wrap
+   below on narrow screens). Facts are not on the card grid; cards and sections keep it. */
+.proto-page-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--proto-space-2) var(--proto-space-4); padding: var(--proto-space-2); border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: var(--hub-surface); }
+.proto-page-head-main { display: flex; flex: 1 1 28rem; flex-direction: column; gap: var(--proto-space-1); min-width: 0; }
+.proto-page-facts { display: flex; flex-wrap: wrap; margin: 0; row-gap: var(--proto-space-2); }
+.proto-fact { display: flex; flex-direction: column; gap: 0.25rem; padding: 0 var(--proto-space-2); border-left: 1px solid var(--hub-line); min-width: 0; }
+.proto-fact:first-child { padding-left: 0; border-left: 0; }
+.proto-fact-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hub-text-muted); }
+.proto-fact-value { display: flex; flex-direction: column; align-items: flex-start; gap: 0.125rem; margin: 0; font-size: 0.875rem; color: var(--hub-text); }
+.proto-fact-sub { font-size: 0.75rem; color: var(--hub-text-muted); }
 /* Section labels: uppercase, weight 600 (alwark.lt); h2 section titles unchanged. */
 .proto-kicker { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--hub-accent-text); }
 .proto-body .label { font-weight: 600; }
@@ -45,18 +94,22 @@
 .proto-badge { display: inline-flex; align-items: center; height: 1.375rem; padding: 0 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05em; }
 .proto-badge-live { background-color: rgb(244 63 94 / 0.2); color: var(--hub-err-text); }
 .proto-badge-dry { background-color: rgb(245 158 11 / 0.2); color: var(--hub-warn-text); }
-.proto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
-.proto-card { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: var(--hub-surface); }
-a.proto-card:hover { border-color: var(--hub-border); }
-.proto-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-.proto-card-title { font-weight: 700; color: var(--hub-text-strong); }
-.proto-card-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--hub-text); }
-.proto-num { font-size: 1.5rem; font-weight: 700; color: var(--hub-text-strong); font-variant-numeric: tabular-nums; }
+.proto-grid { display: grid; grid-template-columns: repeat(var(--proto-cols), minmax(0, 1fr)); gap: var(--proto-space-2); }
+.proto-card { display: flex; flex-direction: column; gap: var(--proto-space-1); padding: var(--proto-space-2); border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: var(--hub-surface); }
 .proto-muted { font-size: 0.75rem; color: var(--hub-text-muted); }
-.proto-section { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: var(--hub-surface); }
+.proto-section { display: flex; flex-direction: column; gap: var(--proto-space-1); padding: var(--proto-space-2); border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: var(--hub-surface); }
 .proto-section-title { font-size: 0.875rem; font-weight: 800; color: var(--hub-text-strong); }
-.proto-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background-color: var(--hub-sunken); font-size: 0.8125rem; }
-.proto-row:hover { background-color: var(--hub-raised); }
+/* Lists (UX_GUIDELINES 3 sk.): plain rows divided by lines, no frame per row; the whole row is the
+   link, only the item name is underlined. Tables get the same with a stretched name link. */
+.proto-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--proto-space-2); padding: var(--proto-space-1); font-size: 0.8125rem; color: var(--hub-text); text-decoration: none; }
+.proto-row + .proto-row { border-top: 1px solid var(--hub-line); }
+.proto-row-name { color: var(--hub-text-strong); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.proto-link-row { position: relative; }
+.proto-link-row:hover, .proto-row:hover { background-color: color-mix(in srgb, currentColor 6%, transparent); }
+.proto-link-row:focus-within { outline: 2px solid var(--hub-link); outline-offset: -2px; }
+.proto-stretched:focus-visible { outline: none; }
+.proto-stretched::after { content: ""; position: absolute; inset: 0; }
+.proto-cell-sub { display: block; font-size: 0.75rem; color: var(--hub-text-muted); }
 .proto-row-main { flex: 1 1 16rem; color: var(--hub-text); }
 .proto-type { display: inline-flex; align-items: center; height: 1.375rem; padding: 0 0.5rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; }
 .proto-type-data { background-color: rgb(245 158 11 / 0.15); color: var(--hub-warn-text); }
@@ -102,6 +155,6 @@ a.proto-card:hover { border-color: var(--hub-border); }
 :root[data-theme="light"] .pill-failed { color: var(--hub-err-text); }
 
 @media (max-width: 640px) {
-  .proto-env, .proto-top { padding-left: 1.5rem; padding-right: 1.5rem; }
-  .proto-main { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .proto-top { padding-left: var(--proto-space-3); padding-right: var(--proto-space-3); }
+  .proto-main { padding-left: var(--proto-space-3); padding-right: var(--proto-space-3); }
 }

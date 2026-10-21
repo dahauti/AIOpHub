@@ -97,7 +97,18 @@ class ZurnaloIrasas(_Fixture):
     trace_id: str
 
 
+class Vartotojas(_Fixture):
+    """Prisijungęs vartotojas; kol nėra autentifikacijos (SPEC 2.5), imamas iš fixture."""
+
+    vardas: str
+
+    @property
+    def inicialai(self) -> str:
+        return "".join(word[0] for word in self.vardas.split()[:2]).upper()
+
+
 class Fixtures(_Fixture):
+    vartotojas: Vartotojas
     procesai: list[Procesas]
     paleidimai: list[Paleidimas]
     irasai: list[Irasas]

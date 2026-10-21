@@ -7,31 +7,17 @@ Theme and language (ADR 0002) also come from cookies, so the server renders them
 """
 
 from collections.abc import Callable
-from pathlib import Path
-from typing import Annotated, get_args
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import TypeAdapter, ValidationError
 
-from src.api.templating import http_reason
+from src.api.prototype_templates import TEMPLATES
 from src.config import get_settings
 from src.prototype import views
-from src.prototype.i18n import KALBOS, Vertejas
+from src.prototype.i18n import Vertejas
 from src.prototype.models import Aplinka, Kalba, Lygis, Tema
-
-TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
-TEMPLATES.env.filters["http_reason"] = http_reason
-for helper in ("can", "last_run", "runs_of", "visible_errors", "run_records", "record_visible"):
-    TEMPLATES.env.globals[helper] = getattr(views, helper)
-TEMPLATES.env.globals |= {
-    "veiksmai": views.VEIKSMAI,
-    "lygiai": get_args(Lygis),
-    "aplinkos": get_args(Aplinka),
-    "temos": get_args(Tema),
-    "kalbos": KALBOS,
-}
 
 LEVEL_COOKIE, ENV_COOKIE = "proto_lygis", "proto_aplinka"
 THEME_COOKIE, LANG_COOKIE = "proto_tema", "proto_kalba"
@@ -95,6 +81,7 @@ def _page(
         "tema": theme,
         "kalba": lang,
         "procesai": views.fixtures().procesai,
+        "vartotojas": views.fixtures().vartotojas,
         "t": v.t,
         "tn": v.tn,
         "laikas": v.laikas,
@@ -135,7 +122,11 @@ async def run_page(request: Request, run_id: str) -> HTMLResponse:
 async def record_page(request: Request, record_id: str) -> HTMLResponse:
     item = _find(views.record, record_id)
     needed: Lygis = "matyti" if views.record_visible("matyti", item) else "valdyti"
-    context: dict[str, object] = {"irasas": item, "procesas": views.process(item.procesas_id)}
+    context: dict[str, object] = {
+        "irasas": item,
+        "procesas": views.process(item.procesas_id),
+        "paleidimas": views.run(item.paleidimas_id),
+    }
     return _guarded(request, needed, "irasas.html", context)
 
 

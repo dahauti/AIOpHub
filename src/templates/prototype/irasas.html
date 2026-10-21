@@ -1,12 +1,18 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import pavadinimas, pranesimas, tipas, veiksmas with context %}
+{% from "prototype/_macros.html" import page_head, pavadinimas, pranesimas, tipas, veiksmas with context %}
 {% block title %}{{ irasas.objektas }}{% endblock %}
 {% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ pavadinimas(procesas) }}</a> / {{ irasas.objektas }}{% endblock %}
 {% block content %}
-<header class="proto-head">
-  <p class="proto-kicker">{{ t("irasas.pavadinimas") }} &middot; {{ pavadinimas(procesas) }}</p>
-  <h1 class="proto-title"><span class="mono-id">{{ irasas.objektas }}</span> {% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% else %}<span class="pill pill-ok">{{ t("irasas.pavyko") }}</span>{% endif %}</h1>
-</header>
+{#- "Aptikta" = start of the run that processed the record; "Kas taiso" follows the error type
+    (OPERACIJU_CENTRAS.md, Klaidų modelis). Both derive from fixture data, nothing is stored extra. -#}
+{% set facts = [
+  (t("irasas.busena"), t("irasas.busenos." ~ irasas.busena)),
+  (t("irasas.procesas"), pavadinimas(procesas)),
+  (t("irasas.aptikta"), laikas(paleidimas.pradzia)),
+  (t("irasas.kas_taiso"), t("kas_taiso." ~ irasas.tipas) if irasas.tipas else "—"),
+] %}
+{% set objektas %}<span class="mono-id">{{ irasas.objektas }}</span>{% endset %}
+{% call page_head(t("irasas.pavadinimas"), objektas, facts) %}{% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% endif %}{% endcall %}
 {% if irasas.busena == "klaida" and irasas.klaida %}
 <section class="proto-section proto-reason-box" aria-labelledby="priezastis-h">
   <h2 id="priezastis-h" class="proto-section-title">{{ t("irasas.kodel") }}</h2>
