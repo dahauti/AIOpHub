@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from src.api.cursor_handlers import CURSOR_LOCKED, MAX_CURSOR_INPUT, CursorInputError, parse_cursor
 from src.api.templating import TEMPLATES, format_utc
@@ -19,6 +19,7 @@ SINGLE_BUSY = "Sync already in progress. Please wait for the current batch to co
 BLANK_SERIAL = "Enter a vehicle SerialNo"
 # htmx swaps a 286 response, then cancels the polling element's timer.
 STOP_POLLING = 286
+SYNC_STATE_CHANGED = "sync-state-changed"
 
 
 def get_sync_control(request: Request) -> SyncControl:
@@ -116,6 +117,23 @@ async def status_partial(request: Request, control: Control) -> HTMLResponse:
     return TEMPLATES.TemplateResponse(
         request, "partials/status_poll.html", context, status_code=200 if running else STOP_POLLING
     )
+
+
+@router.get("/partials/heartbeat")
+async def heartbeat(control: Control, current_last_sync: str | None = None) -> Response:
+    """204 (no DOM work) while idle and unchanged; otherwise fire the refresh event."""
+    snapshot = await control.snapshot()
+    last_sync = snapshot.updated_at.isoformat() if snapshot.updated_at else ""
+    if snapshot.status != RUNNING and last_sync == (current_last_sync or ""):
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(headers={"HX-Trigger": SYNC_STATE_CHANGED})
+
+
+@router.get("/partials/kpi", response_class=HTMLResponse)
+async def kpi_partial(request: Request, control: Control) -> HTMLResponse:
+    """KPI block alone, swapped into #sync-status when the heartbeat reports a change."""
+    context = await _context(control, None)
+    return TEMPLATES.TemplateResponse(request, "partials/kpi.html", context)
 
 
 @router.post("/api/sync/trigger", response_class=HTMLResponse)

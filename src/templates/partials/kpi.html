@@ -1,6 +1,7 @@
 {% from "partials/macros.html" import local_time, spinner %}
 {% set running = snapshot.status == "RUNNING" %}
 <div id="kpi-metrics" {% if poll %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="morph" {% endif %}class="space-y-4">
+  <input type="hidden" name="current_last_sync" value="{{ snapshot.updated_at.isoformat() if snapshot.updated_at else '' }}">
   <div class="flex items-center justify-between gap-4">
     <h2 id="batch-heading" class="label">Batch sync</h2>
     {% if running %}

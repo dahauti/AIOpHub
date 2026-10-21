@@ -30,4 +30,7 @@
     {% include "partials/audit_table.html" %}
   </div>
 </section>
+<div hx-get="/partials/heartbeat" hx-trigger="every 15s" hx-include="[name='current_last_sync']" hx-swap="none" hidden></div>
+<div hx-get="/partials/kpi" hx-trigger="sync-state-changed from:body" hx-target="#sync-status" hx-swap="morph:innerHTML" hidden></div>
+<div hx-get="/partials/audit" hx-target="#audit-log-container" hx-trigger="sync-state-changed from:body" hx-include="#audit-filters" hx-swap="morph:innerHTML" hidden></div>
 {% endblock %}
