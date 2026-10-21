@@ -1,18 +1,26 @@
-{% from "partials/macros.html" import local_time %}
+{% from "partials/macros.html" import local_time, spinner %}
+{% set failed_view = audit_filter == "FAILED" %}
+{% set rows = rows if rows is defined else snapshot.recent %}
 <div id="audit-log" {% if audit_oob %}hx-swap-oob="true" {% endif %}class="card min-h-[20rem] overflow-x-auto p-0">
+  {% if failed_view %}
+  <div class="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-2">
+    <p class="text-sm font-medium text-rose-300">Failed today: {{ rows | length }}</p>
+    <button type="button" hx-get="/partials/audit" hx-target="#audit-log-table" hx-swap="innerHTML" class="btn-ghost btn-mini">{{ spinner() }}Clear filter / Show all</button>
+  </div>
+  {% endif %}
   <table class="data-table table-fixed min-w-[760px]">
     <colgroup>
       <col class="w-[180px]">
       <col class="w-[120px]">
       <col class="w-[200px]">
-      <col class="w-[80px]">
+      <col class="{{ 'w-[200px]' if failed_view else 'w-[80px]' }}">
       <col>
     </colgroup>
     <thead>
       <tr><th>Time</th><th>Vehicle</th><th>Action</th><th>HTTP</th><th>Error</th></tr>
     </thead>
     <tbody>
-      {% for row in snapshot.recent %}
+      {% for row in rows %}
       <tr class="h-9 min-h-[2.25rem] hover:bg-slate-800/30">
         <td class="tabular-nums">{{ local_time(row.created_at) }}</td>
         <td class="truncate" title="{{ row.entity_key }}">{{ row.entity_key }}</td>
@@ -21,12 +29,17 @@
           {%- if row.status_code is not none -%}
           {%- set code = row.status_code -%}
           <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
+          {%- if failed_view %} <span class="text-slate-300">{{ code | http_reason }}</span>{% endif -%}
           {%- endif -%}
         </td>
+        {% if failed_view %}
+        <td><span class="error-full">{{ row.error_message or "" }}</span></td>
+        {% else %}
         <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr class="h-9 min-h-[2.25rem]"><td colspan="5" class="text-center font-sans text-slate-500">No sync activity yet.</td></tr>
+      <tr class="h-9 min-h-[2.25rem]"><td colspan="5" class="text-center font-sans text-slate-500">{{ "No failures today." if failed_view else "No sync activity yet." }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

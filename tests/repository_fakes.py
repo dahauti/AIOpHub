@@ -9,6 +9,7 @@ from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
     AuditEntry,
+    AuditRecord,
     ConfigFlag,
     DashboardSnapshot,
     ReleaseStatus,
@@ -82,6 +83,9 @@ class FakeSyncRepository:
 
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot:
         return DashboardSnapshot(status=self.status, cursor_timestamp=self.cursor)
+
+    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]:
+        return []
 
 
 class FakeConfigStore:

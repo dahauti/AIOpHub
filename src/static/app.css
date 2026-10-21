@@ -42,6 +42,11 @@ select.field { color-scheme: dark; }
 .toggle-emerald:hover:enabled { background-color: rgb(16 185 129 / 0.25); }
 .toggle-off { border-color: #334155; background-color: rgb(30 41 59 / 0.6); color: #94a3b8; }
 .toggle-off:hover:enabled { background-color: rgb(51 65 85 / 0.7); }
+.kpi-action { display: block; width: 100%; text-align: left; transition: border-color 150ms, background-color 150ms; }
+.kpi-action:hover { border-color: rgb(244 63 94 / 0.5); background-color: rgb(30 41 59 / 0.7); }
+.kpi-action:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
+.error-full { display: block; white-space: pre-wrap; overflow-wrap: anywhere; color: #fda4af; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .switch { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
 .switch-input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .switch-track { position: relative; display: inline-block; width: 2.25rem; height: 1.25rem; flex-shrink: 0; border-radius: 9999px; border: 1px solid #334155; background-color: rgb(30 41 59 / 0.6); transition: background-color 150ms, border-color 150ms; }
@@ -56,6 +61,7 @@ select.field { color-scheme: dark; }
 /* Layout */
 .flex { display: flex; }
 .grid { display: grid; }
+.block { display: block; }
 .inline-block { display: inline-block; }
 .flex-wrap { flex-wrap: wrap; }
 .shrink-0 { flex-shrink: 0; }
@@ -123,6 +129,7 @@ select.field { color-scheme: dark; }
 /* Borders */
 .border { border-width: 1px; }
 .border-slate-800 { border-color: #1e293b; }
+.border-b { border-bottom-width: 1px; }
 .border-slate-800\/80 { border-color: rgb(30 41 59 / 0.8); }
 .border-sky-500\/30 { border-color: rgb(14 165 233 / 0.3); }
 .rounded-md { border-radius: 0.375rem; }

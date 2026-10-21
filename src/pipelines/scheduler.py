@@ -16,6 +16,7 @@ from src.schemas.schedule import RunKind, ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
     AuditEntry,
+    AuditRecord,
     ConfigFlag,
     DashboardSnapshot,
     RuntimeConfig,
@@ -25,6 +26,7 @@ from src.schemas.sync import (
 logger = logging.getLogger(__name__)
 
 RECENT_AUDIT_LIMIT = 15
+FAILED_AUDIT_LIMIT = 100
 
 
 class RunnablePipeline(Protocol):
@@ -44,6 +46,7 @@ class SyncControl(Protocol):
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig | None: ...
     async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig: ...
     async def abort(self) -> bool: ...
+    async def failed_audit(self) -> list[AuditRecord]: ...
 
 
 class SyncRunner:
@@ -124,8 +127,14 @@ class SyncRunner:
 
     async def snapshot(self) -> DashboardSnapshot:
         """Dashboard state with counters measured from today's UTC midnight."""
-        day_start = self._clock().astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        return await self._repo.dashboard_snapshot(day_start, RECENT_AUDIT_LIMIT)
+        return await self._repo.dashboard_snapshot(self._day_start(), RECENT_AUDIT_LIMIT)
+
+    async def failed_audit(self) -> list[AuditRecord]:
+        """Today's FAILED audit rows (the "Errors today" KPI), newest first."""
+        return await self._repo.failed_audit(self._day_start(), FAILED_AUDIT_LIMIT)
+
+    def _day_start(self) -> datetime:
+        return self._clock().astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
     async def run_forever(self, tick_seconds: float, *, sleep: Sleep = asyncio.sleep) -> None:
         """Check the schedule now, then every `tick_seconds`; a failed run never stops the loop."""

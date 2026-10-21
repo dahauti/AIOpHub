@@ -47,7 +47,7 @@
   <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
     <div class="card min-h-[96px]"><p class="label">Processed today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</p></div>
     <div class="card min-h-[96px]"><p class="label">Skipped today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</p></div>
-    <div class="card min-h-[96px]"><p class="label">Errors today</p><p class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</p></div>
+    <button type="button" hx-get="/partials/audit?status=FAILED" hx-target="#audit-log-table" hx-swap="innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today &middot; inspect</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
     {% if dry_run or snapshot.planned %}
     <div class="card min-h-[96px]"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold tabular-nums text-amber-200">{{ snapshot.planned }}</p></div>
     {% endif %}

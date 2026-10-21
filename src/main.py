@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.adapters.bc_client import BCClient, select_connection
 from src.adapters.frontu_client import FrontuClient
+from src.api.audit_handlers import audit_router
 from src.api.config_handlers import config_router
 from src.api.routes_ui import router
 from src.api.schedule_handlers import schedule_router
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(config_router)
     app.include_router(schedule_router)
+    app.include_router(audit_router)
     return app
 
 

@@ -12,7 +12,7 @@ from src.database import get_engine, get_sessionmaker, init_db
 from src.models.audit import SyncAuditLog
 from src.pipelines.sync_vehicles import VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
-from src.schemas.sync import AuditEntry
+from src.schemas.sync import AuditAction, AuditEntry
 from tests.pipeline_fakes import INTERNAL_CLIENT, FakeBC, FakeFrontu, vehicle
 from tests.pipeline_fakes import NOW as PIPELINE_NOW
 
@@ -151,3 +151,28 @@ async def test_pipeline_round_trip_on_sqlite(repo: SqlSyncRepository) -> None:
     assert await repo.get_cursor() == modified
     assert bc.since[1] == modified - timedelta(minutes=15)
     assert (await repo.dashboard_snapshot(NOW - timedelta(days=1), 15)).status == "IDLE"
+
+
+@pytest.mark.asyncio
+async def test_failed_audit_returns_only_failures_since_newest_first(
+    repo: SqlSyncRepository,
+) -> None:
+    actions: list[tuple[str, AuditAction]] = [
+        ("SN-1", "FAILED"),
+        ("SN-2", "UPSERT"),
+        ("SN-3", "FAILED"),
+    ]
+    for key, action in actions:
+        await repo.record_audit(
+            AuditEntry(entity_key=key, action=action, status_code=503, error_message="down")
+        )
+    since = datetime.now(UTC) - timedelta(hours=1)
+
+    failed = await repo.failed_audit(since, limit=10)
+    future = await repo.failed_audit(datetime.now(UTC) + timedelta(hours=1), limit=10)
+
+    assert [(r.entity_key, r.status_code, r.error_message) for r in failed] == [
+        ("SN-3", 503, "down"),
+        ("SN-1", 503, "down"),
+    ]
+    assert future == []

@@ -77,6 +77,9 @@ class FakeControl:
         self.schedule = schedule
         return await self.config()
 
+    async def failed_audit(self) -> list[AuditRecord]:
+        return [row for row in self._snapshot.recent if row.action == "FAILED"]
+
     async def abort(self) -> bool:
         if self._snapshot.status != "RUNNING":
             return False

@@ -1,6 +1,7 @@
 """HTMX dashboard routes: HTTP transport only, backed by the SyncControl port."""
 
 from datetime import UTC, datetime
+from http import HTTPStatus
 from pathlib import Path
 from typing import Annotated
 
@@ -36,8 +37,17 @@ def format_iso_utc(value: datetime) -> str:
     return value.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def http_reason(code: int) -> str:
+    """Standard reason phrase for an HTTP status ("" when non-standard)."""
+    try:
+        return HTTPStatus(code).phrase
+    except ValueError:
+        return ""
+
+
 TEMPLATES.env.filters["utc"] = format_utc
 TEMPLATES.env.filters["iso_utc"] = format_iso_utc
+TEMPLATES.env.filters["http_reason"] = http_reason
 TEMPLATES.env.globals["weekdays"] = WEEKDAYS
 
 

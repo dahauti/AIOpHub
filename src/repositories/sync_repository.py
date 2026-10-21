@@ -29,6 +29,7 @@ class SyncRepository(Protocol):
     async def delete_fingerprint(self, key: str) -> None: ...
     async def record_audit(self, entry: AuditEntry) -> None: ...
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot: ...
+    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]: ...
 
 
 class SqlSyncRepository:
@@ -103,6 +104,12 @@ class SqlSyncRepository:
             ),
             recent=[AuditRecord.model_validate(row) for row in recent],
         )
+
+    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]:
+        """FAILED rows since `since`, newest first."""
+        async with self._sessions() as session:
+            rows = (await session.scalars(sql.failed_audit_since(since, limit))).all()
+        return [AuditRecord.model_validate(row) for row in rows]
 
     async def _execute(self, statement: Executable) -> None:
         async with self._sessions.begin() as session:
