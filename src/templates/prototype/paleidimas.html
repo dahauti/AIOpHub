@@ -1,0 +1,48 @@
+{% extends "prototype/_layout.html" %}
+{% from "prototype/_macros.html" import tipas %}
+{% block title %}Paleidimas {{ paleidimas.id }}{% endblock %}
+{% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ procesas.pavadinimas }}</a> / Paleidimas{% endblock %}
+{% block content %}
+{% set r = paleidimas.rezultatas %}
+<header class="proto-head">
+  <p class="proto-kicker">Paleidimas &middot; {{ "LIVE" if paleidimas.rezimas == "LIVE" else "DRY RUN" }}</p>
+  <h1 class="proto-title">{{ procesas.pavadinimas }}: <span class="mono-id">{{ laikas(paleidimas.pradzia) }}</span></h1>
+</header>
+<div class="proto-grid">
+  {% if r.butu_sinchronizuota is not none %}
+  <div class="proto-card"><p class="label">Būtų sinchronizuota</p><p class="proto-num">{{ r.butu_sinchronizuota }}</p></div>
+  {% else %}
+  <div class="proto-card"><p class="label">Pavyko</p><p class="proto-num">{{ r.pavyko }}</p></div>
+  {% endif %}
+  <div class="proto-card"><p class="label">Praleista</p><p class="proto-num">{{ r.praleista }}</p></div>
+  <div class="proto-card"><p class="label">Klaidos</p><p class="proto-num">{{ r.klaidos }}</p></div>
+  <div class="proto-card"><p class="label">Apdorota iš viso</p><p class="proto-num">{{ r.apdorota }}</p></div>
+</div>
+{% if can(lygis, "valdyti") %}
+<section class="proto-section" aria-labelledby="detales-h">
+  <h2 id="detales-h" class="proto-section-title">Detalės</h2>
+  <dl class="proto-facts">
+    <div><dt>Trukmė</dt><dd class="mono-id">{{ sk(paleidimas.trukme_s) }} s</dd></div>
+    <div><dt>Paleido</dt><dd>{{ paleidimas.paleido }}</dd></div>
+    <div><dt>Watermark</dt><dd class="mono-id" title="{{ paleidimas.watermark.isoformat() }}">{{ laikas(paleidimas.watermark) }}</dd></div>
+    <div><dt>Trace ID</dt><dd class="mono-id">{{ paleidimas.trace_id }}</dd></div>
+  </dl>
+  <table class="proto-table">
+    <thead><tr><th>Sistema</th><th>Užklausa</th><th>HTTP</th><th>Trukmė</th></tr></thead>
+    <tbody>
+      {% for h in paleidimas.http %}
+      <tr><td>{{ h.sistema }}</td><td class="mono-id proto-url" title="{{ h.url }}">{{ h.metodas }} {{ h.url }}</td><td class="mono-id">{{ h.statusas }}</td><td class="mono-id">{{ sk(h.trukme_s) }} s</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+<section class="proto-section" aria-labelledby="irasai-h">
+  <h2 id="irasai-h" class="proto-section-title">Įrašai</h2>
+  {% for irasas in run_records(lygis, paleidimas.id) %}
+  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id">{{ irasas.objektas }}</span>{% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% else %}<span class="pill pill-ok">Pavyko</span>{% endif %}<span class="proto-row-main">{{ irasas.verslo_priezastis or "" }}</span></a>
+  {% else %}
+  <p class="proto-muted">Šiame paleidime atskirų įrašų nerodoma.</p>
+  {% endfor %}
+</section>
+{% endblock %}

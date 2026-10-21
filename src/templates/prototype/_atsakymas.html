@@ -1,0 +1,4 @@
+{#- Veiksmo atsakymas (be poveikio): 200 = patikros praeitos, 403/422 = serverio atmesta. -#}
+<p role="status" class="proto-result {{ 'proto-result-ok' if ok else 'proto-result-err' }}">
+  <strong>{{ veiksmas.pavadinimas }}</strong> &middot; {{ procesas.pavadinimas }}: {{ pranesimas }}{% if ok and priezastis %} Priežastis: „{{ priezastis }}“.{% endif %}
+</p>

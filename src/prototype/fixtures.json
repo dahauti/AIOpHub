@@ -1,0 +1,161 @@
+{
+  "procesai": [
+    {
+      "id": "transporto",
+      "pavadinimas": "Transporto priemonių sinchronizacija",
+      "kryptis": "BC → Frontu",
+      "saltinis": "VehicleCard",
+      "tikslas": "workspaces",
+      "rezimas": "LIVE",
+      "grafikas": "Kas naktį 02:00 + savaitinis pilnas (sekmadienį 02:00)",
+      "savininkas": "Tomas",
+      "kitas_paleidimas": "2026-10-22T02:00:00+03:00",
+      "kursorius": "2026-10-21T01:45:00+03:00"
+    },
+    {
+      "id": "uzduotys",
+      "pavadinimas": "Užduočių sinchronizacija",
+      "kryptis": "BC ⇄ Frontu",
+      "saltinis": "ServiceOrders, TG_Lines",
+      "tikslas": "tasks",
+      "rezimas": "LIVE",
+      "grafikas": "Kas 15 min. (atviras klausimas: periodinis ar įvykiais)",
+      "savininkas": "Tomas",
+      "kitas_paleidimas": "2026-10-21T15:00:00+03:00",
+      "kursorius": "2026-10-21T14:30:00+03:00"
+    },
+    {
+      "id": "klientai",
+      "pavadinimas": "Klientų sinchronizacija",
+      "kryptis": "BC → Frontu",
+      "saltinis": "Customers",
+      "tikslas": "clients",
+      "rezimas": "DRY_RUN",
+      "grafikas": "Rankinis paleidimas (naujas procesas)",
+      "savininkas": "Tomas",
+      "kitas_paleidimas": null,
+      "kursorius": "2026-10-20T00:00:00+03:00"
+    }
+  ],
+  "paleidimai": [
+    {
+      "id": "p-101",
+      "procesas_id": "transporto",
+      "pradzia": "2026-10-21T02:00:04+03:00",
+      "trukme_s": 41.7,
+      "paleido": "Grafikas",
+      "rezimas": "LIVE",
+      "rezultatas": {"apdorota": 412, "pavyko": 18, "praleista": 394, "klaidos": 0},
+      "watermark": "2026-10-21T01:45:00+03:00",
+      "http": [
+        {"sistema": "BC OData", "metodas": "GET", "url": "https://bc.alwark.local:7048/BC/ODataV4/Company('Alwark')/VehicleCard", "statusas": 200, "trukme_s": 6.2},
+        {"sistema": "Frontu v2", "metodas": "PUT", "url": "https://alwarktest.frontu.com/api/v2/workspaces", "statusas": 200, "trukme_s": 0.4}
+      ],
+      "trace_id": "trace-7f3a91c2"
+    },
+    {
+      "id": "p-202",
+      "procesas_id": "uzduotys",
+      "pradzia": "2026-10-21T14:45:02+03:00",
+      "trukme_s": 3.4,
+      "paleido": "Grafikas",
+      "rezimas": "LIVE",
+      "rezultatas": {"apdorota": 23, "pavyko": 21, "praleista": 0, "klaidos": 2},
+      "watermark": "2026-10-21T14:30:00+03:00",
+      "http": [
+        {"sistema": "BC OData", "metodas": "GET", "url": "https://bc.alwark.local:7048/BC/ODataV4/Company('Alwark')/ServiceOrders", "statusas": 200, "trukme_s": 1.1},
+        {"sistema": "Frontu v2", "metodas": "POST", "url": "https://alwarktest.frontu.com/api/v2/tasks", "statusas": 422, "trukme_s": 0.3},
+        {"sistema": "Frontu v2", "metodas": "POST", "url": "https://alwarktest.frontu.com/api/v2/tasks", "statusas": 500, "trukme_s": 0.9}
+      ],
+      "trace_id": "trace-c41d0e88"
+    },
+    {
+      "id": "p-201",
+      "procesas_id": "uzduotys",
+      "pradzia": "2026-10-21T14:30:01+03:00",
+      "trukme_s": 2.1,
+      "paleido": "Grafikas",
+      "rezimas": "LIVE",
+      "rezultatas": {"apdorota": 9, "pavyko": 9, "praleista": 0, "klaidos": 0},
+      "watermark": "2026-10-21T14:15:00+03:00",
+      "http": [
+        {"sistema": "BC OData", "metodas": "GET", "url": "https://bc.alwark.local:7048/BC/ODataV4/Company('Alwark')/ServiceOrders", "statusas": 200, "trukme_s": 0.8}
+      ],
+      "trace_id": "trace-0b9e5a17"
+    },
+    {
+      "id": "p-301",
+      "procesas_id": "klientai",
+      "pradzia": "2026-10-21T11:12:40+03:00",
+      "trukme_s": 12.6,
+      "paleido": "Tomas",
+      "rezimas": "DRY_RUN",
+      "rezultatas": {"apdorota": 57, "pavyko": 0, "praleista": 3, "klaidos": 0, "butu_sinchronizuota": 54},
+      "watermark": "2026-10-20T00:00:00+03:00",
+      "http": [
+        {"sistema": "BC OData", "metodas": "GET", "url": "https://bc.alwark.local:7048/BC/ODataV4/Company('Alwark')/Customers", "statusas": 200, "trukme_s": 4.7}
+      ],
+      "trace_id": "trace-5e2c7b40"
+    }
+  ],
+  "irasai": [
+    {
+      "id": "i-1",
+      "paleidimas_id": "p-202",
+      "procesas_id": "uzduotys",
+      "objektas": "SO029748",
+      "busena": "klaida",
+      "tipas": "duomenu",
+      "verslo_priezastis": "Nenurodytas technikas",
+      "ka_daryti": "BC užsakyme SO029748 nurodykite techniką ir paspauskite „Pakartoti“.",
+      "techninis": {
+        "http_statusas": 422,
+        "url": "https://alwarktest.frontu.com/api/v2/tasks",
+        "atsakymas": "{\"message\": \"The given data was invalid.\", \"errors\": {\"assignees\": [\"The assignees field is required.\"]}}",
+        "taisykle": "TG_Lines.TechnicianCode → task.assignees"
+      },
+      "payload": {"systemId": "SO029748", "title": "Servisas – SO029748", "status": 100, "assignees": []},
+      "trace_id": "trace-c41d0e88-01"
+    },
+    {
+      "id": "i-2",
+      "paleidimas_id": "p-202",
+      "procesas_id": "uzduotys",
+      "objektas": "SO029761",
+      "busena": "klaida",
+      "tipas": "sistemos",
+      "verslo_priezastis": "Frontu sistema atsakė klaida",
+      "ka_daryti": "Ištirti Frontu būseną ir pakartoti paleidimą.",
+      "techninis": {
+        "http_statusas": 500,
+        "url": "https://alwarktest.frontu.com/api/v2/tasks",
+        "atsakymas": "{\"message\": \"Server Error\"}",
+        "taisykle": null
+      },
+      "payload": {"systemId": "SO029761", "title": "Servisas – SO029761", "status": 100, "assignees": ["T-014"]},
+      "trace_id": "trace-c41d0e88-02"
+    },
+    {
+      "id": "i-3",
+      "paleidimas_id": "p-202",
+      "procesas_id": "uzduotys",
+      "objektas": "SO029750",
+      "busena": "pavyko",
+      "tipas": null,
+      "verslo_priezastis": null,
+      "ka_daryti": null,
+      "techninis": null,
+      "payload": {"systemId": "SO029750", "title": "Servisas – SO029750", "status": 100, "assignees": ["T-007"]},
+      "trace_id": "trace-c41d0e88-03"
+    }
+  ],
+  "zurnalas": [
+    {"laikas": "2026-10-21T14:45:06+03:00", "lygis": "ERROR", "procesas_id": "uzduotys", "ivykis": "SO029761: Frontu HTTP 500", "kas": "Grafikas", "trace_id": "trace-c41d0e88-02"},
+    {"laikas": "2026-10-21T14:45:05+03:00", "lygis": "WARN", "procesas_id": "uzduotys", "ivykis": "SO029748: Frontu HTTP 422 (assignees)", "kas": "Grafikas", "trace_id": "trace-c41d0e88-01"},
+    {"laikas": "2026-10-21T14:45:02+03:00", "lygis": "INFO", "procesas_id": "uzduotys", "ivykis": "Paleidimas p-202 pradėtas (LIVE)", "kas": "Grafikas", "trace_id": "trace-c41d0e88"},
+    {"laikas": "2026-10-21T14:30:03+03:00", "lygis": "INFO", "procesas_id": "uzduotys", "ivykis": "Paleidimas p-201 baigtas: 9 pavyko", "kas": "Grafikas", "trace_id": "trace-0b9e5a17"},
+    {"laikas": "2026-10-20T09:12:00+03:00", "lygis": "WARN", "procesas_id": "uzduotys", "ivykis": "Režimas pakeistas DRY RUN → LIVE. Priežastis: patikra baigta", "kas": "Tomas", "trace_id": "trace-91aa03f4"},
+    {"laikas": "2026-10-21T02:00:46+03:00", "lygis": "INFO", "procesas_id": "transporto", "ivykis": "Paleidimas p-101 baigtas: 18 pavyko, 394 praleista", "kas": "Grafikas", "trace_id": "trace-7f3a91c2"},
+    {"laikas": "2026-10-21T11:12:53+03:00", "lygis": "INFO", "procesas_id": "klientai", "ivykis": "DRY RUN p-301: būtų sinchronizuota 54", "kas": "Tomas", "trace_id": "trace-5e2c7b40"}
+  ]
+}

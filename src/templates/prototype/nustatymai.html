@@ -1,0 +1,36 @@
+{% extends "prototype/_layout.html" %}
+{% from "prototype/_macros.html" import rezimo_juosta, veiksmas %}
+{% block title %}Nustatymai{% endblock %}
+{% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ procesas.pavadinimas }}</a> / Nustatymai{% endblock %}
+{% block content %}
+<header class="proto-head">
+  <p class="proto-kicker">Nustatymai &middot; tik Administruoti lygiu</p>
+  <h1 class="proto-title">{{ procesas.pavadinimas }}</h1>
+  <p class="proto-purpose">Pavojingi veiksmai vykdomi tik per patvirtinimo dialogą ir įrašomi į žurnalą.</p>
+</header>
+{{ rezimo_juosta(procesas, aplinka) }}
+<div class="proto-grid">
+  <section class="proto-card" aria-labelledby="rezimas-h">
+    <h2 id="rezimas-h" class="label">Režimas</h2>
+    <p class="proto-card-line">{{ "LIVE – rašo" if procesas.rezimas == "LIVE" else "DRY RUN – nerašo" }}</p>
+    <div class="proto-actions">
+      {% if procesas.rezimas == "LIVE" %}{{ veiksmas("dryrun", procesas, lygis, aplinka) }}
+      {% else %}{{ veiksmas("live", procesas, lygis, aplinka, "Visi kitų paleidimų įrašai") }}{% endif %}
+    </div>
+  </section>
+  <section class="proto-card" aria-labelledby="kursorius-h">
+    <h2 id="kursorius-h" class="label">Kursorius</h2>
+    <p class="proto-card-line mono-id">{{ laikas(procesas.kursorius) }}</p>
+    <div class="proto-actions">{{ veiksmas("kursorius", procesas, lygis, aplinka, "Visi įrašai, pakeisti po naujo kursoriaus") }}</div>
+  </section>
+  <section class="proto-card" aria-labelledby="grafikas-h">
+    <h2 id="grafikas-h" class="label">Grafikas</h2>
+    <p class="proto-card-line">{{ procesas.grafikas }}</p>
+    <p class="proto-muted">Grafiko redagavimas – vėlesnėje prototipo versijoje.</p>
+  </section>
+  <section class="proto-card" aria-labelledby="teises-h">
+    <h2 id="teises-h" class="label">Teisės</h2>
+    <p class="proto-muted">Lygis (Matyti / Valdyti / Administruoti) priskiriamas teisių modulyje prie serviso.</p>
+  </section>
+</div>
+{% endblock %}

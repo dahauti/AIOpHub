@@ -1,0 +1,47 @@
+{% extends "prototype/_layout.html" %}
+{% from "prototype/_macros.html" import busena, rezimo_juosta, rezultatas, tipas, veiksmas %}
+{% block title %}{{ procesas.pavadinimas }}{% endblock %}
+{% block crumbs %} / {{ procesas.pavadinimas }}{% endblock %}
+{% block content %}
+{% set klaidos = visible_errors(lygis, procesas.id) %}
+{% set paleidimai = runs_of(procesas.id) %}
+{% set paskutinis = paleidimai[0] if paleidimai else none %}
+<header class="proto-head">
+  <p class="proto-kicker">Procesas &middot; savininkas {{ procesas.savininkas }}</p>
+  <h1 class="proto-title">{{ procesas.pavadinimas }}</h1>
+  <p class="proto-purpose">{{ procesas.kryptis }}: {{ procesas.saltinis }} → {{ procesas.tikslas }}.</p>
+</header>
+{{ rezimo_juosta(procesas, aplinka) }}
+<div class="proto-grid">
+  <div class="proto-card"><p class="label">Būsena</p><p class="proto-card-line">{{ busena(klaidos | length) }}</p>{% if paskutinis %}<p class="proto-muted">{{ rezultatas(paskutinis) }}</p>{% endif %}</div>
+  <div class="proto-card"><p class="label">Grafikas</p><p class="proto-card-line">{{ procesas.grafikas }}</p><p class="proto-muted">Kitas paleidimas: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else "nesuplanuotas" }} &middot; {{ "LIVE" if procesas.rezimas == "LIVE" else "DRY RUN" }}</p></div>
+  <div class="proto-card"><p class="label">Atviros klaidos</p><p class="proto-num">{{ klaidos | length }}</p></div>
+</div>
+{% if can(lygis, "valdyti") %}
+<div class="proto-actions">
+  {{ veiksmas("paleisti", procesas, lygis, aplinka, "~" ~ (paskutinis.rezultatas.apdorota if paskutinis else 0) ~ " (pagal paskutinį paleidimą)") }}
+  {{ veiksmas("testinis", procesas, lygis, aplinka) }}
+  <a href="/prototype/procesai/{{ procesas.id }}/zurnalas" class="proto-btn">Žurnalas</a>
+  {% if can(lygis, "administruoti") %}<a href="/prototype/procesai/{{ procesas.id }}/nustatymai" class="proto-btn">Nustatymai</a>{% endif %}
+</div>
+{% endif %}
+<section class="proto-section" aria-labelledby="klaidos-h">
+  <h2 id="klaidos-h" class="proto-section-title">Atviros klaidos</h2>
+  {% for irasas in klaidos %}
+  <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row"><span class="mono-id">{{ irasas.objektas }}</span>{{ tipas(irasas) }}<span class="proto-row-main">{{ irasas.verslo_priezastis }}</span></a>
+  {% else %}
+  <p class="proto-muted">Atvirų klaidų nėra.</p>
+  {% endfor %}
+</section>
+<section class="proto-section" aria-labelledby="paleidimai-h">
+  <h2 id="paleidimai-h" class="proto-section-title">{{ "Paleidimų istorija" if can(lygis, "valdyti") else "Paskutinis paleidimas" }}</h2>
+  <table class="proto-table">
+    <thead><tr><th>Pradžia</th>{% if can(lygis, "valdyti") %}<th>Paleido</th><th>Trukmė</th>{% endif %}<th>Rezultatas</th></tr></thead>
+    <tbody>
+      {% for p in (paleidimai if can(lygis, "valdyti") else paleidimai[:1]) %}
+      <tr><td><a href="/prototype/paleidimai/{{ p.id }}" class="proto-link mono-id">{{ laikas(p.pradzia) }}</a></td>{% if can(lygis, "valdyti") %}<td>{{ p.paleido }}</td><td class="mono-id">{{ sk(p.trukme_s) }} s</td>{% endif %}<td>{{ rezultatas(p) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "prototype/_layout.html" %}
+{% from "prototype/_macros.html" import tipas, veiksmas %}
+{% block title %}{{ irasas.objektas }}{% endblock %}
+{% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ procesas.pavadinimas }}</a> / {{ irasas.objektas }}{% endblock %}
+{% block content %}
+<header class="proto-head">
+  <p class="proto-kicker">Įrašas &middot; {{ procesas.pavadinimas }}</p>
+  <h1 class="proto-title"><span class="mono-id">{{ irasas.objektas }}</span> {% if irasas.busena == "klaida" %}{{ tipas(irasas) }}{% else %}<span class="pill pill-ok">Pavyko</span>{% endif %}</h1>
+</header>
+{% if irasas.busena == "klaida" %}
+<section class="proto-section proto-reason-box" aria-labelledby="priezastis-h">
+  <h2 id="priezastis-h" class="proto-section-title">Kodėl nepavyko</h2>
+  <p class="proto-reason-text">{{ irasas.verslo_priezastis }}</p>
+  <p><strong>Ką daryti:</strong> {{ irasas.ka_daryti }}</p>
+  <div class="proto-actions">{{ veiksmas("pakartoti", procesas, lygis, aplinka) }}</div>
+</section>
+{% endif %}
+{% if can(lygis, "valdyti") %}
+<section class="proto-section" aria-labelledby="technine-h">
+  <h2 id="technine-h" class="proto-section-title">Techninė detalė</h2>
+  <dl class="proto-facts">
+    {% if irasas.techninis %}
+    <div><dt>Atsakymas</dt><dd class="mono-id">{{ "HTTP " ~ irasas.techninis.http_statusas ~ " " ~ (irasas.techninis.http_statusas | http_reason) if irasas.techninis.http_statusas else "Nėra HTTP atsakymo" }}</dd></div>
+    <div><dt>URL</dt><dd class="mono-id proto-url">{{ irasas.techninis.url or "—" }}</dd></div>
+    <div><dt>Mapping taisyklė</dt><dd class="mono-id">{{ irasas.techninis.taisykle or "—" }}</dd></div>
+    {% endif %}
+    <div><dt>Trace ID</dt><dd class="mono-id">{{ irasas.trace_id }}</dd></div>
+  </dl>
+  {% if irasas.techninis %}
+  <p class="label">Tiekėjo atsakymas</p>
+  <pre class="proto-pre">{{ irasas.techninis.atsakymas }}</pre>
+  {% endif %}
+  {% if irasas.payload %}
+  <p class="label">Payload</p>
+  <pre class="proto-pre">{{ irasas.payload | tojson(indent=2) }}</pre>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

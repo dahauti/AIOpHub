@@ -18,6 +18,7 @@ from src.api.canary_handlers import canary_router
 from src.api.cockpit_handlers import cockpit_router
 from src.api.config_handlers import config_router
 from src.api.glass_box_handlers import glass_box_router
+from src.api.prototype_handlers import prototype_router
 from src.api.routes_ui import router
 from src.api.schedule_handlers import schedule_router
 from src.api.task_handlers import task_router
@@ -100,6 +101,7 @@ def create_app() -> FastAPI:
     app.include_router(cockpit_router)
     app.include_router(canary_router)
     app.include_router(glass_box_router)
+    app.include_router(prototype_router)  # 404 unless PROTOTYPE_ENABLED
     return app
 
 
