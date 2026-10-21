@@ -15,6 +15,7 @@ from src.adapters.bc_client import BCClient, select_connection
 from src.adapters.frontu_client import FrontuClient
 from src.api.config_handlers import config_router
 from src.api.routes_ui import router
+from src.api.schedule_handlers import schedule_router
 from src.config import get_settings
 from src.database import get_engine, get_sessionmaker, init_db
 from src.logging_setup import configure_logging
@@ -55,7 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await _log_runtime_config(config)
         runner = SyncRunner(pipeline, repository, config)
         app.state.sync_control = runner
-        daemon = runner.start_daemon(settings.sync_interval_seconds)
+        daemon = runner.start_daemon(settings.sync_interval_seconds)  # schedule check tick
         try:
             yield
         finally:
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(router)
     app.include_router(config_router)
+    app.include_router(schedule_router)
     return app
 
 

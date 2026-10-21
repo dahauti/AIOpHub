@@ -10,6 +10,9 @@
 <section id="batch-sync" aria-labelledby="batch-heading" class="mb-10">
   {% include "partials/status.html" %}
 </section>
+<section id="schedule" aria-labelledby="schedule-heading" class="mb-10">
+  {% include "partials/schedule_card.html" %}
+</section>
 <section id="single-vehicle" aria-labelledby="single-heading" class="card">
   <h2 id="single-heading" class="label">Single-vehicle canary</h2>
   <form hx-post="/api/sync/vehicle" hx-target="#single-debug" hx-swap="morph" hx-disabled-elt="find button" class="mt-3 flex flex-wrap items-center gap-2">

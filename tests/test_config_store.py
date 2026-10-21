@@ -17,6 +17,7 @@ from src.repositories.config_repository import (
     resolve_dry_run,
     runtime_defaults,
 )
+from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import RuntimeConfig
 from tests.pipeline_fakes import INTERNAL_CLIENT, NOW, FakeBC, FakeFrontu, vehicle
 from tests.repository_fakes import FakeConfigStore, FakeSyncRepository
@@ -110,3 +111,29 @@ async def test_single_vehicle_mode_comes_from_runtime_config() -> None:
     result = await single.sync_single_vehicle("SN-1")
 
     assert (result.outcome, result.dry_run, len(frontu.pushed)) == ("SYNCED", False, 1)
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_seeds_row_persists_and_survives_toggles(
+    store: SqlConfigStore,
+) -> None:
+    weekly = ScheduleSettings(
+        schedule_mode="interval", interval_minutes=15, full_sync_enabled=True, full_sync_weekday=2
+    )
+
+    saved = await store.update_schedule(weekly)
+    toggled = await store.toggle("dry_run")
+
+    assert saved.key == weekly.key and (saved.dry_run, saved.auto_sync_enabled) == (True, False)
+    assert toggled.key == weekly.key and toggled.dry_run is False
+    reread = await SqlConfigStore(get_sessionmaker(), MODULE, DEFAULTS).get()
+    assert reread == toggled
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_keeps_run_flags_of_an_existing_row(store: SqlConfigStore) -> None:
+    await store.toggle("auto_sync_enabled")
+
+    saved = await store.update_schedule(ScheduleSettings(nightly_time="23:45"))
+
+    assert (saved.auto_sync_enabled, saved.nightly_time) == (True, "23:45")

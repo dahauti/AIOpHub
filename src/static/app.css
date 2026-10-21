@@ -7,7 +7,9 @@ html { line-height: 1.5; -webkit-text-size-adjust: 100%; }
 body { margin: 0; }
 h1, h2, h3, p, pre { margin: 0; }
 h1, h2, h3 { font-size: inherit; font-weight: inherit; }
-button, input { font: inherit; color: inherit; margin: 0; }
+button, input, select { font: inherit; color: inherit; margin: 0; }
+fieldset { margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; }
 button { background: transparent; cursor: pointer; }
 table { border-collapse: collapse; text-indent: 0; }
 svg { display: block; vertical-align: middle; }
@@ -26,6 +28,8 @@ pre, code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consola
 .field::placeholder { color: #64748b; }
 .field:focus { border-color: #818cf8; outline: none; }
 .field:disabled { opacity: 0.4; }
+select.field { color-scheme: dark; }
+.field option { background-color: #0f172a; color: #f1f5f9; }
 .btn-mini { padding: 0.25rem 0.5rem; font-size: 0.75rem; line-height: 1rem; }
 .btn-danger { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.5rem; padding: 0.375rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; font-weight: 600; background-color: #dc2626; color: #fff; box-shadow: 0 0 0 1px rgb(248 113 113 / 0.5); transition: background-color 150ms, opacity 150ms; }
 .btn-danger:hover { background-color: #ef4444; }
@@ -38,6 +42,13 @@ pre, code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consola
 .toggle-emerald:hover:enabled { background-color: rgb(16 185 129 / 0.25); }
 .toggle-off { border-color: #334155; background-color: rgb(30 41 59 / 0.6); color: #94a3b8; }
 .toggle-off:hover:enabled { background-color: rgb(51 65 85 / 0.7); }
+.switch { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.switch-input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.switch-track { position: relative; display: inline-block; width: 2.25rem; height: 1.25rem; flex-shrink: 0; border-radius: 9999px; border: 1px solid #334155; background-color: rgb(30 41 59 / 0.6); transition: background-color 150ms, border-color 150ms; }
+.switch-track::after { content: ""; position: absolute; top: 0.125rem; left: 0.125rem; width: 0.875rem; height: 0.875rem; border-radius: 9999px; background-color: #94a3b8; transition: transform 150ms, background-color 150ms; }
+.switch-input:checked + .switch-track { border-color: rgb(16 185 129 / 0.5); background-color: rgb(16 185 129 / 0.25); }
+.switch-input:checked + .switch-track::after { transform: translateX(1rem); background-color: #6ee7b7; }
+.switch-input:focus-visible + .switch-track { outline: 2px solid #818cf8; outline-offset: 2px; }
 .data-table { width: 100%; border-collapse: collapse; text-align: left; font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.75rem; line-height: 1rem; }
 .data-table th { border-bottom: 1px solid #1e293b; padding: 0.5rem 0.75rem; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
 .data-table td { border-bottom: 1px solid rgb(30 41 59 / 0.6); padding: 0.5rem 0.75rem; vertical-align: top; color: #cbd5e1; }
@@ -158,6 +169,7 @@ pre, code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consola
 /* Responsive */
 @media (min-width: 640px) {
   .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm\:col-span-2 { grid-column: span 2 / span 2; }
   .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
 }
 @media (min-width: 1024px) {

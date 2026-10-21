@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, JsonValue
 
 from src.schemas.bc_vehicle import BCVehicleWarranty
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
+from src.schemas.schedule import ScheduleSettings
 from src.schemas.warranty import ResolvedWarranty
 
 AuditAction = Literal[
@@ -28,10 +29,8 @@ ConfigFlag = Literal["dry_run", "auto_sync_enabled"]
 RUNNING = "RUNNING"
 
 
-class RuntimeConfig(BaseModel):
-    """Dashboard-controlled run flags (`sync_config`); override the `.env` defaults."""
-
-    model_config = ConfigDict(from_attributes=True, frozen=True)
+class RuntimeConfig(ScheduleSettings):
+    """Dashboard-controlled run flags and schedule (`sync_config`); override `.env` defaults."""
 
     dry_run: bool = True
     auto_sync_enabled: bool = False
@@ -83,6 +82,7 @@ class SyncRunResult(BaseModel):
     planned: int = 0
     cursor: datetime
     dry_run: bool = True
+    full: bool = False
 
 
 class SingleSyncDebug(BaseModel):

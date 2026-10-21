@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -12,11 +12,7 @@ from src.adapters.frontu_client import FrontuClient
 from src.adapters.resilience import ExternalServiceError
 from src.config import Settings
 from src.database import get_sessionmaker
-from src.pipelines.audit_helpers import (
-    record_audit,
-    record_failure,
-    write_action,
-)
+from src.pipelines.audit_helpers import record_audit, record_failure, write_action
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
@@ -36,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 MODULE = "workspaces_vehicles"
 LOOKBACK = timedelta(minutes=15)
+FULL_SYNC_FROM = datetime(1753, 1, 1, tzinfo=UTC)  # BC's minimum date
 CONFIRMED_STATUSES = frozenset({200, 201})
 HTTP_TIMEOUT_SECONDS = 30.0
 
@@ -47,6 +44,7 @@ class VehicleSyncPipeline:
     untouched so a later live run still processes every record the dry run saw. The mode
     is read per run from the runtime config store when one is wired (`dry_run` otherwise).
     A module without a cursor starts `initial_lookback` before now (default: now).
+    A full run reads every vehicle from `FULL_SYNC_FROM`; fingerprints still skip unchanged ones.
     """
 
     def __init__(
@@ -80,7 +78,7 @@ class VehicleSyncPipeline:
     def dry_run(self) -> bool:
         return self._dry_run
 
-    async def run(self) -> SyncRunResult | None:
+    async def run(self, *, full: bool = False) -> SyncRunResult | None:
         """Run one sync; returns None when another run already holds the module."""
         if self._lock.locked():
             return None
@@ -92,16 +90,17 @@ class VehicleSyncPipeline:
             status: ReleaseStatus = "FAILED"
             try:
                 self._dry_run = await resolve_dry_run(self._config, self._static_dry_run)
-                result = await self._sync()
+                result = await self._sync(full)
                 status = "IDLE"
                 return result
             finally:
                 await self._repo.release(status, self._clock())
 
-    async def _sync(self) -> SyncRunResult:
+    async def _sync(self, full: bool) -> SyncRunResult:
         cursor = await self._repo.get_cursor()
         run = RunState(field_ids=await self._sink.resolve_custom_fields(), cursor=cursor)
-        async for page in self._source.fetch_vehicles(cursor - LOOKBACK):
+        since = FULL_SYNC_FROM if full else cursor - LOOKBACK
+        async for page in self._source.fetch_vehicles(since):
             if not page:
                 continue
             known = await self._repo.get_fingerprints([v.SerialNo for v in page])
@@ -115,6 +114,7 @@ class VehicleSyncPipeline:
             planned=run.planned,
             cursor=run.cursor,
             dry_run=self._dry_run,
+            full=full,
         )
 
     async def _process(self, vehicle: BCODataVehicle, known: str | None, run: RunState) -> None:

@@ -9,7 +9,7 @@ from collections.abc import AsyncGenerator
 from functools import lru_cache
 from pathlib import Path
 
-from sqlalchemy import URL, event, make_url
+from sqlalchemy import URL, Connection, event, inspect, make_url, text
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import ConnectionPoolEntry
+from sqlalchemy.schema import CreateColumn
 
 from src.config import get_settings
 from src.models.audit import Base
@@ -66,12 +67,25 @@ def safe_database_label() -> str:
     return make_url(get_settings().database_url).render_as_string(hide_password=True)
 
 
+def add_missing_columns(connection: Connection) -> None:
+    """Add model columns missing from existing tables (each carries a server default)."""
+    inspector = inspect(connection)
+    for table in Base.metadata.sorted_tables:
+        present = {column["name"] for column in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name not in present:
+                ddl = CreateColumn(column).compile(dialect=connection.dialect)
+                connection.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {ddl}"))
+                logger.info("Added column %s.%s", table.name, column.name)
+
+
 async def init_db() -> None:
-    """Create any missing tables and indexes."""
+    """Create any missing tables and indexes, and add columns introduced since deployment."""
     engine = get_engine()
     try:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
+            await connection.run_sync(add_missing_columns)
     finally:
         await engine.dispose()
 

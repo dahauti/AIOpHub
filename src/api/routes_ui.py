@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from src.api.cursor_handlers import CURSOR_LOCKED, MAX_CURSOR_INPUT, CursorInputError, parse_cursor
 from src.pipelines.scheduler import SyncControl
 from src.pipelines.single_vehicle import SingleVehicleControl
+from src.schemas.schedule import WEEKDAYS
 from src.schemas.sync import RUNNING, SingleSyncResult
 
 TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
@@ -37,6 +38,7 @@ def format_iso_utc(value: datetime) -> str:
 
 TEMPLATES.env.filters["utc"] = format_utc
 TEMPLATES.env.filters["iso_utc"] = format_iso_utc
+TEMPLATES.env.globals["weekdays"] = WEEKDAYS
 
 
 def get_sync_control(request: Request) -> SyncControl:
@@ -81,6 +83,7 @@ async def _context(control: SyncControl, banner: str | None, **extra: object) ->
     base: dict[str, object] = {
         "snapshot": snapshot,
         "banner": banner,
+        "config": config,
         "dry_run": config.dry_run,
         "auto_sync": config.auto_sync_enabled,
         "poll": snapshot.status == RUNNING,

@@ -59,7 +59,7 @@ class _Pipeline:
         self.is_running = running
         self.dry_run = True
 
-    async def run(self) -> SyncRunResult | None:
+    async def run(self, *, full: bool = False) -> SyncRunResult | None:
         return None
 
 

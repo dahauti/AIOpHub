@@ -3,7 +3,9 @@
 from collections.abc import Sequence
 from datetime import datetime
 
+from src.repositories.config_repository import SCHEDULE_FIELDS
 from src.repositories.sync_statements import STALE_RUN_AFTER
+from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
     AuditEntry,
@@ -83,7 +85,7 @@ class FakeSyncRepository:
 
 
 class FakeConfigStore:
-    """In-memory runtime config; `toggle` flips one flag like the SQL store."""
+    """In-memory runtime config; `toggle` flips a flag, `update_schedule` replaces the schedule."""
 
     def __init__(self, dry_run: bool = True, auto_sync_enabled: bool = False) -> None:
         self.config = RuntimeConfig(dry_run=dry_run, auto_sync_enabled=auto_sync_enabled)
@@ -96,4 +98,8 @@ class FakeConfigStore:
         self.toggles.append(flag)
         current = self.config.model_dump()
         self.config = RuntimeConfig.model_validate({**current, flag: not current[flag]})
+        return self.config
+
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig:
+        self.config = self.config.model_copy(update=schedule.model_dump(include=SCHEDULE_FIELDS))
         return self.config

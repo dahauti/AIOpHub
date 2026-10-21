@@ -1,16 +1,18 @@
-"""Background scheduling for the vehicle pipeline: periodic daemon, on-demand trigger, abort."""
+"""Background scheduling for the vehicle pipeline: scheduled daemon, on-demand trigger, abort."""
 
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import Protocol, runtime_checkable
 
 from src.adapters.resilience import Sleep
 from src.pipelines.ports import utc_now
+from src.pipelines.schedule import ScheduleTracker
 from src.pipelines.sync_vehicles import MODULE
 from src.repositories.config_repository import RuntimeConfigStore
 from src.repositories.sync_repository import SyncRepository
+from src.schemas.schedule import RunKind, ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
     AuditEntry,
@@ -28,7 +30,7 @@ RECENT_AUDIT_LIMIT = 15
 class RunnablePipeline(Protocol):
     @property
     def is_running(self) -> bool: ...
-    async def run(self) -> SyncRunResult | None: ...
+    async def run(self, *, full: bool = False) -> SyncRunResult | None: ...
 
 
 @runtime_checkable
@@ -40,11 +42,15 @@ class SyncControl(Protocol):
     async def set_cursor(self, cursor: datetime) -> bool: ...
     async def config(self) -> RuntimeConfig: ...
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig | None: ...
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig: ...
     async def abort(self) -> bool: ...
 
 
 class SyncRunner:
-    """Owns background runs: the periodic daemon loop and manually triggered runs."""
+    """Owns background runs: the scheduled daemon loop and manually triggered runs.
+
+    Schedule times are read in `tz` (None = the server's local time zone).
+    """
 
     def __init__(
         self,
@@ -53,20 +59,22 @@ class SyncRunner:
         config: RuntimeConfigStore,
         *,
         clock: Callable[[], datetime] = utc_now,
+        tz: tzinfo | None = None,
     ) -> None:
         self._pipeline = pipeline
         self._repo = repository
         self._config = config
         self._clock = clock
         self._tasks: set[asyncio.Task[SyncRunResult | None]] = set()
+        self._schedule = ScheduleTracker(tz)
 
     @property
     def _busy(self) -> bool:
         return self._pipeline.is_running or bool(self._tasks)
 
-    def start_daemon(self, interval_seconds: float) -> asyncio.Task[None]:
-        """Start the periodic loop; each tick runs only while auto-sync is enabled."""
-        return asyncio.create_task(self.run_forever(interval_seconds), name="vehicle-sync-daemon")
+    def start_daemon(self, tick_seconds: float) -> asyncio.Task[None]:
+        """Start the loop that checks the schedule every `tick_seconds` while auto-sync is on."""
+        return asyncio.create_task(self.run_forever(tick_seconds), name="vehicle-sync-daemon")
 
     def trigger(self) -> bool:
         """Start a background run unless one is active; returns whether a run was started."""
@@ -92,6 +100,12 @@ class SyncRunner:
         logger.warning("Runtime config changed", extra=config.model_dump())
         return config
 
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig:
+        """Store a new schedule; the daemon re-plans its next runs from the current time."""
+        config = await self._config.update_schedule(schedule)
+        logger.warning("Sync schedule changed", extra=config.model_dump())
+        return config
+
     async def abort(self) -> bool:
         """Cancel the active run, release the module to IDLE and audit ABORTED.
 
@@ -113,14 +127,14 @@ class SyncRunner:
         day_start = self._clock().astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         return await self._repo.dashboard_snapshot(day_start, RECENT_AUDIT_LIMIT)
 
-    async def run_forever(self, interval_seconds: float, *, sleep: Sleep = asyncio.sleep) -> None:
-        """Tick immediately, then every `interval_seconds`; a failed run never stops the loop."""
+    async def run_forever(self, tick_seconds: float, *, sleep: Sleep = asyncio.sleep) -> None:
+        """Check the schedule now, then every `tick_seconds`; a failed run never stops the loop."""
         while True:
             try:
                 await self._scheduled_run()
             except Exception:
                 logger.exception("Scheduled sync run failed")
-            await sleep(interval_seconds)
+            await sleep(tick_seconds)
 
     async def shutdown(self) -> None:
         """Cancel and await any in-flight runs."""
@@ -130,12 +144,17 @@ class SyncRunner:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _scheduled_run(self) -> None:
-        if not (await self._config.get()).auto_sync_enabled:
+        config = await self._config.get()
+        if not config.auto_sync_enabled:
             logger.debug("Auto-sync is disabled; scheduled run skipped")
+            self._schedule.reset()  # re-enabling plans from then; missed slots never fire
             return
-        if self._busy:
-            return
-        task = self._start("vehicle-sync-scheduled")
+        now = self._clock()
+        kind: RunKind | None = self._schedule.due(config, now)
+        if kind is None or self._busy:
+            return  # a due run stays due until the active run finishes
+        self._schedule.started(kind, config, now)
+        task = self._start(f"vehicle-sync-{kind}", full=kind == "full")
         try:
             result = await task
         except asyncio.CancelledError:
@@ -146,8 +165,8 @@ class SyncRunner:
         if result is not None:
             logger.info("Scheduled sync run finished", extra=result.model_dump(mode="json"))
 
-    def _start(self, name: str) -> asyncio.Task[SyncRunResult | None]:
-        task = asyncio.create_task(self._pipeline.run(), name=name)
+    def _start(self, name: str, *, full: bool = False) -> asyncio.Task[SyncRunResult | None]:
+        task = asyncio.create_task(self._pipeline.run(full=full), name=name)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task

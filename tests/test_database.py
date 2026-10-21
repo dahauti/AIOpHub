@@ -69,3 +69,41 @@ def test_safe_database_label_masks_credentials(
     monkeypatch: pytest.MonkeyPatch, isolated_env: None
 ) -> None:
     assert safe_database_label() == "sqlite+aiosqlite:///./data/sync.db"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("temp_database")
+async def test_init_db_adds_schedule_columns_to_a_deployed_sync_config_table() -> None:
+    legacy = (
+        "CREATE TABLE sync_config (module_name VARCHAR(64) NOT NULL PRIMARY KEY, "
+        "dry_run BOOLEAN NOT NULL DEFAULT 1, auto_sync_enabled BOOLEAN NOT NULL DEFAULT 0, "
+        "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    )
+    async with get_engine().begin() as connection:
+        await connection.execute(text(legacy))
+        await connection.execute(text("INSERT INTO sync_config (module_name) VALUES ('m')"))
+
+    await init_db()
+    await init_db()
+
+    async with get_engine().connect() as connection:
+        columns = await connection.run_sync(
+            lambda c: [col["name"] for col in inspect(c).get_columns("sync_config")]
+        )
+        row = (await connection.execute(text("SELECT * FROM sync_config"))).mappings().one()
+    await get_engine().dispose()
+
+    assert columns[-6:] == [
+        "schedule_mode",
+        "nightly_time",
+        "interval_minutes",
+        "full_sync_enabled",
+        "full_sync_weekday",
+        "full_sync_time",
+    ]
+    assert (row["schedule_mode"], row["interval_minutes"], row["full_sync_weekday"]) == (
+        "nightly",
+        60,
+        6,
+    )
+    assert (row["full_sync_enabled"], row["nightly_time"]) == (0, "02:00")

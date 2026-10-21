@@ -3,25 +3,29 @@
 from typing import Protocol
 
 from sqlalchemy import func, not_, update
-from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.dialects.sqlite import Insert, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.config import Settings
 from src.models.audit import SyncConfig
+from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import ConfigFlag, RuntimeConfig
 
 _COLUMNS: dict[ConfigFlag, InstrumentedAttribute[bool]] = {
     "dry_run": SyncConfig.dry_run,
     "auto_sync_enabled": SyncConfig.auto_sync_enabled,
 }
+MODULE_PK = "module_name"
+SCHEDULE_FIELDS = set(ScheduleSettings.model_fields)
 
 
 class RuntimeConfigStore(Protocol):
-    """Storage port for the dashboard run flags; bound to one module."""
+    """Storage port for the dashboard run flags and schedule; bound to one module."""
 
     async def get(self) -> RuntimeConfig: ...
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig: ...
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig: ...
 
 
 async def resolve_dry_run(config: RuntimeConfigStore | None, fallback: bool) -> bool:
@@ -35,7 +39,7 @@ def runtime_defaults(settings: Settings) -> RuntimeConfig:
 
 
 class SqlConfigStore:
-    """SQLite implementation; the first toggle seeds the row from the `.env` defaults."""
+    """SQLite implementation; the first write seeds the row from the `.env` defaults."""
 
     def __init__(
         self, sessions: async_sessionmaker[AsyncSession], module: str, defaults: RuntimeConfig
@@ -50,19 +54,32 @@ class SqlConfigStore:
         return self._defaults if row is None else RuntimeConfig.model_validate(row)
 
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig:
-        seed = insert(SyncConfig).values(
-            module_name=self._module,
-            dry_run=self._defaults.dry_run,
-            auto_sync_enabled=self._defaults.auto_sync_enabled,
-        )
         column = _COLUMNS[flag]
         flip = (
             update(SyncConfig)
             .where(SyncConfig.module_name == self._module)
             .values({column: not_(column), SyncConfig.updated_at: func.now()})
-            .returning(SyncConfig.dry_run, SyncConfig.auto_sync_enabled)
+            .returning(SyncConfig)
         )
         async with self._sessions.begin() as session:
-            await session.execute(seed.on_conflict_do_nothing(index_elements=["module_name"]))
-            dry_run, auto_sync = (await session.execute(flip)).one()
-        return RuntimeConfig(dry_run=dry_run, auto_sync_enabled=auto_sync)
+            await session.execute(self._seed().on_conflict_do_nothing(index_elements=[MODULE_PK]))
+            row = (await session.execute(flip)).scalar_one()
+            return RuntimeConfig.model_validate(row)
+
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig:
+        """Replace the schedule columns; the run-mode flags are left as they are."""
+        values = schedule.model_dump(include=SCHEDULE_FIELDS)
+        upsert = (
+            self._seed()
+            .values(values)
+            .on_conflict_do_update(
+                index_elements=[MODULE_PK], set_={**values, "updated_at": func.now()}
+            )
+            .returning(SyncConfig)
+        )
+        async with self._sessions.begin() as session:
+            row = (await session.execute(upsert)).scalar_one()
+            return RuntimeConfig.model_validate(row)
+
+    def _seed(self) -> Insert:
+        return insert(SyncConfig).values(module_name=self._module, **self._defaults.model_dump())

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
     AuditRecord,
     ConfigFlag,
@@ -42,6 +43,7 @@ class FakeControl:
         self.aborts = 0
         self.cursor_locked = False
         self.cursor_sets: list[datetime] = []
+        self.schedule = ScheduleSettings()
 
     def trigger(self) -> bool:
         self.triggers += 1
@@ -58,7 +60,9 @@ class FakeControl:
         return True
 
     async def config(self) -> RuntimeConfig:
-        return RuntimeConfig(dry_run=self.dry_run, auto_sync_enabled=self.auto_sync)
+        return RuntimeConfig(
+            dry_run=self.dry_run, auto_sync_enabled=self.auto_sync, **self.schedule.model_dump()
+        )
 
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig | None:
         if flag == "dry_run":
@@ -67,6 +71,10 @@ class FakeControl:
             self.dry_run = not self.dry_run
         else:
             self.auto_sync = not self.auto_sync
+        return await self.config()
+
+    async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig:
+        self.schedule = schedule
         return await self.config()
 
     async def abort(self) -> bool:

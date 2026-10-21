@@ -58,13 +58,19 @@ class SyncState(Base):
 
 
 class SyncConfig(Base):
-    """Per-module runtime toggles set from the dashboard; absent row -> `.env` defaults."""
+    """Per-module runtime toggles and schedule set from the dashboard; absent row -> defaults."""
 
     __tablename__ = "sync_config"
 
     module_name: Mapped[str] = mapped_column(String(64), primary_key=True)
     dry_run: Mapped[bool] = mapped_column(Boolean, server_default=true())
     auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    schedule_mode: Mapped[str] = mapped_column(String(16), server_default="nightly")
+    nightly_time: Mapped[str] = mapped_column(String(5), server_default="02:00")
+    interval_minutes: Mapped[int] = mapped_column(Integer, server_default="60")
+    full_sync_enabled: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    full_sync_weekday: Mapped[int] = mapped_column(Integer, server_default="6")
+    full_sync_time: Mapped[str] = mapped_column(String(5), server_default="02:00")
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
 
 
