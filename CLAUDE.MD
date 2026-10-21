@@ -7,6 +7,7 @@
 - Test-First: Scaffold integration/unit tests with mocked third-party payloads before implementing domain services. Definition of Done requires all relevant tests to pass.
 - Scope Containment: Zero tolerance for scope drift. Do not refactor adjacent code, rewrite working logic, or introduce unrequested features.
 - Verification Gate: Run linters, type checks, and tests before announcing completion. Never leave unresolved warnings or red errors.
+- UI changes (src/templates/, src/static/): read docs/UX_GUIDELINES.md before planning.
 
 ## 2. Hard Technical Constraints
 - Dependencies: Zero unapproved dependencies (`pip install`, `npm install`). Rely strictly on the approved stack in `requirements.txt` and Python standard libraries.
@@ -17,6 +18,7 @@
 - Modularity & Layout:
   - Files capped at 200 lines of code (LOC). Split into routers, services, repositories, and adapters cleanly.
   - Strict Separation of Concerns: API routes handle HTTP transport only; business logic lives in services; external communications live in client adapters; storage logic lives in repositories.
+- External JS/CSS loaded from CDN must be version-pinned.
 
 ## 3. Universal Integration & Resiliency Protocols (BC SaaS, Frontu, Pipedrive, MS Graph)
 - Dedicated Client Adapters:
