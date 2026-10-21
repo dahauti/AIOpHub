@@ -13,13 +13,18 @@
     <fieldset>
       <legend class="label">Incremental sync</legend>
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        <select name="schedule_mode" aria-label="Incremental schedule" class="field">
-          <option value="nightly"{% if config.schedule_mode == "nightly" %} selected{% endif %}>Nightly at</option>
-          <option value="interval"{% if config.schedule_mode == "interval" %} selected{% endif %}>Every N minutes</option>
+        {% set nightly = config.schedule_mode == "nightly" %}
+        <select name="schedule_mode" aria-label="Incremental schedule" class="field" onchange="this.form.querySelectorAll('[data-schedule-mode]').forEach((el) => { const on = el.dataset.scheduleMode === this.value; el.classList.toggle('hidden', !on); el.querySelector('input').required = on; })">
+          <option value="nightly"{% if nightly %} selected{% endif %}>Nightly at</option>
+          <option value="interval"{% if not nightly %} selected{% endif %}>Every N minutes</option>
         </select>
-        <input type="time" name="nightly_time" value="{{ config.nightly_time }}" required aria-label="Nightly run time" class="field font-mono tabular-nums">
-        <input type="number" name="interval_minutes" value="{{ config.interval_minutes }}" min="5" max="1440" step="1" required aria-label="Interval in minutes" class="field w-[80px] font-mono tabular-nums">
-        <span class="text-xs text-slate-500">min</span>
+        <span data-schedule-mode="nightly" class="flex items-center gap-2{% if not nightly %} hidden{% endif %}">
+          <input type="time" name="nightly_time" value="{{ config.nightly_time }}"{% if nightly %} required{% endif %} aria-label="Nightly run time" class="field font-mono tabular-nums">
+        </span>
+        <span data-schedule-mode="interval" class="flex items-center gap-2{% if nightly %} hidden{% endif %}">
+          <input type="number" name="interval_minutes" value="{{ config.interval_minutes }}" min="5" max="1440" step="1"{% if not nightly %} required{% endif %} aria-label="Interval in minutes" class="field w-[80px] font-mono tabular-nums">
+          <span class="text-xs text-slate-500">min</span>
+        </span>
       </div>
       <p class="mt-2 text-xs text-slate-500">Reads BC changes since the cursor.</p>
     </fieldset>

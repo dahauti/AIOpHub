@@ -1,4 +1,5 @@
 <section id="sync-status" {% if oob %}hx-swap-oob="true" {% endif %}class="space-y-4">
   {% include "partials/kpi.html" %}
-  {% include "partials/audit_table.html" %}
 </section>
+{#- The dashboard renders the audit table in its own zone; status swaps refresh it out of band. #}
+{% if not in_page %}{% with audit_oob = true %}{% include "partials/audit_table.html" %}{% endwith %}{% endif %}

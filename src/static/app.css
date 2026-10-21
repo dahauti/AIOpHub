@@ -61,6 +61,8 @@ select.field { color-scheme: dark; }
 .shrink-0 { flex-shrink: 0; }
 .items-center { align-items: center; }
 .items-end { align-items: flex-end; }
+.items-start { align-items: flex-start; }
+.hidden { display: none; }
 .justify-between { justify-content: space-between; }
 .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -73,6 +75,9 @@ select.field { color-scheme: dark; }
 .mx-auto { margin-left: auto; margin-right: auto; }
 .max-w-7xl { max-width: 80rem; }
 .overflow-x-auto { overflow-x: auto; }
+.overflow-y-auto { overflow-y: auto; }
+.max-h-\[380px\] { max-height: 380px; }
+.bg-slate-900\/40 { background-color: rgb(15 23 42 / 0.4); }
 .table-fixed { table-layout: fixed; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cursor-pointer { cursor: pointer; }
@@ -109,6 +114,7 @@ select.field { color-scheme: dark; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 0.75rem; }
 .mt-4 { margin-top: 1rem; }
+.mt-8 { margin-top: 2rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
 .mb-8 { margin-bottom: 2rem; }
@@ -174,6 +180,7 @@ select.field { color-scheme: dark; }
 }
 @media (min-width: 1024px) {
   .lg\:py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+  .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1280px) {
   .xl\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }

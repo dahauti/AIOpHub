@@ -30,7 +30,7 @@ async def client() -> AsyncIterator[httpx.AsyncClient]:
 async def test_batch_and_canary_live_in_separate_cards(client: httpx.AsyncClient) -> None:
     html = (await client.get("/")).text
 
-    batch, canary = html.index('id="batch-sync"'), html.index('id="single-vehicle"')
+    batch, canary = html.index('id="batch-sync"'), html.index('id="single-vehicle-card"')
     assert batch < html.index('id="sync-status"') < html.index('hx-post="/api/sync/trigger"')
     assert html.index('hx-post="/api/sync/trigger"') < canary
     assert canary < html.index('hx-post="/api/sync/vehicle"') < html.index('id="single-debug"')
