@@ -179,6 +179,8 @@ async def test_english_light_page_is_rendered_by_the_server(client: Client) -> N
     assert "No technician assigned" in record and "BC order SO029748" in record
     assert "Nenurodytas" not in record
     assert "Needs action: 2 records" in overview and "21 Oct 2026" in overview
+    assert ">PROTOTYPE</span>" in overview and 'aria-label="Prototype only:' in overview
+    assert "Preview: Administer" in overview
 
 
 @pytest.mark.asyncio

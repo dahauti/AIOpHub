@@ -77,6 +77,15 @@ def test_white_text_on_accent_fills_meets_wcag_aa(theme: str, fill: str) -> None
     assert contrast("ffffff", theme_tokens(theme)[fill]) >= WCAG_AA
 
 
+def test_prototype_amber_on_prod_bar_meets_wcag_aa() -> None:
+    proto = (STATIC / "proto.css").read_text(encoding="utf-8")
+    amber = re.search(r"\.proto-env-prod \{ --proto-amber: #([0-9a-f]{6});", proto)
+
+    assert amber is not None
+    for theme in ("dark", "light"):
+        assert contrast(amber.group(1), theme_tokens(theme)["crimson"]) >= WCAG_AA, theme
+
+
 def test_prototype_layout_loads_no_font_cdn() -> None:
     layout = LAYOUT.read_text(encoding="utf-8")
 

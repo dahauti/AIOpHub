@@ -12,38 +12,43 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 {#- Operacijų centro UX prototipas: duomenys iš src/prototype/fixtures.json, jokių integracijų.
-    Tema ir kalba ateina iš slapukų ir piešiamos serveryje (ADR 0002), todėl nėra mirgėjimo. -#}
+    Tema ir kalba ateina iš slapukų ir piešiamos serveryje (ADR 0002), todėl nėra mirgėjimo.
+    Prototipo valdikliai (lygis, aplinka) pažymėti amber rėmeliu .proto-only; /prototype/vaizdas
+    reikia abiejų laukų, todėl kiekviena forma kitą reikšmę siunčia paslėptame lauke. -#}
 <body class="proto-body antialiased">
-  {% if aplinka == "PROD" %}
-  <div class="proto-env proto-env-prod" role="note">{{ t("aplinka.prod_juosta") }}</div>
-  {% else %}
-  <div class="proto-env proto-env-dev" role="note">{{ t("aplinka.dev_juosta") }}</div>
-  {% endif %}
+  <div class="proto-env {{ 'proto-env-prod' if aplinka == 'PROD' else 'proto-env-dev' }}">
+    <span role="note">{{ t("aplinka.prod_juosta") if aplinka == "PROD" else t("aplinka.dev_juosta") }}</span>
+    <form class="proto-only proto-env-toggle" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none" role="radiogroup" aria-label="{{ t('vaizdas.aplinka_aria') }}">
+      <input type="hidden" name="lygis" value="{{ lygis }}">
+      {% for value in aplinkos %}
+      <label class="proto-env-option"><input type="radio" name="aplinka" value="{{ value }}"{% if aplinka == value %} checked{% endif %}>{{ value }}</label>
+      {% endfor %}
+    </form>
+  </div>
   <header class="proto-top">
     <a href="/prototype/" class="proto-brand">{{ t("app.pavadinimas") }}</a>
-    <form class="proto-prefs" hx-post="/prototype/nuostatos" hx-trigger="change" hx-swap="none" aria-label="{{ t('nuostatos.aria') }}">
-      <label class="proto-pref">{{ t("nuostatos.tema") }}
-        <select name="tema" class="field proto-pref-select">
-          {% for value in temos %}<option value="{{ value }}"{% if tema == value %} selected{% endif %}>{{ t("tema." ~ value) }}</option>{% endfor %}
+    <div class="proto-prefs">
+      <span role="note" class="proto-only proto-flag" title="{{ t('prototipas.pastaba') }}" aria-label="{{ t('prototipas.pastaba') }}">{{ t("prototipas.zenklas") }}</span>
+      <form class="proto-pref" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none">
+        <input type="hidden" name="aplinka" value="{{ aplinka }}">
+        <select name="lygis" aria-label="{{ t('vaizdas.lygis_aria') }}" class="field proto-only proto-pref-select">
+          {% for value in lygiai %}<option value="{{ value }}"{% if lygis == value %} selected{% endif %}>{{ t("vaizdas.parinktis", lygis=t("lygis." ~ value)) }}</option>{% endfor %}
         </select>
-      </label>
-      <label class="proto-pref">{{ t("nuostatos.kalba") }}
-        <select name="kalba" class="field proto-pref-select">
-          {% for value in kalbos %}<option value="{{ value }}" lang="{{ value }}"{% if kalba == value %} selected{% endif %}>{{ t("kalba." ~ value) }}</option>{% endfor %}
-        </select>
-      </label>
-    </form>
+      </form>
+      <form class="proto-prefs" hx-post="/prototype/nuostatos" hx-trigger="change" hx-swap="none" aria-label="{{ t('nuostatos.aria') }}">
+        <label class="proto-pref">{{ t("nuostatos.tema") }}
+          <select name="tema" class="field proto-pref-select">
+            {% for value in temos %}<option value="{{ value }}"{% if tema == value %} selected{% endif %}>{{ t("tema." ~ value) }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="proto-pref">{{ t("nuostatos.kalba") }}
+          <select name="kalba" class="field proto-pref-select">
+            {% for value in kalbos %}<option value="{{ value }}" lang="{{ value }}"{% if kalba == value %} selected{% endif %}>{{ t("kalba." ~ value) }}</option>{% endfor %}
+          </select>
+        </label>
+      </form>
+    </div>
   </header>
-  <form class="proto-switch" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none" aria-label="{{ t('vaizdas.aria') }}">
-    <span class="proto-switch-title">{{ t("vaizdas.antraste") }}</span>
-    {% for value in lygiai %}
-    <label class="proto-switch-option"><input type="radio" name="lygis" value="{{ value }}"{% if lygis == value %} checked{% endif %}>{{ t("lygis." ~ value) }}</label>
-    {% endfor %}
-    <select name="aplinka" aria-label="{{ t('vaizdas.aplinka_aria') }}" class="field proto-switch-env">
-      {% for value in aplinkos %}<option value="{{ value }}"{% if aplinka == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
-    </select>
-    <span class="proto-switch-note">{{ t("vaizdas.pastaba") }}</span>
-  </form>
   <main class="proto-main">
     <nav class="proto-crumbs" aria-label="{{ t('kelias.aria') }}"><a href="/prototype/" class="proto-link">{{ t("app.pavadinimas") }}</a>{% block crumbs %}{% endblock %}</nav>
     {% block content %}{% endblock %}

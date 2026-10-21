@@ -63,7 +63,7 @@ async def test_admin_sees_all_six_screens_in_lithuanian(client: Client, path: st
     response = await _as(client, "administruoti").get(path)
 
     assert response.status_code == 200
-    assert '<html lang="lt"' in response.text and "Prototipo vaizdas" in response.text
+    assert '<html lang="lt"' in response.text and ">PROTOTIPAS</span>" in response.text
 
 
 @pytest.mark.asyncio
@@ -152,3 +152,30 @@ async def test_actions_check_the_level_on_the_server(client: Client) -> None:
     response = await _as(client, "valdyti").post("/prototype/veiksmai/live", data=form)
 
     assert response.status_code == 403
+
+
+def _between(html: str, start: str, end: str) -> str:
+    return html[html.index(start) : html.index(end, html.index(start))]
+
+
+@pytest.mark.asyncio
+async def test_prototype_controls_sit_in_header_and_environment_bar(client: Client) -> None:
+    html = (await _as(client, "valdyti", "PROD").get("/prototype/")).text
+    header = _between(html, '<header class="proto-top">', "</header>")
+    env_bar = _between(html, '<div class="proto-env proto-env-prod">', "</form>")
+
+    assert "proto-switch" not in html
+    assert '<select name="lygis"' in header and "proto-only" in header
+    assert '<option value="valdyti" selected>Vaizdas: Valdyti</option>' in header
+    assert '<input type="hidden" name="aplinka" value="PROD">' in header
+    assert 'name="aplinka" value="PROD" checked' in env_bar and "proto-env-toggle" in env_bar
+    assert '<input type="hidden" name="lygis" value="valdyti">' in env_bar
+
+
+@pytest.mark.asyncio
+async def test_prototype_badge_carries_the_full_note(client: Client) -> None:
+    html = (await client.get("/prototype/")).text
+    note = "Tik prototipui: tikri lygiai ateis iš teisių modulio."
+
+    assert ">PROTOTIPAS</span>" in html
+    assert f'title="{note}' in html and f'aria-label="{note}' in html
