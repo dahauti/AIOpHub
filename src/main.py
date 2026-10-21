@@ -57,7 +57,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client_id, run_lock = settings.internal_company_client_id, asyncio.Lock()
         lookback = timedelta(days=settings.sync_initial_lookback_days)
         pipeline = VehicleSyncPipeline(
-            bc, frontu, repository, client_id, config=config, initial_lookback=lookback,
+            bc,
+            frontu,
+            repository,
+            client_id,
+            config=config,
+            initial_lookback=lookback,
             lock=run_lock,
         )
         app.state.single_sync = SingleVehicleSync(

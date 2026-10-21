@@ -18,9 +18,7 @@ audit_router = APIRouter()
 
 def parse_audit_query(action: str, search: str, date_range: str) -> AuditQuery:
     """Form/query strings -> validated filter; raises ValidationError on unknown values."""
-    return AuditQuery.model_validate(
-        {"action": action, "search": search, "date_range": date_range}
-    )
+    return AuditQuery.model_validate({"action": action, "search": search, "date_range": date_range})
 
 
 def _table(
