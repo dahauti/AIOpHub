@@ -1,21 +1,17 @@
 """HTMX dashboard routes: HTTP transport only, backed by the SyncControl port."""
 
 from datetime import UTC, datetime
-from http import HTTPStatus
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
 from src.api.cursor_handlers import CURSOR_LOCKED, MAX_CURSOR_INPUT, CursorInputError, parse_cursor
+from src.api.templating import TEMPLATES, format_utc
 from src.pipelines.scheduler import SyncControl
 from src.pipelines.single_vehicle import SingleVehicleControl
-from src.schemas.schedule import WEEKDAYS
 from src.schemas.sync import RUNNING, SingleSyncResult
 
-TEMPLATES = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 SYNC_STARTED = "Sync started"
 SYNC_ALREADY_RUNNING = "Sync already in progress"
 DRY_RUN_NOTE = " (dry run: no changes will be sent to Frontu)"
@@ -23,32 +19,6 @@ SINGLE_BUSY = "Sync already in progress. Please wait for the current batch to co
 BLANK_SERIAL = "Enter a vehicle SerialNo"
 # htmx swaps a 286 response, then cancels the polling element's timer.
 STOP_POLLING = 286
-
-
-def format_utc(value: datetime | None) -> str:
-    """Render timestamps uniformly in UTC; em dash when absent."""
-    if value is None:
-        return "—"
-    return value.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def format_iso_utc(value: datetime) -> str:
-    """Machine-readable UTC instant for `<time datetime>`; the browser localises it."""
-    return value.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def http_reason(code: int) -> str:
-    """Standard reason phrase for an HTTP status ("" when non-standard)."""
-    try:
-        return HTTPStatus(code).phrase
-    except ValueError:
-        return ""
-
-
-TEMPLATES.env.filters["utc"] = format_utc
-TEMPLATES.env.filters["iso_utc"] = format_iso_utc
-TEMPLATES.env.filters["http_reason"] = http_reason
-TEMPLATES.env.globals["weekdays"] = WEEKDAYS
 
 
 def get_sync_control(request: Request) -> SyncControl:

@@ -45,9 +45,9 @@
     </div>
   </div>
   <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <div class="card min-h-[96px]"><p class="label">Processed today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</p></div>
-    <div class="card min-h-[96px]"><p class="label">Skipped today</p><p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</p></div>
-    <button type="button" hx-get="/partials/audit?status=FAILED" hx-target="#audit-log-table" hx-swap="innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today &middot; inspect</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
+    <button type="button" hx-get="/partials/audit?action=UPSERT&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's processed entries" class="card kpi-action min-h-[96px]"><span class="label block">Processed today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</span></button>
+    <button type="button" hx-get="/partials/audit?action=SKIPPED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's skipped entries" class="card kpi-action min-h-[96px]"><span class="label block">Skipped today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</span></button>
+    <button type="button" hx-get="/partials/audit?action=FAILED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
     {% if dry_run or snapshot.planned %}
     <div class="card min-h-[96px]"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold tabular-nums text-amber-200">{{ snapshot.planned }}</p></div>
     {% endif %}

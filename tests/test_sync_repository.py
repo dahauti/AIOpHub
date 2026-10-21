@@ -12,6 +12,7 @@ from src.database import get_engine, get_sessionmaker, init_db
 from src.models.audit import SyncAuditLog
 from src.pipelines.sync_vehicles import VehicleSyncPipeline
 from src.repositories.sync_repository import SqlSyncRepository
+from src.schemas.audit_filter import AuditQuery
 from src.schemas.sync import AuditAction, AuditEntry
 from tests.pipeline_fakes import INTERNAL_CLIENT, FakeBC, FakeFrontu, vehicle
 from tests.pipeline_fakes import NOW as PIPELINE_NOW
@@ -154,25 +155,28 @@ async def test_pipeline_round_trip_on_sqlite(repo: SqlSyncRepository) -> None:
 
 
 @pytest.mark.asyncio
-async def test_failed_audit_returns_only_failures_since_newest_first(
+async def test_search_audit_filters_by_action_group_serial_and_since(
     repo: SqlSyncRepository,
 ) -> None:
     actions: list[tuple[str, AuditAction]] = [
-        ("SN-1", "FAILED"),
-        ("SN-2", "UPSERT"),
-        ("SN-3", "FAILED"),
+        ("SN-100", "FAILED"),
+        ("SN-200", "UPSERT"),
+        ("SN-101", "SINGLE_UPSERT"),
+        ("SN_1%", "ABORTED"),
     ]
     for key, action in actions:
-        await repo.record_audit(
-            AuditEntry(entity_key=key, action=action, status_code=503, error_message="down")
-        )
-    since = datetime.now(UTC) - timedelta(hours=1)
+        await repo.record_audit(AuditEntry(entity_key=key, action=action, error_message="x"))
+    hour_ago = datetime.now(UTC) - timedelta(hours=1)
 
-    failed = await repo.failed_audit(since, limit=10)
-    future = await repo.failed_audit(datetime.now(UTC) + timedelta(hours=1), limit=10)
+    async def keys(since: datetime | None = hour_ago, **filters: str | int) -> list[str]:
+        rows = await repo.search_audit(AuditQuery.model_validate(filters), since)
+        return [row.entity_key for row in rows]
 
-    assert [(r.entity_key, r.status_code, r.error_message) for r in failed] == [
-        ("SN-3", 503, "down"),
-        ("SN-1", 503, "down"),
-    ]
-    assert future == []
+    assert await keys() == ["SN_1%", "SN-101", "SN-200", "SN-100"]
+    assert await keys(action="UPSERT") == ["SN-101", "SN-200"]
+    assert await keys(action="ALL_ERRORS") == ["SN_1%", "SN-100"]
+    assert await keys(search="sn-10") == ["SN-101", "SN-100"]
+    assert await keys(search="_1%") == ["SN_1%"]  # LIKE wildcards are matched literally
+    assert await keys(limit=2) == ["SN_1%", "SN-101"]
+    assert await keys(None, action="FAILED") == ["SN-100"]
+    assert await keys(datetime.now(UTC) + timedelta(hours=1)) == []

@@ -6,7 +6,8 @@ from fastapi import APIRouter, Form, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
-from src.api.routes_ui import TEMPLATES, Control
+from src.api.routes_ui import Control
+from src.api.templating import TEMPLATES
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import RuntimeConfig
 

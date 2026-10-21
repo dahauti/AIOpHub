@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.repositories.config_repository import SCHEDULE_FIELDS
 from src.repositories.sync_statements import STALE_RUN_AFTER
+from src.schemas.audit_filter import AuditQuery
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
@@ -33,6 +34,7 @@ class FakeSyncRepository:
         self.audit: list[AuditEntry] = []
         self.statuses: list[str] = []
         self.heartbeats = 0
+        self.audit_queries: list[tuple[AuditQuery, datetime | None]] = []
 
     async def try_acquire(self, now: datetime, initial_cursor: datetime) -> bool:
         if self.cursor is None:
@@ -84,7 +86,8 @@ class FakeSyncRepository:
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot:
         return DashboardSnapshot(status=self.status, cursor_timestamp=self.cursor)
 
-    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]:
+    async def search_audit(self, query: AuditQuery, since: datetime | None) -> list[AuditRecord]:
+        self.audit_queries.append((query, since))
         return []
 
 

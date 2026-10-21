@@ -104,13 +104,28 @@ def count_actions_since(since: datetime) -> Select[str, int]:
     )
 
 
-def failed_audit_since(since: datetime, limit: int) -> Select[SyncAuditLog]:
-    return (
-        select(SyncAuditLog)
-        .where(SyncAuditLog.action == "FAILED", SyncAuditLog.created_at >= since)
-        .order_by(SyncAuditLog.created_at.desc(), SyncAuditLog.id.desc())
-        .limit(limit)
-    )
+LIKE_ESCAPE = "\\"
+
+
+def like_contains(text: str) -> str:
+    """LIKE pattern matching `text` literally anywhere (escape character: backslash)."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def filtered_audit(
+    actions: Sequence[str] | None, search: str | None, since: datetime | None, limit: int
+) -> Select[SyncAuditLog]:
+    """Newest-first audit rows, always capped by `limit` (ordered on indexed `created_at`)."""
+    statement = select(SyncAuditLog)
+    if actions is not None:
+        statement = statement.where(SyncAuditLog.action.in_(actions))
+    if search is not None:
+        pattern = like_contains(search)
+        statement = statement.where(SyncAuditLog.entity_key.ilike(pattern, escape=LIKE_ESCAPE))
+    if since is not None:
+        statement = statement.where(SyncAuditLog.created_at >= since)
+    return statement.order_by(SyncAuditLog.created_at.desc(), SyncAuditLog.id.desc()).limit(limit)
 
 
 def recent_audit(limit: int) -> Select[SyncAuditLog]:

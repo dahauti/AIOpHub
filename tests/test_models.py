@@ -89,7 +89,7 @@ def test_sync_audit_log_matches_spec() -> None:
 def test_sync_audit_log_index_matches_spec() -> None:
     indexes = {ix.name: [c.name for c in ix.columns] for ix in _table(SyncAuditLog).indexes}
 
-    assert indexes == {"idx_audit_entity": ["entity_key"]}
+    assert indexes == {"idx_audit_entity": ["entity_key"], "idx_audit_created_at": ["created_at"]}
 
 
 def test_utc_datetime_normalises_to_utc_and_rejects_naive() -> None:

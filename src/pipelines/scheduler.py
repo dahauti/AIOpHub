@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Protocol, runtime_checkable
 
 from src.adapters.resilience import Sleep
@@ -12,6 +12,7 @@ from src.pipelines.schedule import ScheduleTracker
 from src.pipelines.sync_vehicles import MODULE
 from src.repositories.config_repository import RuntimeConfigStore
 from src.repositories.sync_repository import SyncRepository
+from src.schemas.audit_filter import AuditQuery
 from src.schemas.schedule import RunKind, ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
@@ -26,7 +27,6 @@ from src.schemas.sync import (
 logger = logging.getLogger(__name__)
 
 RECENT_AUDIT_LIMIT = 15
-FAILED_AUDIT_LIMIT = 100
 
 
 class RunnablePipeline(Protocol):
@@ -46,7 +46,7 @@ class SyncControl(Protocol):
     async def toggle(self, flag: ConfigFlag) -> RuntimeConfig | None: ...
     async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig: ...
     async def abort(self) -> bool: ...
-    async def failed_audit(self) -> list[AuditRecord]: ...
+    async def audit(self, query: AuditQuery) -> list[AuditRecord]: ...
 
 
 class SyncRunner:
@@ -129,9 +129,10 @@ class SyncRunner:
         """Dashboard state with counters measured from today's UTC midnight."""
         return await self._repo.dashboard_snapshot(self._day_start(), RECENT_AUDIT_LIMIT)
 
-    async def failed_audit(self) -> list[AuditRecord]:
-        """Today's FAILED audit rows (the "Errors today" KPI), newest first."""
-        return await self._repo.failed_audit(self._day_start(), FAILED_AUDIT_LIMIT)
+    async def audit(self, query: AuditQuery) -> list[AuditRecord]:
+        """Filtered audit rows; "today" starts at UTC midnight like the KPI counters."""
+        since = {"today": self._day_start(), "7d": self._clock() - timedelta(days=7), "all": None}
+        return await self._repo.search_audit(query, since[query.date_range])
 
     def _day_start(self) -> datetime:
         return self._clock().astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)

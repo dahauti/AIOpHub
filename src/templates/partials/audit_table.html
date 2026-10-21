@@ -1,19 +1,37 @@
 {% from "partials/macros.html" import local_time, spinner %}
-{% set failed_view = audit_filter == "FAILED" %}
+{#- Filtered swaps pass `audit_query` + `rows`; page and status renders show the latest rows. -#}
+{% set q = audit_query if audit_query is defined else none %}
+{% set detailed = q is not none and q.detailed %}
+{% set f_action = (q.action or "") if q is not none else "" %}
+{% set f_search = (q.search or "") if q is not none else "" %}
+{% set f_range = q.date_range if q is not none else "all" %}
 {% set rows = rows if rows is defined else snapshot.recent %}
 <div id="audit-log" {% if audit_oob %}hx-swap-oob="true" {% endif %}class="card min-h-[20rem] overflow-x-auto p-0">
-  {% if failed_view %}
-  <div class="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-2">
-    <p class="text-sm font-medium text-rose-300">Failed today: {{ rows | length }}</p>
-    <button type="button" hx-get="/partials/audit" hx-target="#audit-log-table" hx-swap="innerHTML" class="btn-ghost btn-mini">{{ spinner() }}Clear filter / Show all</button>
-  </div>
+  <form id="audit-filters" hx-get="/partials/audit" hx-trigger="submit" hx-target="#audit-log-container" hx-swap="morph:innerHTML" hx-include="closest form" class="audit-toolbar flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2">
+    <input type="search" name="search" value="{{ f_search }}" placeholder="SerialNo" aria-label="Filter by SerialNo" maxlength="64" hx-get="/partials/audit" hx-trigger="keyup changed delay:300ms, search" class="field btn-mini w-[180px] font-mono">
+    <select name="action" aria-label="Filter by action" hx-get="/partials/audit" hx-trigger="change" class="field btn-mini">
+      {% for value, label in [("", "All"), ("UPSERT", "Upsert"), ("SKIPPED", "Skipped"), ("FAILED", "Failed")] %}
+      <option value="{{ value }}"{% if f_action == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+      {% if f_action in ("ARCHIVE", "ALL_ERRORS") %}<option value="{{ f_action }}" selected>{{ "Archive" if f_action == "ARCHIVE" else "All errors" }}</option>{% endif %}
+    </select>
+    <select name="range" aria-label="Date range" hx-get="/partials/audit" hx-trigger="change" class="field btn-mini">
+      {% for value, label in [("today", "Today"), ("7d", "Last 7 Days"), ("all", "All Time")] %}
+      <option value="{{ value }}"{% if f_range == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" hx-get="/partials/audit?range=all" hx-include="none" class="btn-ghost btn-mini">{{ spinner() }}Reset</button>
+    <span class="ml-auto text-xs text-slate-500">{{ rows | length }} row{{ "" if rows | length == 1 else "s" }}</span>
+  </form>
+  {% if audit_error %}
+  <div role="alert" class="px-4 py-2 text-sm text-rose-300">{{ audit_error }}</div>
   {% endif %}
   <table class="data-table table-fixed min-w-[760px]">
     <colgroup>
       <col class="w-[180px]">
       <col class="w-[120px]">
       <col class="w-[200px]">
-      <col class="{{ 'w-[200px]' if failed_view else 'w-[80px]' }}">
+      <col class="{{ 'w-[200px]' if detailed else 'w-[80px]' }}">
       <col>
     </colgroup>
     <thead>
@@ -29,17 +47,17 @@
           {%- if row.status_code is not none -%}
           {%- set code = row.status_code -%}
           <span class="badge {{ 'badge-ok' if code in (200, 201) else 'badge-err' if code >= 400 else 'badge-neutral' }}">{{ code }}</span>
-          {%- if failed_view %} <span class="text-slate-300">{{ code | http_reason }}</span>{% endif -%}
+          {%- if detailed %} <span class="text-slate-300">{{ code | http_reason }}</span>{% endif -%}
           {%- endif -%}
         </td>
-        {% if failed_view %}
+        {% if detailed %}
         <td><span class="error-full">{{ row.error_message or "" }}</span></td>
         {% else %}
         <td title="{{ row.error_message or '' }}"><span class="error-cell">{{ row.error_message or "" }}</span></td>
         {% endif %}
       </tr>
       {% else %}
-      <tr class="h-9 min-h-[2.25rem]"><td colspan="5" class="text-center font-sans text-slate-500">{{ "No failures today." if failed_view else "No sync activity yet." }}</td></tr>
+      <tr class="h-9 min-h-[2.25rem]"><td colspan="5" class="text-center font-sans text-slate-500">{{ "No matching entries." if q is not none else "No sync activity yet." }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

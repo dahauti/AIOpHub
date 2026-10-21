@@ -89,7 +89,10 @@ class SyncAuditLog(Base):
     """Audit trail of every outbound sync transaction."""
 
     __tablename__ = "sync_audit_log"
-    __table_args__ = (Index("idx_audit_entity", "entity_key"),)
+    __table_args__ = (
+        Index("idx_audit_entity", "entity_key"),
+        Index("idx_audit_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(AUDIT_ID, primary_key=True, autoincrement=True)
     entity_key: Mapped[str] = mapped_column(String(128))

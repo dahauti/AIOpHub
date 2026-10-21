@@ -1,5 +1,6 @@
-"""Dashboard schedule card: rendering, saving, and validation errors."""
+"""Dashboard schedule card: rendering, autosave, inline layout and validation errors."""
 
+import re
 from collections.abc import AsyncIterator
 
 import httpx
@@ -83,3 +84,27 @@ async def test_invalid_schedule_is_rejected_with_422_and_nothing_stored(
     assert response.status_code == 422
     assert f"Invalid schedule: {field}:" in response.text
     assert control.schedule.key == ("nightly", "02:00", 60, False, 6, "02:00")
+
+
+def _tag(html: str, pattern: str) -> str:
+    match = re.search(pattern, html)
+    assert match is not None, pattern
+    return match.group(0)
+
+
+@pytest.mark.asyncio
+async def test_schedule_autosaves_on_change_and_keeps_weekly_inputs_on_one_line(
+    ports: Ports,
+) -> None:
+    _, client = ports
+    html = (await client.get("/")).text
+
+    form = _tag(html, r'<form hx-post="/partials/config/schedule"[^>]*>')
+    assert 'hx-trigger="change, submit"' in form
+    weekly = html[html.index("Weekly full sync</legend>") :]
+    row = _tag(weekly, r'<div class="[^"]*">')
+    assert row == '<div class="mt-2 flex items-center gap-2">'
+    line = weekly[: weekly.index("</div>")]
+    assert all(
+        name in line for name in ("full_sync_enabled", "full_sync_weekday", "full_sync_time")
+    )

@@ -10,7 +10,7 @@ import httpx
 import pytest
 from jinja2 import nodes
 
-from src.api.routes_ui import TEMPLATES
+from src.api.templating import TEMPLATES
 from src.main import create_app
 from tests.ui_fakes import SNAPSHOT, FakeControl
 

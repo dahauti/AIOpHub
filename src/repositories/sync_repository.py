@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql import Executable
 
 from src.repositories import sync_statements as sql
+from src.schemas.audit_filter import AuditQuery
 from src.schemas.sync import AuditEntry, AuditRecord, DashboardSnapshot, ReleaseStatus
 
 
@@ -29,7 +30,9 @@ class SyncRepository(Protocol):
     async def delete_fingerprint(self, key: str) -> None: ...
     async def record_audit(self, entry: AuditEntry) -> None: ...
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot: ...
-    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]: ...
+    async def search_audit(
+        self, query: AuditQuery, since: datetime | None
+    ) -> list[AuditRecord]: ...
 
 
 class SqlSyncRepository:
@@ -105,10 +108,11 @@ class SqlSyncRepository:
             recent=[AuditRecord.model_validate(row) for row in recent],
         )
 
-    async def failed_audit(self, since: datetime, limit: int) -> list[AuditRecord]:
-        """FAILED rows since `since`, newest first."""
+    async def search_audit(self, query: AuditQuery, since: datetime | None) -> list[AuditRecord]:
+        """Filtered rows since `since` (None = all time), newest first, capped at the limit."""
+        statement = sql.filtered_audit(query.actions, query.search, since, query.limit)
         async with self._sessions() as session:
-            rows = (await session.scalars(sql.failed_audit_since(since, limit))).all()
+            rows = (await session.scalars(statement)).all()
         return [AuditRecord.model_validate(row) for row in rows]
 
     async def _execute(self, statement: Executable) -> None:

@@ -68,7 +68,7 @@ def safe_database_label() -> str:
 
 
 def add_missing_columns(connection: Connection) -> None:
-    """Add model columns missing from existing tables (each carries a server default)."""
+    """Add model columns and indexes missing from existing tables (columns carry a default)."""
     inspector = inspect(connection)
     for table in Base.metadata.sorted_tables:
         present = {column["name"] for column in inspector.get_columns(table.name)}
@@ -77,6 +77,8 @@ def add_missing_columns(connection: Connection) -> None:
                 ddl = CreateColumn(column).compile(dialect=connection.dialect)
                 connection.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {ddl}"))
                 logger.info("Added column %s.%s", table.name, column.name)
+        for index in table.indexes:
+            index.create(connection, checkfirst=True)
 
 
 async def init_db() -> None:

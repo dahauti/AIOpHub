@@ -43,7 +43,8 @@ select.field { color-scheme: dark; }
 .toggle-off { border-color: #334155; background-color: rgb(30 41 59 / 0.6); color: #94a3b8; }
 .toggle-off:hover:enabled { background-color: rgb(51 65 85 / 0.7); }
 .kpi-action { display: block; width: 100%; text-align: left; transition: border-color 150ms, background-color 150ms; }
-.kpi-action:hover { border-color: rgb(244 63 94 / 0.5); background-color: rgb(30 41 59 / 0.7); }
+.kpi-action:hover { border-color: rgb(129 140 248 / 0.5); background-color: rgb(30 41 59 / 0.7); }
+.audit-toolbar { position: sticky; top: 0; z-index: 10; background-color: #0f172a; }
 .kpi-action:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
 .error-full { display: block; white-space: pre-wrap; overflow-wrap: anywhere; color: #fda4af; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -79,6 +80,7 @@ select.field { color-scheme: dark; }
 .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
 .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
 .mx-auto { margin-left: auto; margin-right: auto; }
+.ml-auto { margin-left: auto; }
 .max-w-7xl { max-width: 80rem; }
 .overflow-x-auto { overflow-x: auto; }
 .overflow-y-auto { overflow-y: auto; }

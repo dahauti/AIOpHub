@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from src.schemas.audit_filter import AuditQuery
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
     AuditRecord,
@@ -44,6 +45,7 @@ class FakeControl:
         self.cursor_locked = False
         self.cursor_sets: list[datetime] = []
         self.schedule = ScheduleSettings()
+        self.audit_queries: list[AuditQuery] = []
 
     def trigger(self) -> bool:
         self.triggers += 1
@@ -77,8 +79,15 @@ class FakeControl:
         self.schedule = schedule
         return await self.config()
 
-    async def failed_audit(self) -> list[AuditRecord]:
-        return [row for row in self._snapshot.recent if row.action == "FAILED"]
+    async def audit(self, query: AuditQuery) -> list[AuditRecord]:
+        """In-memory filter over the snapshot rows (date range ignored)."""
+        self.audit_queries.append(query)
+        rows = self._snapshot.recent
+        if query.actions is not None:
+            rows = [row for row in rows if row.action in query.actions]
+        if query.search is not None:
+            rows = [row for row in rows if query.search.lower() in row.entity_key.lower()]
+        return rows[: query.limit]
 
     async def abort(self) -> bool:
         if self._snapshot.status != "RUNNING":

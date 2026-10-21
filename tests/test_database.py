@@ -51,7 +51,7 @@ async def test_init_db_creates_tables_and_index_idempotently(temp_database: Path
     await get_engine().dispose()
 
     assert tables == ["sync_audit_log", "sync_config", "sync_fingerprints", "sync_states"]
-    assert [ix["name"] for ix in indexes] == ["idx_audit_entity"]
+    assert sorted(str(ix["name"]) for ix in indexes) == ["idx_audit_created_at", "idx_audit_entity"]
     assert temp_database.is_file()
 
 
@@ -107,3 +107,23 @@ async def test_init_db_adds_schedule_columns_to_a_deployed_sync_config_table() -
         6,
     )
     assert (row["full_sync_enabled"], row["nightly_time"]) == (0, "02:00")
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("temp_database")
+async def test_init_db_adds_missing_indexes_to_a_deployed_audit_table() -> None:
+    async with get_engine().begin() as connection:
+        await connection.execute(
+            text(
+                "CREATE TABLE sync_audit_log (id INTEGER PRIMARY KEY, entity_key VARCHAR(128) "
+                "NOT NULL, action VARCHAR(32) NOT NULL, status_code INTEGER, payload JSON, "
+                "error_message TEXT, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            )
+        )
+
+    await init_db()
+
+    async with get_engine().connect() as connection:
+        indexes = await connection.run_sync(lambda c: inspect(c).get_indexes("sync_audit_log"))
+    await get_engine().dispose()
+    assert sorted(str(ix["name"]) for ix in indexes) == ["idx_audit_created_at", "idx_audit_entity"]
