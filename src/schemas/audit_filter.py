@@ -6,11 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.schemas.sync import AuditAction
 
-AuditActionFilter = Literal["UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "ALL_ERRORS"]
+AuditActionFilter = Literal["PROCESSED", "UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "ALL_ERRORS"]
 DateRange = Literal["today", "7d", "all"]
 
-# Batch and single-vehicle writes share a filter; ALL_ERRORS also covers aborted runs.
+# Batch and single-vehicle writes share a filter; PROCESSED is exactly the "Processed today"
+# KPI (confirmed upserts and archives); ALL_ERRORS also covers aborted runs.
 ACTION_GROUPS: dict[AuditActionFilter, tuple[AuditAction, ...]] = {
+    "PROCESSED": ("UPSERT", "ARCHIVE", "SINGLE_UPSERT", "SINGLE_ARCHIVE"),
     "UPSERT": ("UPSERT", "SINGLE_UPSERT"),
     "ARCHIVE": ("ARCHIVE", "SINGLE_ARCHIVE"),
     "SKIPPED": ("SKIPPED",),

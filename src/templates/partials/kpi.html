@@ -31,6 +31,9 @@
     <div class="card min-h-[96px]">
       <p class="label">Last sync</p>
       <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.updated_at) }}</p>
+      <p id="next-sync" class="mt-2 text-xs text-slate-500">Next sync:
+        {% if not auto_sync or next_sync is none %}<span class="font-medium">Paused</span>{% else %}<span class="font-mono tabular-nums text-slate-300">{{ local_time(next_sync) }}</span>{% endif %}
+      </p>
     </div>
     <div class="card min-h-[136px]">
       <p class="label">Cursor</p>
@@ -45,7 +48,7 @@
     </div>
   </div>
   <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <button type="button" hx-get="/partials/audit?action=UPSERT&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's processed entries" class="card kpi-action min-h-[96px]"><span class="label block">Processed today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</span></button>
+    <button type="button" hx-get="/partials/audit?action=PROCESSED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's processed entries" class="card kpi-action min-h-[96px]"><span class="label block">Processed today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</span></button>
     <button type="button" hx-get="/partials/audit?action=SKIPPED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's skipped entries" class="card kpi-action min-h-[96px]"><span class="label block">Skipped today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</span></button>
     <button type="button" hx-get="/partials/audit?action=FAILED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
     {% if dry_run or snapshot.planned %}

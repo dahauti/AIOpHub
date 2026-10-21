@@ -46,6 +46,7 @@ class FakeControl:
         self.cursor_sets: list[datetime] = []
         self.schedule = ScheduleSettings()
         self.audit_queries: list[AuditQuery] = []
+        self.next_run: datetime | None = None
 
     def trigger(self) -> bool:
         self.triggers += 1
@@ -88,6 +89,9 @@ class FakeControl:
         if query.search is not None:
             rows = [row for row in rows if query.search.lower() in row.entity_key.lower()]
         return rows[: query.limit]
+
+    async def next_sync(self) -> datetime | None:
+        return self.next_run if self.auto_sync else None
 
     async def abort(self) -> bool:
         if self._snapshot.status != "RUNNING":

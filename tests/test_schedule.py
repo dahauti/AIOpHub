@@ -119,9 +119,21 @@ def test_reset_forgets_the_plan() -> None:
 
 
 def test_describe_summarises_cadence_and_full_sync() -> None:
-    weekly = ScheduleSettings(
-        schedule_mode="interval", interval_minutes=30, full_sync_enabled=True
-    )
+    weekly = ScheduleSettings(schedule_mode="interval", interval_minutes=30, full_sync_enabled=True)
 
     assert NIGHTLY.describe() == "Incremental sync nightly at 02:00; weekly full sync off"
     assert weekly.describe() == "Incremental sync every 30 min; full sync Sunday at 02:00"
+
+
+def test_upcoming_previews_without_planning_then_reports_the_plan() -> None:
+    tracker = ScheduleTracker(UTC)
+    weekly = ScheduleSettings(
+        nightly_time="02:00", full_sync_enabled=True, full_sync_weekday=1, full_sync_time="18:00"
+    )
+
+    assert tracker.upcoming(weekly, TUESDAY_NOON) == datetime(2026, 10, 20, 18, 0, tzinfo=UTC)
+    assert tracker.due(weekly, TUESDAY_NOON) is None
+    later = TUESDAY_NOON + timedelta(hours=1)
+    assert tracker.upcoming(weekly, later) == datetime(2026, 10, 20, 18, 0, tzinfo=UTC)
+    tracker.started("full", weekly, datetime(2026, 10, 20, 18, 0, tzinfo=UTC))
+    assert tracker.upcoming(weekly, later) == datetime(2026, 10, 21, 2, 0, tzinfo=UTC)

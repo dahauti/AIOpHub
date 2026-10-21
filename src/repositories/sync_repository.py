@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql import Executable
 
 from src.repositories import sync_statements as sql
-from src.schemas.audit_filter import AuditQuery
+from src.schemas.audit_filter import ACTION_GROUPS, AuditQuery
 from src.schemas.sync import AuditEntry, AuditRecord, DashboardSnapshot, ReleaseStatus
 
 
@@ -95,7 +95,7 @@ class SqlSyncRepository:
             status=state.status if state is not None else "IDLE",
             cursor_timestamp=state.cursor_timestamp if state is not None else None,
             updated_at=state.updated_at if state is not None else None,
-            processed=_total(counts, "UPSERT", "ARCHIVE", "SINGLE_UPSERT", "SINGLE_ARCHIVE"),
+            processed=_total(counts, *ACTION_GROUPS["PROCESSED"]),
             skipped=counts.get("SKIPPED", 0),
             errors=counts.get("FAILED", 0),
             planned=_total(

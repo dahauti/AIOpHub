@@ -60,6 +60,16 @@ class ScheduleTracker:
             return "incremental"
         return None
 
+    def upcoming(self, schedule: ScheduleSettings, now: datetime) -> datetime | None:
+        """Earliest planned start (or what `due` would plan at `now`); never changes the plan."""
+        if schedule.key == self._key:
+            planned = [self._next_incremental, self._next_full]
+        else:
+            tz = self._tz
+            planned = [next_incremental(schedule, now, tz), next_full(schedule, now, tz)]
+        times = [slot for slot in planned if slot is not None]
+        return min(times) if times else None
+
     def reset(self) -> None:
         """Forget the plan; the next `due` call re-plans from its `now`."""
         self._key = None

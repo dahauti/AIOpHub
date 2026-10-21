@@ -67,6 +67,7 @@ async def _context(control: SyncControl, banner: str | None, **extra: object) ->
         "dry_run": config.dry_run,
         "auto_sync": config.auto_sync_enabled,
         "poll": snapshot.status == RUNNING,
+        "next_sync": await control.next_sync(),
     }
     return base | extra
 

@@ -47,6 +47,7 @@ class SyncControl(Protocol):
     async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig: ...
     async def abort(self) -> bool: ...
     async def audit(self, query: AuditQuery) -> list[AuditRecord]: ...
+    async def next_sync(self) -> datetime | None: ...
 
 
 class SyncRunner:
@@ -102,6 +103,13 @@ class SyncRunner:
         config = await self._config.toggle(flag)
         logger.warning("Runtime config changed", extra=config.model_dump())
         return config
+
+    async def next_sync(self) -> datetime | None:
+        """Next scheduled start (incremental or full); None while auto-sync is off."""
+        config = await self._config.get()
+        if not config.auto_sync_enabled:
+            return None
+        return self._schedule.upcoming(config, self._clock())
 
     async def update_schedule(self, schedule: ScheduleSettings) -> RuntimeConfig:
         """Store a new schedule; the daemon re-plans its next runs from the current time."""

@@ -57,7 +57,7 @@ def _vehicles(html: str) -> list[str]:
 
 
 @pytest.mark.parametrize(
-    "action", ["UPSERT", "SKIPPED", "FAILED"], ids=["processed", "skipped", "errors"]
+    "action", ["PROCESSED", "SKIPPED", "FAILED"], ids=["processed", "skipped", "errors"]
 )
 @pytest.mark.asyncio
 async def test_kpi_cards_are_quick_filter_buttons(ports: Ports, action: str) -> None:

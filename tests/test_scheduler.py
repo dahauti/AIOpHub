@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -150,3 +150,17 @@ async def test_runner_exposes_runtime_config() -> None:
     current = await _runner(FakePipeline(), config=config).config()
 
     assert (current.dry_run, current.auto_sync_enabled) == (True, False)
+
+
+@pytest.mark.asyncio
+async def test_next_sync_follows_the_interval_plan_and_is_none_while_paused() -> None:
+    clock = Clock(stop_after=2)
+    config = _store()
+    runner = _runner(FakePipeline(), config=config, clock=clock)
+
+    assert await runner.next_sync() == NOW + timedelta(minutes=5)
+    with pytest.raises(StopLoop):
+        await runner.run_forever(300, sleep=clock.advance)
+    assert await runner.next_sync() == NOW + timedelta(minutes=10)
+    await config.toggle("auto_sync_enabled")
+    assert await runner.next_sync() is None
