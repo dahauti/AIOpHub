@@ -8,7 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import make_url
 from sqlalchemy.exc import ArgumentError
 
-DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./data/sync.db"
+AppEnv = Literal["dev", "prod"]
+# One database per environment holds vehicle and task state, locks and the shared audit log.
+ENV_DATABASE_URLS: dict[AppEnv, str] = {
+    "dev": "sqlite+aiosqlite:///./data/aio_dev.db",
+    "prod": "sqlite+aiosqlite:///./data/aio_prod.db",
+}
+FRONTU_BASE_URL = "https://{subdomain}.frontu.com/client/api/v2"
 SQLITE_DRIVER = "sqlite+aiosqlite"
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -22,8 +28,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Database
-    database_url: str = DEFAULT_DATABASE_URL
+    # Environment profile: selects the database and any DEV_/PROD_ overrides below
+    app_env: AppEnv = "dev"
+    dev_bc_company: str | None = Field(default=None, min_length=1)
+    prod_bc_company: str | None = Field(default=None, min_length=1)
+    dev_frontu_base_url: HttpUrl | None = None
+    prod_frontu_base_url: HttpUrl | None = None
+    dev_frontu_api_key: SecretStr | None = None
+    prod_frontu_api_key: SecretStr | None = None
+
+    # Database (explicit override; unset -> ENV_DATABASE_URLS[app_env])
+    database_url: str | None = None
+    task_safety_buffer_seconds: int = Field(default=900, ge=0)
 
     # Business Central SaaS (Entra ID)
     bc_tenant_id_saas: str = Field(min_length=1)
@@ -56,7 +72,9 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def _require_aiosqlite(cls, value: str) -> str:
+    def _require_aiosqlite(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         try:
             driver = make_url(value).drivername
         except ArgumentError as exc:
@@ -64,6 +82,34 @@ class Settings(BaseSettings):
         if driver != SQLITE_DRIVER:
             raise ValueError(f"DATABASE_URL must use the {SQLITE_DRIVER} driver, got {driver!r}")
         return value
+
+    @property
+    def active_database_url(self) -> str:
+        return self.database_url or ENV_DATABASE_URLS[self.app_env]
+
+    @property
+    def active_bc_company(self) -> str:
+        """Profile override, else the company of the active BC endpoint profile."""
+        override = self.dev_bc_company if self.app_env == "dev" else self.prod_bc_company
+        if override:
+            return override
+        if self.bc_active_profile == "saas":
+            return self.bc_company_id_saas
+        return self.bc_company_id_onprem
+
+    @property
+    def active_frontu_base_url(self) -> str:
+        """Profile override, else the API root derived from `FRONTU_SUBDOMAIN`."""
+        override = self.dev_frontu_base_url if self.app_env == "dev" else self.prod_frontu_base_url
+        if override is not None:
+            return str(override).rstrip("/")
+        return FRONTU_BASE_URL.format(subdomain=self.frontu_subdomain)
+
+    @property
+    def active_frontu_api_key(self) -> SecretStr:
+        """Profile override, else `FRONTU_API_KEY`; stays a SecretStr so it never logs."""
+        override = self.dev_frontu_api_key if self.app_env == "dev" else self.prod_frontu_api_key
+        return override if override is not None else self.frontu_api_key
 
 
 @lru_cache(maxsize=1)

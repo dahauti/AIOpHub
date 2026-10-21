@@ -20,7 +20,7 @@ WORKSPACE = FrontuWorkspaceUpsert(systemId="SN-0001", title="VOLVO FH16", client
 def _client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
     http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
     pacer = RatePacer(clock=clock, sleep=clock.sleep)
-    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
+    return FrontuClient(http, BASE_URL, SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
 
 
 def _ok(_request: httpx.Request) -> httpx.Response:

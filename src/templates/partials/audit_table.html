@@ -7,13 +7,18 @@
 {% set f_range = q.date_range if q is not none else "all" %}
 {% set rows = rows if rows is defined else snapshot.recent %}
 <div id="audit-log" {% if audit_oob %}hx-swap-oob="true" {% endif %}class="card min-h-[20rem] overflow-x-auto p-0">
+  <nav id="audit-pills" aria-label="Log scope" class="audit-pills">
+    {% for value, label in [("", "All"), ("TASKS", "Tasks"), ("VEHICLES", "Vehicles"), ("ALL_ERRORS", "Errors Only")] %}
+    <button type="button" hx-get="/partials/audit" hx-vals='{"action": "{{ value }}"}' hx-include="#audit-filters [name='search'], #audit-filters [name='range']" hx-target="#audit-log-container" hx-swap="morph:innerHTML" aria-pressed="{{ 'true' if f_action == value else 'false' }}" class="filter-pill{{ ' filter-pill-active' if f_action == value else '' }}">{{ label }}</button>
+    {% endfor %}
+  </nav>
   <form id="audit-filters" hx-get="/partials/audit" hx-trigger="submit" hx-target="#audit-log-container" hx-swap="morph:innerHTML" hx-include="closest form" class="audit-toolbar flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2">
     <input type="search" name="search" value="{{ f_search }}" placeholder="SerialNo" aria-label="Filter by SerialNo" maxlength="64" hx-get="/partials/audit" hx-trigger="keyup changed delay:300ms, search" class="field btn-mini w-[180px] font-mono">
     <select name="action" aria-label="Filter by action" hx-get="/partials/audit" hx-trigger="change" class="field btn-mini">
-      {% for value, label in [("", "All"), ("PROCESSED", "Processed"), ("UPSERT", "Upsert"), ("SKIPPED", "Skipped"), ("FAILED", "Failed")] %}
+      {% for value, label in [("", "All"), ("PROCESSED", "Processed"), ("UPSERT", "Upsert"), ("SKIPPED", "Skipped"), ("FAILED", "Failed"), ("TASKS", "Tasks"), ("VEHICLES", "Vehicles")] %}
       <option value="{{ value }}"{% if f_action == value %} selected{% endif %}>{{ label }}</option>
       {% endfor %}
-      {% if f_action in ("ARCHIVE", "ALL_ERRORS") %}<option value="{{ f_action }}" selected>{{ "Archive" if f_action == "ARCHIVE" else "All errors" }}</option>{% endif %}
+      {% if f_action in ("ARCHIVE", "ALL_ERRORS") %}<option value="{{ f_action }}" selected>{{ "Archive" if f_action == "ARCHIVE" else "Errors only" }}</option>{% endif %}
     </select>
     <select name="range" aria-label="Date range" hx-get="/partials/audit" hx-trigger="change" class="field btn-mini">
       {% for value, label in [("today", "Today"), ("7d", "Last 7 Days"), ("all", "All Time")] %}
@@ -42,7 +47,7 @@
       <tr class="h-9 min-h-[2.25rem] hover:bg-slate-800/30">
         <td class="tabular-nums">{{ local_time(row.created_at) }}</td>
         <td class="truncate" title="{{ row.entity_key }}">{{ row.entity_key }}</td>
-        <td class="truncate" title="{{ row.action }}">{{ row.action }}</td>
+        <td class="truncate" title="{{ row.action }}">{% if row.action in ("TASK_RUN", "DRY_RUN_TASK") %}<span class="badge {{ 'badge-ok' if row.action == 'TASK_RUN' else 'badge-neutral' }}">TASK</span> {% endif %}{{ row.action }}</td>
         <td>
           {%- if row.status_code is not none -%}
           {%- set code = row.status_code -%}

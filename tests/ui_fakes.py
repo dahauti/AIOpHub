@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from src.domain.canary import CanaryTarget
 from src.schemas.audit_filter import AuditQuery
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import (
@@ -11,6 +12,7 @@ from src.schemas.sync import (
     RuntimeConfig,
     SingleSyncResult,
 )
+from src.services.cockpit_models import CanaryOutcome, LastRun, TaskCockpit
 
 NOW = datetime(2026, 10, 20, 12, 30, 5, tzinfo=UTC)
 SNAPSHOT = DashboardSnapshot(
@@ -111,3 +113,41 @@ class FakeSingleSync:
     ) -> SingleSyncResult:
         self.calls.append((serial_no, force_live))
         return self.result.model_copy(update={"serial_no": serial_no})
+
+
+LAST = LastRun(finished_at=NOW, dry_run=True, processed=7, synced=5, errors=2, elapsed_seconds=3.25)
+
+
+class FakeTaskControl:
+    def __init__(self) -> None:
+        self.state = TaskCockpit(
+            status="IDLE", updated_at=NOW, running=False, dry_run=True, app_env="dev", last_run=LAST
+        )
+        self.triggers = 0
+        self.canaries: list[CanaryTarget] = []
+        self.forced: list[bool] = []
+
+    def trigger(self) -> bool:
+        self.triggers += 1
+        if self.state.running:
+            return False
+        self.state = self.state.model_copy(update={"running": True, "status": "RUNNING"})
+        return True
+
+    def trigger_single(self, target: CanaryTarget, force_live: bool = False) -> bool:
+        self.canaries.append(target)
+        self.forced.append(force_live)
+        if not self.trigger():
+            return False
+        canary = CanaryOutcome(target=target, state="RUNNING")
+        self.state = self.state.model_copy(update={"canary": canary})
+        return True
+
+    async def cockpit(self) -> TaskCockpit:
+        return self.state
+
+    async def toggle_dry_run(self) -> RuntimeConfig | None:
+        if self.state.running:
+            return None
+        self.state = self.state.model_copy(update={"dry_run": not self.state.dry_run})
+        return RuntimeConfig(dry_run=self.state.dry_run)

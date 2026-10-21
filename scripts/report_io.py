@@ -63,7 +63,7 @@ def write_csv(path: Path, columns: Sequence[str], lines: Iterable[Sequence[str]]
 async def fetch_frontu_rows(http: httpx.AsyncClient) -> list[JsonValue]:
     """Every raw `object` workspace row via the paced, retrying adapter (GET only)."""
     settings = get_settings()
-    client = FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key)
+    client = FrontuClient(http, settings.active_frontu_base_url, settings.active_frontu_api_key)
     raw: list[JsonValue] = []
     async for _page, rows in client.iter_workspace_pages():
         raw.extend(rows)

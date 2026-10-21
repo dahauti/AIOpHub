@@ -43,7 +43,7 @@ def _ensure_parent_directory(url: URL) -> None:
 @lru_cache(maxsize=1)
 def get_engine() -> AsyncEngine:
     """Return the process-wide async engine; creates the database directory on first use."""
-    url = make_url(get_settings().database_url)
+    url = make_url(get_settings().active_database_url)
     _ensure_parent_directory(url)
     engine = create_async_engine(url, pool_pre_ping=True)
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
@@ -64,7 +64,7 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
 
 def safe_database_label() -> str:
     """DATABASE_URL with any password masked, safe for logs."""
-    return make_url(get_settings().database_url).render_as_string(hide_password=True)
+    return make_url(get_settings().active_database_url).render_as_string(hide_password=True)
 
 
 def add_missing_columns(connection: Connection) -> None:

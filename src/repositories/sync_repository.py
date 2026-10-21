@@ -1,7 +1,7 @@
 """Sync state, fingerprint and audit persistence (SQLAlchemy 2.0 async, Postgres)."""
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -38,13 +38,22 @@ class SyncRepository(Protocol):
 class SqlSyncRepository:
     """Postgres implementation; every call runs in its own short transaction."""
 
-    def __init__(self, sessions: async_sessionmaker[AsyncSession], module: str) -> None:
+    def __init__(
+        self,
+        sessions: async_sessionmaker[AsyncSession],
+        module: str,
+        *,
+        stale_after: timedelta = sql.STALE_RUN_AFTER,
+    ) -> None:
         self._sessions = sessions
         self._module = module
+        self._stale_after = stale_after
 
     async def try_acquire(self, now: datetime, initial_cursor: datetime) -> bool:
         async with self._sessions.begin() as session:
-            claimed = await session.scalar(sql.claim_state(self._module, now, initial_cursor))
+            claimed = await session.scalar(
+                sql.claim_state(self._module, now, initial_cursor, self._stale_after)
+            )
         return claimed is not None
 
     async def heartbeat(self, now: datetime) -> None:

@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.schemas.sync import AuditAction
 
-AuditActionFilter = Literal["PROCESSED", "UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "ALL_ERRORS"]
+AuditActionFilter = Literal[
+    "PROCESSED", "UPSERT", "ARCHIVE", "SKIPPED", "FAILED", "ALL_ERRORS", "TASKS", "VEHICLES"
+]
 DateRange = Literal["today", "7d", "all"]
 
 # Batch and single-vehicle writes share a filter; PROCESSED is exactly the "Processed today"
@@ -18,6 +20,20 @@ ACTION_GROUPS: dict[AuditActionFilter, tuple[AuditAction, ...]] = {
     "SKIPPED": ("SKIPPED",),
     "FAILED": ("FAILED",),
     "ALL_ERRORS": ("FAILED", "ABORTED"),
+    "TASKS": ("TASK_RUN", "DRY_RUN_TASK"),
+    "VEHICLES": (
+        "UPSERT",
+        "ARCHIVE",
+        "SKIPPED",
+        "FAILED",
+        "DRY_RUN_UPSERT",
+        "DRY_RUN_ARCHIVE",
+        "SINGLE_UPSERT",
+        "SINGLE_ARCHIVE",
+        "DRY_RUN_SINGLE_UPSERT",
+        "DRY_RUN_SINGLE_ARCHIVE",
+        "ABORTED",
+    ),
 }
 ERROR_FILTERS: frozenset[AuditActionFilter] = frozenset({"FAILED", "ALL_ERRORS"})
 

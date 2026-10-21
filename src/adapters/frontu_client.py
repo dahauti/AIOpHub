@@ -20,7 +20,6 @@ from src.schemas.frontu_models import (
     FrontuWorkspaceUpsert,
 )
 
-BASE_URL = "https://{subdomain}.frontu.com/client/api/v2"
 WORKSPACE_PAGE_SIZE = 100
 # Fail closed rather than resolve identities against a partial index.
 MAX_WORKSPACE_PAGES = 1000
@@ -32,14 +31,14 @@ class FrontuClient:
     def __init__(
         self,
         http: httpx.AsyncClient,
-        subdomain: str,
+        base_url: str,
         api_key: SecretStr,
         *,
         pacer: RatePacer | None = None,
         sleep: Sleep = asyncio.sleep,
     ) -> None:
         self._http = http
-        self._base_url = BASE_URL.format(subdomain=subdomain)
+        self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._sleep = sleep
         self._pacer = pacer if pacer is not None else RatePacer(sleep=sleep)

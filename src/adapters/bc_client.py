@@ -108,10 +108,12 @@ def onprem_connection(settings: Settings) -> BCConnection:
 
 
 def select_connection(settings: Settings) -> BCConnection:
-    """BC endpoint for the configured BC_ACTIVE_PROFILE."""
+    """BC endpoint for BC_ACTIVE_PROFILE, targeting the APP_ENV company (`active_bc_company`)."""
     if settings.bc_active_profile == "saas":
-        return saas_connection(settings)
-    return onprem_connection(settings)
+        connection = saas_connection(settings)
+    else:
+        connection = onprem_connection(settings)
+    return connection.model_copy(update={"company": settings.active_bc_company})
 
 
 class BCClient:

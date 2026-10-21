@@ -189,7 +189,7 @@ async def sync_vehicles_batch(settings: Settings) -> SyncRunResult | None:
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as http:
         pipeline = VehicleSyncPipeline(
             BCClient(http, select_connection(settings)),
-            FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key),
+            FrontuClient(http, settings.active_frontu_base_url, settings.active_frontu_api_key),
             repository,
             settings.internal_company_client_id,
             config=config,

@@ -1,0 +1,8 @@
+{#- /api/canary answer for Service Orders and Frontu tasks: banner in the canary panel plus an
+    out-of-band refresh of the Operative Tasks row, which then polls until the canary ends. -#}
+<div id="single-debug" class="mt-4 space-y-3">
+  {% if single_banner %}
+  <p role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ single_banner }}</strong></p>
+  {% endif %}
+</div>
+{% if task is not none %}{% include "partials/task_card.html" %}{% endif %}

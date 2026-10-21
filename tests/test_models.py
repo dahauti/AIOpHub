@@ -34,6 +34,7 @@ def test_tables_use_flat_namespace() -> None:
         "sync_fingerprints",
         "sync_audit_log",
         "sync_config",
+        "link_health",
     }
     assert all(t.schema is None for t in Base.metadata.sorted_tables)
 

@@ -50,7 +50,13 @@ async def test_init_db_creates_tables_and_index_idempotently(temp_database: Path
         indexes = await connection.run_sync(lambda c: inspect(c).get_indexes("sync_audit_log"))
     await get_engine().dispose()
 
-    assert tables == ["sync_audit_log", "sync_config", "sync_fingerprints", "sync_states"]
+    assert tables == [
+        "link_health",
+        "sync_audit_log",
+        "sync_config",
+        "sync_fingerprints",
+        "sync_states",
+    ]
     assert sorted(str(ix["name"]) for ix in indexes) == ["idx_audit_created_at", "idx_audit_entity"]
     assert temp_database.is_file()
 
@@ -68,7 +74,7 @@ async def test_get_session_yields_async_session() -> None:
 def test_safe_database_label_masks_credentials(
     monkeypatch: pytest.MonkeyPatch, isolated_env: None
 ) -> None:
-    assert safe_database_label() == "sqlite+aiosqlite:///./data/sync.db"
+    assert safe_database_label() == "sqlite+aiosqlite:///./data/aio_dev.db"
 
 
 @pytest.mark.asyncio

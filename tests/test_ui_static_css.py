@@ -13,6 +13,7 @@ from tests.ui_fakes import SNAPSHOT, FakeControl
 
 ROOT = Path(__file__).resolve().parents[1] / "src"
 CSS = (ROOT / "static" / "app.css").read_text(encoding="utf-8")
+HUB = (ROOT / "static" / "hub.css").read_text(encoding="utf-8")
 BASE = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
 SINGLE_WORD_CLASSES = {"flex", "grid", "border", "truncate", "card", "label", "field", "badge"}
 NOT_STYLING = {"dark"}
@@ -45,7 +46,7 @@ def _selector(token: str) -> str:
 
 def test_every_template_class_has_a_css_rule() -> None:
     classes = _template_classes()
-    missing = sorted(t for t in classes if _selector(t) not in CSS and _selector(t) not in BASE)
+    missing = sorted(t for t in classes if all(_selector(t) not in src for src in (CSS, HUB, BASE)))
 
     assert len(classes) > 60
     assert missing == []

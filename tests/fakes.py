@@ -18,6 +18,7 @@ ONPREM_ROOT = "https://bc.local:7048/BC/ODataV4"
 SINCE = datetime(2026, 10, 19, 8, 0, tzinfo=UTC)
 REG_GUID = "3f9c2a1e-0b7d-4c55-9e1a-6d2f8b4a7c10"
 SITE_GUID = "a71e5d08-2c4f-4b9a-8f63-1e0d9c7b2a54"
+FRONTU_BASE_URL = "https://acme.frontu.com/client/api/v2"
 
 
 class FakeClock:
@@ -105,7 +106,9 @@ async def drain(client: BCClient, since: datetime = SINCE) -> list[list[str]]:
 def frontu_client(mock: RecordingHandler, clock: FakeClock) -> FrontuClient:
     http = httpx.AsyncClient(transport=httpx.MockTransport(mock))
     pacer = RatePacer(clock=clock, sleep=clock.sleep)
-    return FrontuClient(http, "acme", SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep)
+    return FrontuClient(
+        http, FRONTU_BASE_URL, SecretStr("frontu-token"), pacer=pacer, sleep=clock.sleep
+    )
 
 
 def json_response(body: JsonValue) -> Handler:

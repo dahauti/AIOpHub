@@ -39,18 +39,22 @@ async def test_controls_sit_above_the_audit_zone(client: httpx.AsyncClient) -> N
     html = (await client.get("/")).text
 
     order = [
+        'id="cockpit-header"',
+        'id="overview"',
+        'id="canary-bar"',
+        'id="streams"',
+        'id="task-card"',
         'id="sync-status"',
-        'class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"',
         'id="schedule-card"',
-        'id="single-vehicle-card"',
         'id="audit-heading"',
         f'class="{AUDIT_FRAME}"',
         'id="audit-log"',
     ]
     positions = [html.index(marker) for marker in order]
     assert positions == sorted(positions)
-    assert "Recent sync activity" in html
-    status = html[html.index('id="sync-status"') : html.index("</section>", positions[0])]
+    assert "Unified Audit &amp; Diagnostic Log" in html
+    sync_status = html.index('id="sync-status"')
+    status = html[sync_status : html.index("</section>", sync_status)]
     assert 'id="audit-log"' not in status
 
 

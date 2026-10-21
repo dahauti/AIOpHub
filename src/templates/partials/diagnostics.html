@@ -1,0 +1,30 @@
+{% from "partials/macros.html" import icon, link_pill, link_title, local_time %}
+{#- Diagnostic strip: values come from settings and stored run state; each card's health is
+    its own service's last HTTP outcome (no live probes). Re-rendered on `sync-state-changed`. -#}
+{% set last = task.last_run if task is not none else none %}
+<section id="overview" aria-label="Integration diagnostics" hx-get="/partials/diagnostics" hx-trigger="sync-state-changed from:body" hx-swap="morph:outerHTML" class="diag-strip">
+  <div id="diag-frontu" class="card">
+    <div class="diag-head">
+      <h2 class="flex items-center gap-2 label">{{ icon("cloud") }}Frontu API v2</h2>
+      <span id="diag-frontu-health">{{ link_pill(links.frontu) }}</span>
+    </div>
+    <dl class="diag-grid">
+      <div><dt class="diag-key">Base URL</dt><dd class="diag-value mono-id" title="{{ task.frontu_base_url if task else '' }}">{{ task.frontu_base_url if task and task.frontu_base_url else "—" }}</dd></div>
+      <div><dt class="diag-key">Active watermark</dt><dd id="diag-frontu-version" class="diag-value mono-id">{{ task.frontu_version if task and task.frontu_version is not none else "—" }}</dd></div>
+      <div><dt class="diag-key">Last task run</dt><dd class="diag-value mono-id">{{ "%.1f" | format(last.elapsed_seconds) ~ "s" if last else "—" }}</dd></div>
+      <div><dt class="diag-key">Last call</dt><dd class="diag-value text-sm text-slate-300" title="{{ link_title(links.frontu) }}">{{ link_title(links.frontu) }}</dd></div>
+    </dl>
+  </div>
+  <div id="diag-bc" class="card">
+    <div class="diag-head">
+      <h2 class="flex items-center gap-2 label">{{ icon("database") }}BC OData v4</h2>
+      <span id="diag-bc-health">{{ link_pill(links.bc) }}</span>
+    </div>
+    <dl class="diag-grid">
+      <div><dt class="diag-key">Active company</dt><dd id="diag-bc-company" class="diag-value mono-id">{{ task.bc_company if task and task.bc_company else "—" }}</dd></div>
+      <div><dt class="diag-key">Endpoint profile</dt><dd class="diag-value mono-id">{{ task.bc_profile | upper if task and task.bc_profile else "—" }}</dd></div>
+      <div><dt class="diag-key">BC task watermark</dt><dd class="diag-value">{{ local_time(task.bc_watermark if task else none) }}</dd></div>
+      <div><dt class="diag-key">Last call</dt><dd class="diag-value text-sm text-slate-300" title="{{ link_title(links.bc) }}">{{ link_title(links.bc) }}</dd></div>
+    </dl>
+  </div>
+</section>

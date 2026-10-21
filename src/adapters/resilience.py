@@ -16,6 +16,8 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from src.adapters.link_health import LINK_HEALTH
+
 logger = logging.getLogger(__name__)
 
 RETRYABLE_STATUS_CODES = frozenset({429, 502, 503, 504})
@@ -108,11 +110,17 @@ async def send_with_retry(
                     raise _RetryableStatusError(response)
     except _RetryableStatusError as exc:
         detail = f"gave up after {MAX_ATTEMPTS} attempts"
+        LINK_HEALTH.record(service, exc.status_code, detail)
         raise ExternalServiceError(service, exc.status_code, detail) from exc
     except httpx.TransportError as exc:
-        raise ExternalServiceError(service, None, f"{type(exc).__name__}: {exc}") from exc
+        detail = f"{type(exc).__name__}: {exc}"
+        LINK_HEALTH.record(service, None, detail)
+        raise ExternalServiceError(service, None, detail) from exc
     if response.is_error:
-        raise ExternalServiceError(service, response.status_code, _error_detail(service, response))
+        detail = _error_detail(service, response)
+        LINK_HEALTH.record(service, response.status_code, detail)
+        raise ExternalServiceError(service, response.status_code, detail)
+    LINK_HEALTH.record(service, response.status_code)
     return response
 
 

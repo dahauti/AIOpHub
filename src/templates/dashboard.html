@@ -1,31 +1,41 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import spinner %}
+{% from "partials/macros.html" import icon, spinner %}
 {% block content %}
-<header class="mb-4 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <p class="label">AIOpHub Sync Engine</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">BC &rarr; Frontu vehicle sync</h1>
+{% include "partials/header.html" %}
+{% include "partials/diagnostics.html" %}
+<section id="canary-bar" aria-labelledby="canary-heading" class="card">
+  <div class="diag-head">
+    <h2 id="canary-heading" class="flex items-center gap-2 label">{{ icon("zap") }}Single-record canary</h2>
+    <p class="text-xs text-slate-500">Service Order No or Frontu task GUID &middot; vehicle SerialNo</p>
   </div>
-</header>
-<section id="batch-sync" aria-labelledby="batch-heading" class="mb-4">
-  {% with in_page = true %}{% include "partials/status.html" %}{% endwith %}
+  <form hx-post="/api/canary" hx-target="#single-debug" hx-swap="morph" hx-disabled-elt="find button" class="canary-bar mt-3">
+    <select name="target_module" aria-label="Target module" class="field canary-select">
+      <option value="order" selected>Service Order / Task</option>
+      <option value="vehicle">Vehicle</option>
+    </select>
+    <input type="text" name="record_id" placeholder="SOxxxxx, task GUID or SerialNo" aria-label="Record ID" required maxlength="128" class="field canary-input font-mono">
+    <label class="canary-check"><input type="checkbox" name="force_live" value="true" onchange="this.checked ? this.form.setAttribute('hx-confirm', 'Force LIVE: this single record is written to BC and Frontu even in DRY RUN. Continue?') : this.form.removeAttribute('hx-confirm')">Force live (bypass dry-run)</label>
+    <button type="submit" class="btn-crimson">{{ spinner() }}{{ icon("zap") }}Vykdyti Testinį Šūvį</button>
+  </form>
+  <div id="single-debug"></div>
 </section>
-<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-  <section id="schedule" aria-labelledby="schedule-heading">
-    {% include "partials/schedule_card.html" %}
-  </section>
-  <section id="single-vehicle-card" aria-labelledby="single-heading" class="card">
-    <h2 id="single-heading" class="label">Single-vehicle canary</h2>
-    <form hx-post="/api/sync/vehicle" hx-target="#single-debug" hx-swap="morph" hx-disabled-elt="find button" class="mt-3 flex flex-wrap items-center gap-2">
-      <input type="text" name="serial_no" placeholder="SerialNo" aria-label="Vehicle SerialNo" required maxlength="128" class="field w-64 font-mono">
-      <input type="hidden" name="force_live" value="true">
-      <button type="submit" class="btn-ghost">{{ spinner() }}Sync Vehicle (Live Single)</button>
-    </form>
-    <div id="single-debug"></div>
-  </section>
-</div>
+<section id="streams" aria-labelledby="streams-heading" class="card matrix">
+  <h2 id="streams-heading" class="sr-only">Modular streams execution matrix</h2>
+  <div class="matrix-head label" aria-hidden="true">
+    <span>Stream</span><span>Status</span><span>Execution mode</span><span>Watermark</span><span class="stream-actions">Actions</span>
+  </div>
+  {% if task is not none %}
+  {% include "partials/task_card.html" %}
+  {% else %}
+  <div id="task-card" class="stream"><div class="stream-row"><p class="stream-name">Operative Tasks (BC &#8644; Frontu)</p><p class="stream-sub">Not wired in this app instance</p></div></div>
+  {% endif %}
+  {% include "partials/vehicle_card.html" %}
+</section>
+<section id="schedule" aria-labelledby="schedule-heading" class="mt-4">
+  {% include "partials/schedule_card.html" %}
+</section>
 <section id="audit-zone" aria-labelledby="audit-heading" class="mt-8">
-  <h2 id="audit-heading" class="label mb-2">Recent sync activity</h2>
+  <h2 id="audit-heading" class="flex items-center gap-2 label mb-2">{{ icon("activity") }}Unified Audit &amp; Diagnostic Log</h2>
   <div id="audit-log-container" class="max-h-[380px] overflow-y-auto border border-slate-800 rounded-xl bg-slate-900/40">
     {% include "partials/audit_table.html" %}
   </div>

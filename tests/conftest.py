@@ -35,3 +35,13 @@ def temp_database(
     yield db_path
     get_engine.cache_clear()
     get_sessionmaker.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_link_health() -> Iterator[None]:
+    """The link-health registry is process-wide; keep each test's HTTP outcomes isolated."""
+    from src.adapters.link_health import LINK_HEALTH
+
+    LINK_HEALTH.clear()
+    yield
+    LINK_HEALTH.clear()

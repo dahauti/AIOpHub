@@ -14,16 +14,19 @@ STALE_RUN_AFTER = timedelta(hours=2)
 
 
 def claim_state(
-    module: str, now: datetime, initial_cursor: datetime
+    module: str,
+    now: datetime,
+    initial_cursor: datetime,
+    stale_after: timedelta = STALE_RUN_AFTER,
 ) -> ReturningInsert[tuple[str]]:
-    """Atomically mark the module RUNNING unless a fresh run already holds it."""
+    """Atomically mark the module RUNNING unless a run younger than `stale_after` holds it."""
     statement = insert(SyncState).values(
         module_name=module, cursor_timestamp=initial_cursor, status=RUNNING, updated_at=now
     )
     return statement.on_conflict_do_update(
         index_elements=[SyncState.module_name],
         set_={"status": RUNNING, "updated_at": now},
-        where=or_(SyncState.status != RUNNING, SyncState.updated_at < now - STALE_RUN_AFTER),
+        where=or_(SyncState.status != RUNNING, SyncState.updated_at < now - stale_after),
     ).returning(SyncState.module_name)
 
 

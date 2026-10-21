@@ -28,15 +28,28 @@ async def ports() -> AsyncIterator[Ports]:
 
 
 @pytest.mark.asyncio
-async def test_dashboard_form_posts_serial_with_explicit_force_live(ports: Ports) -> None:
+async def test_unified_canary_bar_offers_vehicle_with_dry_run_bypass(ports: Ports) -> None:
     _, client = ports
 
     html = (await client.get("/")).text
 
-    assert 'hx-post="/api/sync/vehicle"' in html
-    assert 'name="serial_no"' in html and 'maxlength="128"' in html
-    assert '<input type="hidden" name="force_live" value="true">' in html
-    assert "Sync Vehicle (Live Single)" in html
+    assert 'hx-post="/api/canary" hx-target="#single-debug"' in html
+    assert '<option value="vehicle">Vehicle</option>' in html
+    assert 'name="record_id"' in html and 'maxlength="128"' in html
+    assert '<input type="checkbox" name="force_live" value="true" onchange=' in html
+    assert "Force live (bypass dry-run)" in html and "setAttribute('hx-confirm'" in html
+    assert "Vykdyti Testinį Šūvį" in html
+
+
+@pytest.mark.asyncio
+async def test_canary_vehicle_target_reuses_single_vehicle_sync(ports: Ports) -> None:
+    single, client = ports
+    form = {"target_module": "vehicle", "record_id": " SN-9 ", "force_live": "true"}
+
+    html = (await client.post("/api/canary", data=form)).text
+
+    assert single.calls == [("SN-9", True)]
+    assert html.lstrip().startswith('<div id="single-debug"')
 
 
 @pytest.mark.asyncio

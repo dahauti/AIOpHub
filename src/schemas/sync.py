@@ -22,6 +22,8 @@ AuditAction = Literal[
     "DRY_RUN_SINGLE_UPSERT",
     "DRY_RUN_SINGLE_ARCHIVE",
     "ABORTED",
+    "TASK_RUN",
+    "DRY_RUN_TASK",
 ]
 SingleSyncOutcome = Literal["SYNCED", "DRY_RUN", "NOT_FOUND", "FAILED", "BUSY"]
 ReleaseStatus = Literal["IDLE", "FAILED"]

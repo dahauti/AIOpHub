@@ -64,7 +64,8 @@ def test_successful_run_prints_one_summary_line(
 
     assert cli.main(["sync", "--batch"]) == 0
 
-    [line] = capsys.readouterr().out.splitlines()
+    banner, line = capsys.readouterr().out.splitlines()
+    assert banner.startswith("[AIOpHUB] Env: DEV | Company: ")
     assert line.startswith("sync --batch [DRY RUN]: ")
     for fragment in ("processed=3", "planned=0", "skipped=2", "errors=1", "elapsed="):
         assert fragment in line
@@ -80,7 +81,7 @@ def test_locked_module_logs_warning_and_exits_zero(
 
     assert cli.main(["sync", "--batch"]) == 0
 
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.splitlines()[1:] == []
     assert any("another run" in r.getMessage() for r in caplog.records)
 
 

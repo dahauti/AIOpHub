@@ -5,3 +5,31 @@
 {% macro spinner() -%}
 <svg class="htmx-indicator h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path></svg>
 {%- endmacro %}
+
+{#- Inline Lucide icons (ISC licence): server-rendered SVG, so morph swaps never re-render them. -#}
+{% macro icon(name) -%}
+{%- set paths = {
+  "server": '<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+  "database": '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  "cloud": '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  "zap": '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  "activity": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  "play": '<polygon points="6 3 20 12 6 21 6 3"/>',
+} -%}
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ paths[name] | safe }}</svg>
+{%- endmacro %}
+
+{#- Per-link health (LinkStatus): each indicator reflects only its own service's last call. -#}
+{% macro link_dot(link) -%}
+<span class="dot {{ {'ok': 'dot-ok', 'failing': 'dot-failing', 'unknown': 'dot-unknown'}[link.health] }}"></span>
+{%- endmacro %}
+
+{% macro link_pill(link) -%}
+<span class="pill pill-wide {{ {'ok': 'pill-ok', 'failing': 'pill-failed', 'unknown': 'pill-idle'}[link.health] }}">{{ {'ok': 'OPERATIONAL', 'failing': 'FAILING', 'unknown': 'UNKNOWN'}[link.health] }}</span>
+{%- endmacro %}
+
+{% macro link_title(link) -%}
+{%- if link.outcome is none -%}No calls recorded yet
+{%- else -%}{{ "HTTP " ~ link.outcome.status_code if link.outcome.status_code is not none else "No HTTP response" }} &middot; {{ link.outcome.checked_at | utc }}{% if link.outcome.detail %} &middot; {{ link.outcome.detail }}{% endif %}
+{%- endif -%}
+{%- endmacro %}

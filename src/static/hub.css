@@ -1,0 +1,100 @@
+/* Alwark Operation Hub design layer, loaded after app.css. Precompiled on purpose: no runtime
+   CSS compiler observes the DOM during HTMX morph swaps. Every dynamic pill, dot and button
+   has a fixed footprint so status text changes never reflow the layout. */
+
+:root { --hub-bg: #0a0e17; --hub-surface: #111827; --hub-raised: #1e293b; --hub-line: #1e293b;
+  --hub-crimson: #991b1b; --hub-crimson-2: #b91c1c; --hub-crimson-hover: #dc2626; }
+.bg-\[\#0a0e17\] { background-color: #0a0e17; }
+body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+.mono-id { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.8125rem; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+.icon { display: inline-block; width: 1rem; height: 1rem; flex-shrink: 0; }
+
+/* Surfaces and accent */
+.card { background-color: var(--hub-surface); border-color: var(--hub-line); }
+.btn-primary { background-color: var(--hub-crimson-2); color: #fff; }
+.btn-primary:hover { background-color: var(--hub-crimson-hover); }
+.btn-crimson { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.25rem; min-width: 12.5rem; padding: 0 1rem; border-radius: 0.5rem; background-color: var(--hub-crimson); color: #fff; font-size: 0.875rem; font-weight: 600; transition: background-color 150ms, opacity 150ms; }
+.btn-crimson:hover { background-color: var(--hub-crimson-hover); }
+.btn-crimson:disabled { cursor: not-allowed; opacity: 0.4; }
+.btn-fixed { min-width: 7.5rem; justify-content: center; }
+
+/* Global navigation */
+.hub-nav { position: sticky; top: 0; z-index: 10; margin-bottom: 1.5rem; border: 1px solid var(--hub-line); border-radius: 0.75rem; background-color: rgb(10 14 23 / 0.94); backdrop-filter: blur(6px); }
+.hub-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; }
+.hub-brand { display: flex; align-items: center; gap: 0.75rem; min-width: 14rem; }
+.hub-mark { display: inline-flex; align-items: center; height: 1.75rem; padding: 0 0.5rem; border-radius: 0.25rem; background-color: var(--hub-crimson-2); color: #fff; font-weight: 800; letter-spacing: 0.12em; font-size: 0.8125rem; }
+.hub-title { font-size: 0.9375rem; font-weight: 600; color: #f8fafc; line-height: 1.1; }
+.hub-subtitle { font-size: 0.625rem; letter-spacing: 0.18em; color: #64748b; font-weight: 600; }
+.hub-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.hub-tab { display: inline-flex; align-items: center; height: 2rem; padding: 0 0.75rem; border-radius: 0.375rem; font-size: 0.8125rem; font-weight: 500; color: #64748b; cursor: not-allowed; }
+.hub-tab-active { color: #fff; cursor: default; background-color: rgb(153 27 27 / 0.25); box-shadow: inset 0 -2px 0 var(--hub-crimson-hover); }
+.hub-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.875rem; }
+.hub-indicator { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 7.25rem; font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
+.hub-subnav { display: flex; gap: 0.25rem; padding: 0 1rem; border-top: 1px solid var(--hub-line); overflow-x: auto; }
+.hub-subnav-link { display: inline-flex; align-items: center; height: 2.5rem; padding: 0 0.875rem; font-size: 0.8125rem; color: #94a3b8; border-bottom: 2px solid transparent; white-space: nowrap; text-decoration: none; }
+.hub-subnav-link:hover { color: #e2e8f0; }
+.hub-subnav-active { color: #fff; border-bottom-color: var(--hub-crimson-hover); }
+
+/* Glowing status dots */
+.dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 999px; flex-shrink: 0; }
+.dot-ok { background-color: #10b981; box-shadow: 0 0 8px rgb(16 185 129 / 0.8); }
+.dot-failing { background-color: #ef4444; box-shadow: 0 0 8px rgb(239 68 68 / 0.85); }
+.dot-unknown { background-color: #475569; }
+
+/* Pills: fixed footprint, glowing leading dot */
+.pill { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; box-sizing: border-box; height: 1.5rem; min-width: 4.5rem; padding: 0 0.625rem; border-radius: 999px; font-size: 0.75rem; line-height: 1; font-weight: 600; letter-spacing: 0.05em; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: inset 0 0 0 1px currentColor; }
+.pill-wide { min-width: 7.5rem; }
+.pill-idle, .pill-ok, .pill-running, .pill-failed, .pill-stale { justify-content: flex-start; }
+.pill-idle::before, .pill-ok::before, .pill-running::before, .pill-failed::before, .pill-stale::before { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 999px; background-color: currentColor; }
+.pill-idle { color: #94a3b8; background-color: rgb(148 163 184 / 0.1); }
+.pill-ok { color: #6ee7b7; background-color: rgb(16 185 129 / 0.12); }
+.pill-ok::before { box-shadow: 0 0 6px currentColor; }
+.pill-running { color: #a5b4fc; background-color: rgb(99 102 241 / 0.15); }
+.pill-running::before { box-shadow: 0 0 8px currentColor; animation: hub-pulse 1.6s ease-in-out infinite; }
+.pill-failed { color: #fda4af; background-color: rgb(244 63 94 / 0.15); }
+.pill-failed::before { box-shadow: 0 0 8px currentColor; }
+.pill-stale { color: #fcd34d; background-color: rgb(245 158 11 / 0.15); }
+.env-dev { color: #7dd3fc; background-color: rgb(14 165 233 / 0.15); }
+.env-prod { color: #fecaca; background-color: rgb(185 28 28 / 0.9); box-shadow: inset 0 0 0 1px #f87171; }
+@keyframes hub-pulse { 50% { opacity: 0.35; } }
+
+/* Diagnostic strip */
+.diag-strip { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.diag-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 1.5rem; }
+.diag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1.25rem; margin-top: 0.875rem; }
+.diag-key { font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+.diag-value { margin-top: 0.125rem; min-height: 1.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Unified canary bar */
+.canary-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem; }
+.canary-select { height: 2.25rem; min-width: 11rem; }
+.canary-input { height: 2.25rem; flex: 1 1 16rem; min-width: 12rem; }
+.canary-check { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 11.5rem; font-size: 0.8125rem; color: #cbd5e1; }
+.canary-check input { accent-color: #dc2626; width: 1rem; height: 1rem; }
+
+/* Streams execution matrix: every row shares one column template */
+.matrix { margin-top: 1rem; overflow: hidden; padding: 0; }
+.matrix-head, .stream-row { display: grid; grid-template-columns: minmax(12rem, 1.4fr) 9rem 11rem minmax(12rem, 1.6fr) 9.5rem; align-items: center; gap: 1rem; padding: 0.75rem 1rem; }
+.matrix-head { border-bottom: 1px solid var(--hub-line); background-color: rgb(30 41 59 / 0.35); }
+.stream { border-bottom: 1px solid var(--hub-line); }
+.stream:last-child { border-bottom: 0; }
+.stream-name { font-weight: 600; color: #f1f5f9; font-size: 0.9375rem; }
+.stream-sub { font-size: 0.75rem; color: #64748b; }
+.stream-actions { display: flex; justify-content: flex-end; }
+.stream-detail { padding: 0 1rem 1rem; }
+.stream-detail-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 0.75rem; }
+
+/* Audit scope pills */
+.audit-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--hub-line); }
+.filter-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 5.5rem; height: 1.75rem; padding: 0 0.75rem; border-radius: 999px; border: 1px solid #334155; font-size: 0.75rem; font-weight: 500; color: #94a3b8; background-color: rgb(30 41 59 / 0.4); transition: background-color 150ms, color 150ms; }
+.filter-pill:hover { color: #e2e8f0; background-color: rgb(51 65 85 / 0.6); }
+.filter-pill-active { color: #fff; border-color: var(--hub-crimson-hover); background-color: rgb(153 27 27 / 0.35); }
+
+@media (min-width: 768px) {
+  .diag-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stream-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1023px) {
+  .matrix-head { display: none; }
+  .stream-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

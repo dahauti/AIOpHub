@@ -26,7 +26,8 @@ FRONTU_FIELDS = ("frontu_api_key", "frontu_subdomain", "internal_company_client_
 def test_settings_instantiate_from_env_example() -> None:
     settings = get_settings()
 
-    assert settings.database_url == "sqlite+aiosqlite:///./data/sync.db"
+    assert settings.database_url is None
+    assert settings.active_database_url == "sqlite+aiosqlite:///./data/aio_dev.db"
     assert settings.frontu_api_key.get_secret_value() == "your-frontu-api-token"
     assert settings.log_level == "INFO"
     assert settings.app_port == 8000
@@ -140,8 +141,8 @@ def test_safety_flags_parse_from_env(
     assert settings.sync_dry_run is (dry_run == "true")
 
 
-def test_database_url_defaults_to_embedded_sqlite() -> None:
-    assert Settings.model_fields["database_url"].default == "sqlite+aiosqlite:///./data/sync.db"
+def test_database_url_defaults_to_environment_routing() -> None:
+    assert Settings.model_fields["database_url"].default is None
 
 
 @pytest.mark.parametrize(

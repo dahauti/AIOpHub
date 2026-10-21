@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"409|422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
-  <title>{% block title %}AIOpHub Sync Engine{% endblock %}</title>
+  <title>{% block title %}Alwark Operation Hub &middot; Integration Engine{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/hub.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script src="https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js"></script>
   <script>
@@ -65,7 +66,7 @@
     })();
   </script>
 </head>
-<body hx-ext="morph" class="min-h-screen bg-[#0B0F17] font-sans text-slate-200 antialiased">
+<body hx-ext="morph" class="min-h-screen bg-[#0a0e17] font-sans text-slate-200 antialiased">
   <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
     {% block content %}{% endblock %}
   </main>

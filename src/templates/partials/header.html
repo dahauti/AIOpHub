@@ -1,0 +1,39 @@
+{% from "partials/macros.html" import icon, link_dot, link_title %}
+{#- Global navigation. Each link dot follows only its own service's last HTTP outcome; every
+    badge has a fixed footprint so the `sync-state-changed` morph never shifts the bar. -#}
+<header id="cockpit-header" hx-get="/partials/header" hx-trigger="sync-state-changed from:body" hx-swap="morph:outerHTML" class="hub-nav">
+  <div class="hub-bar">
+    <div class="hub-brand">
+      <span class="hub-mark">ALWARK</span>
+      <div>
+        <h1 class="hub-title">Operation Hub</h1>
+        <p class="hub-subtitle">INTEGRATION ENGINE</p>
+      </div>
+    </div>
+    <nav aria-label="Modules" class="hub-tabs">
+      {% for module in ["Logistika", "Sandėlis", "Komercija", "Integracijos", "Aftersales", "Finance"] %}
+      {% if module == "Integracijos" %}
+      <span aria-current="page" class="hub-tab hub-tab-active">{{ module }}</span>
+      {% else %}
+      <span aria-disabled="true" title="Available in the Operation Hub portal" class="hub-tab">{{ module }}</span>
+      {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="hub-status">
+      {% if task is not none and task.bc_profile == "onprem" %}
+      <span id="link-gateway" title="{{ link_title(links.gateway) }}" class="hub-indicator">{{ link_dot(links.gateway) }}{{ icon("server") }}On-Prem Gateway</span>
+      {% endif %}
+      <span id="link-bc" title="{{ link_title(links.bc) }}" class="hub-indicator">{{ link_dot(links.bc) }}{{ icon("database") }}BC OData</span>
+      <span id="link-frontu" title="{{ link_title(links.frontu) }}" class="hub-indicator">{{ link_dot(links.frontu) }}{{ icon("cloud") }}Frontu v2</span>
+      {% if app_env %}
+      <span id="env-badge" title="Active environment (APP_ENV)" class="pill {{ 'env-prod' if app_env == 'prod' else 'env-dev' }}">{{ app_env | upper }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <nav aria-label="Sections" class="hub-subnav">
+    <a href="#overview" aria-current="page" class="hub-subnav-link hub-subnav-active">Overview</a>
+    <a href="#task-card" class="hub-subnav-link">Tasks (BC &#8644; Frontu)</a>
+    <a href="#sync-status" class="hub-subnav-link">Vehicles (BC &rarr; Frontu)</a>
+    <a href="#audit-zone" class="hub-subnav-link">Audit Log</a>
+  </nav>
+</header>

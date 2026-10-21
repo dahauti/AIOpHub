@@ -75,7 +75,8 @@ async def test_dashboard_has_empty_debug_container_outside_polled_status(ports: 
     html = (await client.get("/")).text
 
     assert '<div id="single-debug"></div>' in html
-    assert html.index('id="sync-status"') < html.index('id="single-debug"')
+    assert html.index('id="canary-bar"') < html.index('id="single-debug"')
+    assert html.index('id="single-debug"') < html.index('id="sync-status"')
     assert 'id="single-debug"' not in (await client.get("/partials/status")).text
 
 

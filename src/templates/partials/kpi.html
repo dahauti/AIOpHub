@@ -1,59 +1,68 @@
-{% from "partials/macros.html" import local_time, spinner %}
+{% from "partials/macros.html" import icon, local_time, spinner %}
+{#- Master Vehicles row of the streams matrix (+ detail strip); polls while RUNNING. -#}
 {% set running = snapshot.status == "RUNNING" %}
-<div id="kpi-metrics" {% if poll %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="morph" {% endif %}class="space-y-4">
+{% set pill = {"RUNNING": "pill-running", "FAILED": "pill-failed"}.get(snapshot.status, "pill-idle") %}
+<div id="kpi-metrics" {% if poll %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="morph" {% endif %}class="stream">
   <input type="hidden" name="current_last_sync" value="{{ snapshot.updated_at.isoformat() if snapshot.updated_at else '' }}">
-  <div class="flex items-center justify-between gap-4">
-    <h2 id="batch-heading" class="label">Batch sync</h2>
-    {% if running %}
-    <button hx-post="/partials/sync/abort" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" hx-confirm="Abort the running sync?" class="btn-danger">{{ spinner() }}Abort Sync</button>
-    {% else %}
-    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" class="btn-primary">{{ spinner() }}Sync now</button>
-    {% endif %}
+  <div class="stream-row">
+    <div>
+      <h2 id="batch-heading" class="stream-name">Master Vehicles (BC &rarr; Frontu)</h2>
+      <p class="stream-sub">VehicleCard &middot; workspaces</p>
+    </div>
+    <div><span id="vehicle-status" class="pill pill-wide {{ pill }}">{{ snapshot.status }}</span></div>
+    <div>
+      <button hx-post="/partials/config/toggle-dry-run" hx-target="#sync-status" hx-swap="morph:outerHTML"{% if dry_run %} hx-confirm="Switch to LIVE? The next sync writes to Frontu."{% endif %} aria-pressed="{{ 'false' if dry_run else 'true' }}" title="Toggle sync mode" class="toggle btn-fixed {{ 'toggle-amber' if dry_run else 'toggle-emerald' }}"{% if running %} disabled{% endif %}>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</button>
+    </div>
+    <div>
+      <p class="stream-sub">Cursor</p>
+      <p class="mono-id">{{ local_time(snapshot.cursor_timestamp) }}</p>
+    </div>
+    <div class="stream-actions">
+      {% if running %}
+      <button hx-post="/partials/sync/abort" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" hx-confirm="Abort the running sync?" class="btn-danger btn-fixed">{{ spinner() }}Abort Sync</button>
+      {% else %}
+      <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" class="btn-primary btn-fixed">{{ spinner() }}{{ icon("play") }}Sync now</button>
+      {% endif %}
+    </div>
   </div>
-  <div id="status-banner" class="min-h-[2.5rem]">
-    {% if banner %}
-    <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ banner }}</strong></div>
-    {% endif %}
-  </div>
-  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-    <div class="card min-h-[96px]">
-      <p class="label">Mode</p>
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <button hx-post="/partials/config/toggle-dry-run" hx-target="#sync-status" hx-swap="morph:outerHTML"{% if dry_run %} hx-confirm="Switch to LIVE? The next sync writes to Frontu."{% endif %} aria-pressed="{{ 'false' if dry_run else 'true' }}" title="Toggle sync mode" class="toggle {{ 'toggle-amber' if dry_run else 'toggle-emerald' }}"{% if running %} disabled{% endif %}>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</button>
-        <button hx-post="/partials/config/toggle-auto-sync" hx-target="#sync-status" hx-swap="morph:outerHTML" aria-pressed="{{ 'true' if auto_sync else 'false' }}" title="Toggle scheduled sync" class="toggle {{ 'toggle-emerald' if auto_sync else 'toggle-off' }}">Auto-sync {% if auto_sync %}ON{% else %}OFF{% endif %}</button>
+  <div class="stream-detail space-y-3">
+    <div id="status-banner" class="min-h-[2.5rem]">
+      {% if banner %}
+      <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ banner }}</strong></div>
+      {% endif %}
+    </div>
+    <div class="stream-detail-grid">
+      <div class="card min-h-[96px]">
+        <p class="label">Schedule</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <button hx-post="/partials/config/toggle-auto-sync" hx-target="#sync-status" hx-swap="morph:outerHTML" aria-pressed="{{ 'true' if auto_sync else 'false' }}" title="Toggle scheduled sync" class="toggle btn-fixed {{ 'toggle-emerald' if auto_sync else 'toggle-off' }}">Auto-sync {% if auto_sync %}ON{% else %}OFF{% endif %}</button>
+        </div>
+      </div>
+      <div class="card min-h-[96px]">
+        <p class="label">Last sync</p>
+        <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.updated_at) }}</p>
+        <p id="next-sync" class="mt-2 text-xs text-slate-500">Next sync:
+          {% if not auto_sync or next_sync is none %}<span class="font-medium">Paused</span>{% else %}<span class="font-mono tabular-nums text-slate-300">{{ local_time(next_sync) }}</span>{% endif %}
+        </p>
+      </div>
+      <div class="card min-h-[96px]">
+        <p class="label">Cursor controls</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button hx-post="/partials/cursor/reset-now" hx-target="#sync-status" hx-swap="morph:outerHTML" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Reset to Now</button>
+          <form hx-post="/partials/cursor/set" hx-target="#sync-status" hx-swap="morph" hx-disabled-elt="find button" class="flex items-center gap-1">
+            <input id="cursor-input" type="datetime-local" name="cursor_timestamp" step="1" required style="color-scheme: dark;" onclick="this.showPicker()" aria-label="New cursor (local time)" class="field btn-mini font-mono"{% if running %} disabled{% endif %}>
+            <button type="submit" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Set</button>
+          </form>
+        </div>
       </div>
     </div>
-    <div class="card min-h-[96px]">
-      <p class="label">State</p>
-      <p class="mt-2 flex items-center gap-2 text-lg font-semibold text-slate-100">
-        <span class="h-2 w-2 shrink-0 rounded-full {{ 'animate-pulse bg-indigo-400' if running else 'bg-slate-500' }}"></span>{{ snapshot.status }}
-      </p>
+    <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <button type="button" hx-get="/partials/audit?action=PROCESSED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's processed entries" class="card kpi-action min-h-[96px]"><span class="label block">Processed today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</span></button>
+      <button type="button" hx-get="/partials/audit?action=SKIPPED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's skipped entries" class="card kpi-action min-h-[96px]"><span class="label block">Skipped today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</span></button>
+      <button type="button" hx-get="/partials/audit?action=FAILED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
+      {% if dry_run or snapshot.planned %}
+      <div class="card min-h-[96px]"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold tabular-nums text-amber-200">{{ snapshot.planned }}</p></div>
+      {% endif %}
     </div>
-    <div class="card min-h-[96px]">
-      <p class="label">Last sync</p>
-      <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.updated_at) }}</p>
-      <p id="next-sync" class="mt-2 text-xs text-slate-500">Next sync:
-        {% if not auto_sync or next_sync is none %}<span class="font-medium">Paused</span>{% else %}<span class="font-mono tabular-nums text-slate-300">{{ local_time(next_sync) }}</span>{% endif %}
-      </p>
-    </div>
-    <div class="card min-h-[136px]">
-      <p class="label">Cursor</p>
-      <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(snapshot.cursor_timestamp) }}</p>
-      <div class="mt-3 flex flex-wrap items-center gap-2">
-        <button hx-post="/partials/cursor/reset-now" hx-target="#sync-status" hx-swap="morph:outerHTML" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Reset to Now</button>
-        <form hx-post="/partials/cursor/set" hx-target="#sync-status" hx-swap="morph" hx-disabled-elt="find button" class="flex items-center gap-1">
-          <input id="cursor-input" type="datetime-local" name="cursor_timestamp" step="1" required style="color-scheme: dark;" onclick="this.showPicker()" aria-label="New cursor (local time)" class="field btn-mini font-mono"{% if running %} disabled{% endif %}>
-          <button type="submit" class="btn-ghost btn-mini"{% if running %} disabled{% endif %}>{{ spinner() }}Set</button>
-        </form>
-      </div>
-    </div>
-  </div>
-  <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <button type="button" hx-get="/partials/audit?action=PROCESSED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's processed entries" class="card kpi-action min-h-[96px]"><span class="label block">Processed today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.processed }}</span></button>
-    <button type="button" hx-get="/partials/audit?action=SKIPPED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's skipped entries" class="card kpi-action min-h-[96px]"><span class="label block">Skipped today</span><span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-50">{{ snapshot.skipped }}</span></button>
-    <button type="button" hx-get="/partials/audit?action=FAILED&amp;range=today" hx-target="#audit-log-container" hx-swap="morph:innerHTML show:#audit-zone:top" title="Show today's failed entries" class="card kpi-action min-h-[96px]"><span class="label block">Errors today</span><span class="mt-2 block text-2xl font-semibold tabular-nums {{ 'text-rose-300' if snapshot.errors else 'text-slate-50' }}">{{ snapshot.errors }}</span></button>
-    {% if dry_run or snapshot.planned %}
-    <div class="card min-h-[96px]"><p class="label">Planned (dry run)</p><p class="mt-2 text-2xl font-semibold tabular-nums text-amber-200">{{ snapshot.planned }}</p></div>
-    {% endif %}
   </div>
 </div>

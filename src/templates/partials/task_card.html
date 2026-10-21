@@ -1,0 +1,66 @@
+{% from "partials/macros.html" import icon, local_time, spinner %}
+{#- Operative Tasks row of the streams matrix (+ detail strip). `task` is a TaskCockpit; while
+    running the row polls itself (morph) until idle. Fixed footprints: no reflow on swaps. -#}
+{% set last = task.last_run %}
+{% set canary = task.canary %}
+{% set pill = {"RUNNING": "pill-running", "FAILED": "pill-failed", "STALE": "pill-stale"}.get(task.status, "pill-idle") %}
+<div id="task-card" {% if task_oob %}hx-swap-oob="true" {% endif %}{% if task.running %}hx-get="/partials/tasks/poll" hx-trigger="every 5s" hx-swap="morph:outerHTML" {% endif %}class="stream">
+  <div class="stream-row">
+    <div>
+      <h2 id="task-heading" class="stream-name">Operative Tasks (BC &#8644; Frontu)</h2>
+      <p class="stream-sub">ServiceOrders &middot; TG_Lines &middot; tasks</p>
+    </div>
+    <div><span id="task-status" class="pill pill-wide {{ pill }}">{{ task.status }}</span></div>
+    <div>
+      <button hx-post="/partials/tasks/toggle-dry-run" hx-target="#task-card" hx-swap="morph:outerHTML"{% if task.dry_run %} hx-confirm="Switch task sync to LIVE? The next run writes to BC and Frontu."{% endif %} aria-pressed="{{ 'false' if task.dry_run else 'true' }}" title="Toggle task sync mode" class="toggle btn-fixed {{ 'toggle-amber' if task.dry_run else 'toggle-emerald' }}"{% if task.running %} disabled{% endif %}>{% if task.dry_run %}DRY RUN{% else %}LIVE{% endif %}</button>
+    </div>
+    <div>
+      <p class="stream-sub">BC watermark</p>
+      <p class="mono-id">{{ local_time(task.bc_watermark) }}</p>
+    </div>
+    <div class="stream-actions">
+      <button hx-post="/api/tasks/trigger" hx-target="#task-card" hx-swap="morph:outerHTML" hx-disabled-elt="this" class="btn-primary btn-fixed"{% if task.running %} disabled{% endif %}>{{ spinner() }}{{ icon("play") }}Sync Tasks</button>
+    </div>
+  </div>
+  <div class="stream-detail space-y-3">
+    <div id="task-banner" class="min-h-[2.5rem]">
+      {% if task_banner %}
+      <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ task_banner }}</strong></div>
+      {% endif %}
+    </div>
+    <div class="stream-detail-grid">
+      <div id="task-metrics" class="card min-h-[96px]">
+        <p class="label">Processed / Synced / Errors</p>
+        <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-50">
+          {%- if last is none -%}&mdash;{%- else -%}
+          {{ last.processed }} / {{ last.synced }} / <span class="{{ 'text-rose-300' if last.errors else 'text-slate-50' }}">{{ last.errors }}</span>
+          {%- endif -%}
+        </p>
+      </div>
+      <div class="card min-h-[96px]">
+        <p class="label">Last run</p>
+        {% if last is none %}
+        <p class="mt-2 text-sm text-slate-500">No task runs yet.</p>
+        {% else %}
+        <p class="mt-2 font-mono text-sm tabular-nums text-slate-200">{{ local_time(last.finished_at) }}</p>
+        <p class="mt-2 text-xs text-slate-500">{{ "Dry run" if last.dry_run else "Live" }} &middot; <span id="task-elapsed" class="font-mono tabular-nums text-slate-300">{{ "%.1f" | format(last.elapsed_seconds) }}s</span></p>
+        {% endif %}
+      </div>
+      <div id="task-watermarks" class="card min-h-[96px]">
+        <p class="label">Frontu version &middot; last canary</p>
+        <p class="mt-2 mono-id"><span class="font-mono tabular-nums text-slate-300">{{ task.frontu_version if task.frontu_version is not none else "—" }}</span></p>
+        <p id="task-canary-result" class="mt-2 text-xs {{ 'text-rose-300' if canary and canary.state == 'FAILED' else 'text-amber-300' if canary and canary.state == 'BUSY' else 'text-slate-300' }}">
+          {%- if canary -%}
+          {%- set what = ("BC order " if canary.target.kind == "order" else "Frontu task ") ~ canary.target.value -%}
+          {%- if canary.state == "RUNNING" -%}Canary running for {{ what }}&hellip;
+          {%- elif canary.state == "DONE" -%}{{ what }}: {{ canary.summary }}
+          {%- elif canary.state == "BUSY" -%}{{ what }}: skipped, another task run holds the lock
+          {%- else -%}{{ what }}: failed, see the application log
+          {%- endif -%}
+          {%- else -%}No canary run yet.
+          {%- endif -%}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

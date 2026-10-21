@@ -101,3 +101,14 @@ class SyncAuditLog(Base):
     payload: Mapped[dict[str, JsonValue] | None] = mapped_column(JSON)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
+
+
+class LinkHealth(Base):
+    """Latest HTTP outcome per external service, persisted by each run for the dashboard."""
+
+    __tablename__ = "link_health"
+
+    service: Mapped[str] = mapped_column(String(32), primary_key=True)
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    detail: Mapped[str | None] = mapped_column(Text)
+    checked_at: Mapped[datetime] = mapped_column(UtcDateTime())
