@@ -1,0 +1,19 @@
+{% from "partials/macros.html" import local_time %}
+{#- Diagnostic Event Viewer: newest `sync_audit_log` rows (DebugEvent). Each row's drawer holds
+    the stored request payload and what the row kept of the response. -#}
+<div id="debug-console-body" class="gb-console">
+  <div class="gb-console-head label" aria-hidden="true"><span>Timestamp</span><span>Level</span><span>Stream</span><span>Message</span></div>
+  {% for event in debug_events %}
+  <details id="event-{{ event.id }}" class="gb-event gb-level-{{ event.level | lower }}">
+    <summary class="gb-event-row">
+      <span class="mono-id">{{ local_time(event.created_at) }}</span>
+      <span class="gb-level">{{ event.level }}</span>
+      <span class="gb-stream">{{ event.stream }}</span>
+      <span class="gb-message" title="{{ event.message }}">{{ event.message }}</span>
+    </summary>
+    <pre class="gb-json">{{ event.raw_json }}</pre>
+  </details>
+  {% else %}
+  <p class="gb-empty">No diagnostic events recorded yet.</p>
+  {% endfor %}
+</div>

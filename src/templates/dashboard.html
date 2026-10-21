@@ -3,6 +3,7 @@
 {% block content %}
 {% include "partials/header.html" %}
 {% include "partials/diagnostics.html" %}
+{% include "partials/pipeline_schema.html" %}
 <section id="canary-bar" aria-labelledby="canary-heading" class="card">
   <div class="diag-head">
     <h2 id="canary-heading" class="flex items-center gap-2 label">{{ icon("zap") }}Single-record canary</h2>
@@ -38,6 +39,12 @@
   <h2 id="audit-heading" class="flex items-center gap-2 label mb-2">{{ icon("activity") }}Unified Audit &amp; Diagnostic Log</h2>
   <div id="audit-log-container" class="max-h-[380px] overflow-y-auto border border-slate-800 rounded-xl bg-slate-900/40">
     {% include "partials/audit_table.html" %}
+  </div>
+</section>
+<section id="debug-console" aria-labelledby="debug-heading" class="mt-8">
+  <h2 id="debug-heading" class="flex items-center gap-2 label mb-2">{{ icon("activity") }}Diagnostic Event Viewer</h2>
+  <div id="debug-console-container" hx-get="/partials/debug-console" hx-trigger="sync-state-changed from:body" hx-swap="morph:innerHTML" class="gb-console-frame">
+    {% include "partials/debug_console.html" %}
   </div>
 </section>
 <div hx-get="/partials/heartbeat" hx-trigger="every 15s" hx-include="[name='current_last_sync']" hx-swap="none" hidden></div>

@@ -17,6 +17,7 @@ from src.api.audit_handlers import audit_router
 from src.api.canary_handlers import canary_router
 from src.api.cockpit_handlers import cockpit_router
 from src.api.config_handlers import config_router
+from src.api.glass_box_handlers import glass_box_router
 from src.api.routes_ui import router
 from src.api.schedule_handlers import schedule_router
 from src.api.task_handlers import task_router
@@ -27,7 +28,9 @@ from src.pipelines.scheduler import SyncRunner
 from src.pipelines.single_vehicle import SingleVehicleSync
 from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
 from src.repositories.config_repository import SqlConfigStore, runtime_defaults
+from src.repositories.event_repository import AuditEventRepository
 from src.repositories.sync_repository import SqlSyncRepository
+from src.services.debug_console import DebugConsole
 from src.services.link_status import LinkHealthReader
 from src.services.task_control import TaskSyncControl
 
@@ -64,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.sync_control = runner
         app.state.task_control = task_control = TaskSyncControl(settings)
         app.state.link_health = LinkHealthReader(get_sessionmaker())
+        app.state.debug_console = DebugConsole(AuditEventRepository(get_sessionmaker()))
         await task_control.prepare()
         daemon = runner.start_daemon(settings.sync_interval_seconds)  # schedule check tick
         try:
@@ -95,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(task_router)
     app.include_router(cockpit_router)
     app.include_router(canary_router)
+    app.include_router(glass_box_router)
     return app
 
 

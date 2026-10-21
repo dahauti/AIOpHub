@@ -8,6 +8,7 @@ import pytest
 
 from src import cli
 from src.config import Settings, get_settings
+from src.database import get_engine
 from src.domain.bc_models import BCServiceOrderHeader
 from src.domain.canary import CanaryTarget, parse_canary_target
 from src.domain.frontu_models import FrontuTask
@@ -165,6 +166,7 @@ async def test_control_records_canary_outcome(
     assert control.trigger_single(ORDER) is False
     while control.busy:
         await asyncio.sleep(0.01)
+    await get_engine().dispose()  # the canary read its DRY_RUN_TASK rows
 
     canary = control._canary
     assert canary is not None and canary.state == state and canary.summary == text

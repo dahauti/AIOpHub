@@ -32,11 +32,14 @@ Hook = Callable[[], Awaitable[None]]
 class ExternalServiceError(Exception):
     """A third-party call failed permanently: non-retryable status, exhausted retries or I/O."""
 
-    def __init__(self, service: str, status_code: int | None, detail: str) -> None:
+    def __init__(
+        self, service: str, status_code: int | None, detail: str, *, url: str | None = None
+    ) -> None:
         super().__init__(f"{service} request failed (status={status_code}): {detail}")
         self.service = service
         self.status_code = status_code
         self.detail = detail
+        self.url = url
 
 
 class _RetryableStatusError(Exception):
@@ -100,6 +103,7 @@ async def send_with_retry(
         before_sleep=_log_retry(service, request),
         reraise=True,
     )
+    url = str(request.url)
     try:
         async for attempt in retrying:
             with attempt:
@@ -111,15 +115,15 @@ async def send_with_retry(
     except _RetryableStatusError as exc:
         detail = f"gave up after {MAX_ATTEMPTS} attempts"
         LINK_HEALTH.record(service, exc.status_code, detail)
-        raise ExternalServiceError(service, exc.status_code, detail) from exc
+        raise ExternalServiceError(service, exc.status_code, detail, url=url) from exc
     except httpx.TransportError as exc:
         detail = f"{type(exc).__name__}: {exc}"
         LINK_HEALTH.record(service, None, detail)
-        raise ExternalServiceError(service, None, detail) from exc
+        raise ExternalServiceError(service, None, detail, url=url) from exc
     if response.is_error:
         detail = _error_detail(service, response)
         LINK_HEALTH.record(service, response.status_code, detail)
-        raise ExternalServiceError(service, response.status_code, detail)
+        raise ExternalServiceError(service, response.status_code, detail, url=url)
     LINK_HEALTH.record(service, response.status_code)
     return response
 

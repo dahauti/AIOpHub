@@ -8,14 +8,17 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.config import Settings
 from src.database import get_engine, get_sessionmaker
 from src.domain.canary import CanaryTarget
 from src.repositories.config_repository import SqlConfigStore, runtime_defaults
+from src.repositories.event_repository import AuditEvent, AuditEventRepository
 from src.repositories.task_status_repository import TaskStatusRepository
 from src.schemas.sync import RUNNING, RuntimeConfig
 from src.services.cockpit_models import CanaryOutcome, LastRun, TaskCockpit
@@ -74,6 +77,7 @@ class TaskSyncControl:
         sessions = get_sessionmaker()
         self._status = TaskStatusRepository(sessions, LOCK_MODULE)
         self._config = SqlConfigStore(sessions, LOCK_MODULE, runtime_defaults(settings))
+        self._events = AuditEventRepository(sessions)
         self._watermarks = TaskRepository(get_engine(), settings.task_safety_buffer_seconds)
 
     async def prepare(self) -> None:
@@ -143,16 +147,30 @@ class TaskSyncControl:
             logger.exception("UI-triggered task sync failed")
 
     async def _run_single(self, target: CanaryTarget, force_live: bool) -> None:
+        started = utc_now().replace(microsecond=0)  # audit rows are stamped to the second
         try:
             report = await self._single_runner(self._settings, target, force_live=force_live)
-        except Exception:
+        except Exception as exc:
             logger.exception("Task canary for %s failed", target.value)
-            self._canary = CanaryOutcome(target=target, state="FAILED")
+            self._canary = CanaryOutcome.from_error(target, exc)
             return
         if report is None:
             self._canary = CanaryOutcome(target=target, state="BUSY")
         else:
-            self._canary = CanaryOutcome.from_report(target, report)
+            writes = await self._simulated_writes(started) if report.dry_run else []
+            self._canary = CanaryOutcome.from_report(target, report, writes)
+
+    async def _simulated_writes(self, started: datetime) -> list[AuditEvent]:
+        """DRY_RUN_TASK rows written since the canary started, for display only.
+
+        The window starts at the start second (audit rows are stamped to the second) and is
+        read after the lock is released, so rows of an adjacent task run may be included.
+        """
+        try:
+            return await self._events.since(started, "DRY_RUN_TASK")
+        except SQLAlchemyError:
+            logger.warning("Canary step detail unavailable: audit log unreadable", exc_info=True)
+            return []
 
     async def _last_run(self) -> LastRun | None:
         entry = await self._status.latest_run()

@@ -1,0 +1,23 @@
+{#- Step-by-step canary telemetry (CanaryOutcome). Polls itself while RUNNING; the final render
+    (HTTP 286) shows each step, or the exact failing call when the run raised. -#}
+{% set running = canary is not none and canary.state == "RUNNING" %}
+<div id="canary-steps" {% if running %}hx-get="/partials/canary/steps" hx-trigger="every 2s" hx-swap="morph:outerHTML" {% endif %}class="gb-steps">
+  {% if canary is none %}
+  {% elif running %}
+  <p class="gb-step gb-step-running"><span class="gb-step-no">1</span>Fetching {{ canary.target.value }}&hellip;</p>
+  {% elif canary.state == "BUSY" %}
+  <p class="gb-step gb-step-skipped"><span class="gb-step-no">!</span>Skipped: another task run holds the lock</p>
+  {% else %}
+  {% for step in canary.steps %}
+  <p class="gb-step gb-step-{{ step.state }}"><span class="gb-step-no">{{ step.number }}</span><strong>{{ step.title }}</strong> &middot; {{ step.state | upper }} &middot; {{ step.detail }}</p>
+  {% endfor %}
+  {% if canary.failure is not none %}
+  {% set f = canary.failure %}
+  <div role="alert" class="gb-failure">
+    <p><strong>{{ f.service }}</strong> &middot; {{ "HTTP " ~ f.status_code ~ " " ~ (f.status_code | http_reason) if f.status_code is not none else "No HTTP response" }}</p>
+    <p class="mono-id">{{ f.url or "—" }}</p>
+    <pre class="gb-json">{{ f.body }}</pre>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>

@@ -4,5 +4,7 @@
   {% if single_banner %}
   <p role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ single_banner }}</strong></p>
   {% endif %}
+  {% set canary = task.canary if task is not none else none %}
+  {% include "partials/canary_steps.html" %}
 </div>
 {% if task is not none %}{% include "partials/task_card.html" %}{% endif %}

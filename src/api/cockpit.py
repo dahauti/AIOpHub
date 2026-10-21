@@ -6,7 +6,9 @@ from fastapi import Request
 
 from src.schemas.sync import RUNNING, DashboardSnapshot
 from src.services.cockpit_models import TaskCockpit
+from src.services.debug_console import DebugConsolePort, DebugEvent
 from src.services.link_status import LinkPanel, LinkPanelPort
+from src.services.pipeline_view import pipeline_nodes
 from src.services.task_control import STALE, TaskControlPort
 
 SystemStatus = Literal["OPERATIONAL", "SYNCING", "DEGRADED"]
@@ -35,12 +37,20 @@ def task_control(request: Request) -> TaskControlPort | None:
     return control if isinstance(control, TaskControlPort) else None
 
 
+async def debug_events(request: Request) -> list[DebugEvent]:
+    """Glass Box console rows; empty when no console is wired."""
+    console = getattr(request.app.state, "debug_console", None)
+    return await console.events() if isinstance(console, DebugConsolePort) else []
+
+
 async def cockpit_context(request: Request, snapshot: DashboardSnapshot) -> dict[str, object]:
     control = task_control(request)
     task = await control.cockpit() if control is not None else None
+    links = await link_panel(request)
     return {
         "task": task,
         "app_env": task.app_env if task is not None else None,
         "system_status": system_status(snapshot.status, task),
-        "links": await link_panel(request),
+        "links": links,
+        "pipeline": pipeline_nodes(task, links),
     }

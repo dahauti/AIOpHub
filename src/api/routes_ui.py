@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, Response
 
-from src.api.cockpit import cockpit_context
+from src.api.cockpit import cockpit_context, debug_events
 from src.api.cursor_handlers import CURSOR_LOCKED, MAX_CURSOR_INPUT, CursorInputError, parse_cursor
 from src.api.templating import TEMPLATES, format_utc
 from src.pipelines.scheduler import SyncControl
@@ -107,6 +107,7 @@ async def _vehicle_result(
 async def dashboard(request: Request, control: Control) -> HTMLResponse:
     context = await _context(control, None)
     context |= await cockpit_context(request, await control.snapshot())
+    context["debug_events"] = await debug_events(request)
     return TEMPLATES.TemplateResponse(request, "dashboard.html", context)
 
 

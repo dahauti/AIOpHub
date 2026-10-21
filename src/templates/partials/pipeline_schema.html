@@ -1,0 +1,21 @@
+{% from "partials/macros.html" import icon, local_time %}
+{#- 3-node pipeline schema (PipelineNode list). Latency is the last task run's elapsed time per
+    direction; re-rendered on `sync-state-changed` like the diagnostic strip above it. -#}
+{% set pills = {"ok": "pill-ok", "running": "pill-running", "failing": "pill-failed", "unknown": "pill-idle"} %}
+{% set words = {"ok": "OPERATIONAL", "running": "RUNNING", "failing": "FAILING", "unknown": "UNKNOWN"} %}
+<section id="pipeline-schema" aria-label="Integration pipeline" hx-get="/partials/pipeline" hx-trigger="sync-state-changed from:body" hx-swap="morph:outerHTML" class="card gb-pipeline">
+  {% for node in pipeline %}
+  {% if not loop.first %}<div class="gb-arrow" aria-hidden="true">&#10230;</div>{% endif %}
+  <div id="pipeline-{{ node.key }}" class="gb-node gb-node-{{ node.state }}">
+    <div class="diag-head">
+      <h3 class="flex items-center gap-2 label">{{ icon("database" if node.key == "bc" else "server" if node.key == "engine" else "cloud") }}{{ node.title }}</h3>
+      <span class="pill {{ pills[node.state] }}">{{ words[node.state] }}</span>
+    </div>
+    <p class="gb-node-sub mono-id" title="{{ node.subtitle }}">{{ node.subtitle }}</p>
+    <dl class="gb-node-grid">
+      <div><dt class="diag-key">{{ node.watermark_label }}</dt><dd class="diag-value mono-id">{% if node.watermark_at is not none %}{{ local_time(node.watermark_at) }}{% else %}{{ node.watermark_text or "—" }}{% endif %}</dd></div>
+      <div><dt class="diag-key">Latency</dt><dd class="diag-value mono-id">{{ "%.2fs" | format(node.latency_seconds) if node.latency_seconds is not none else "—" }}</dd></div>
+    </dl>
+  </div>
+  {% endfor %}
+</section>
