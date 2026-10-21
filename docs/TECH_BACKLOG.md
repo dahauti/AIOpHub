@@ -18,3 +18,13 @@ Perkelta iš `docs/UX_GUIDELINES.md` 8 sk. („Inžinerinis backlog (ne UX)“).
 - **(a)** Suderinti `src/static/hub.css` tokenų reikšmes su brand (akcentas `#A6192E` vietoje crimson). Laukia brand spalvų patvirtinimo.
 - **(b)** Išversti AIOpHub UI į lietuvių kalbą, `lang="lt"`.
 - **(c)** Įvesti tą patį tokenų sluoksnį (CSS kintamieji) AlwarkOperationHub_Dev.
+
+## Glass Box peržiūros radiniai (2026-10-21)
+
+- **Cockpit be autentifikacijos.** Dashboard'as rodo vidinius URL (pvz., BC serverio vardą), užsakymų numerius ir neapdorotą klaidų tekstą be prisijungimo. Būtina ištaisyti prieš bet kokią prieigą tinkle už localhost ribų.
+- **Ne HTTP klaidų tekstas ekrane.** Nepavykus Canary dėl ne HTTP klaidos, ekrane rodomas pačios klaidos tekstas (gali būti vidinių detalių, pvz., SQL). Pakeisti bendru pranešimu + trace ID; pilnas tekstas tik log'uose.
+- **Canary žingsnių laiko langas.** Langas apvalinamas iki sekundės ir skaitomas po užrakto atleidimo, todėl į žingsnių detalę gali patekti gretimo task paleidimo `DRY_RUN_TASK` įrašai (tik rodymas, rašymas nepaliestas).
+- **Testų spragos:**
+  - `ExternalServiceError.url` užpildymas siuntimo funkcijoje (`send_with_retry`); kitose klaidų vietose URL nenustatomas.
+  - FAILED Canary kelias: kas išsaugoma ekranui, kai `TaskSyncControl` gauna tikrą klaidą.
+  - Dry-run Canary su tikrais audito įrašais: ar žingsniuose atsiranda būtent jo rašymai.
