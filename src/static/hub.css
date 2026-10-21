@@ -3,7 +3,20 @@
    has a fixed footprint so status text changes never reflow the layout. */
 
 :root { --hub-bg: #0a0e17; --hub-surface: #111827; --hub-raised: #1e293b; --hub-line: #1e293b;
-  --hub-crimson: #991b1b; --hub-crimson-2: #b91c1c; --hub-crimson-hover: #dc2626; }
+  --hub-crimson: #991b1b; --hub-crimson-2: #b91c1c; --hub-crimson-hover: #dc2626;
+  --hub-border: #334155; --hub-sunken: rgb(15 23 42 / 0.6); --hub-field: rgb(2 6 23 / 0.6);
+  --hub-text-strong: #fff; --hub-text: #e2e8f0; --hub-text-soft: #cbd5e1; --hub-text-muted: #94a3b8;
+  --hub-text-faint: #64748b; --hub-link: #38bdf8; --hub-link-hover: #7dd3fc;
+  --hub-code-bg: #020617; --hub-code-text: #a5f3fc; --hub-ok-text: #6ee7b7; --hub-warn-text: #fcd34d;
+  --hub-err-text: #fda4af; --hub-err-border: #fb7185; --hub-backdrop: rgb(2 6 23 / 0.7); }
+/* Light theme (ADR 0002): only pages that set data-theme="light" use it. Provisional values until
+   the brand palette is approved (ADR 0001 p. 2); the crimson accent is unchanged. */
+:root[data-theme="light"] { --hub-bg: #f1f5f9; --hub-surface: #fff; --hub-raised: #e2e8f0;
+  --hub-line: #e2e8f0; --hub-border: #cbd5e1; --hub-sunken: #f8fafc; --hub-field: #fff;
+  --hub-text-strong: #0f172a; --hub-text: #1e293b; --hub-text-soft: #334155; --hub-text-muted: #475569;
+  --hub-text-faint: #64748b; --hub-link: #0369a1; --hub-link-hover: #075985;
+  --hub-code-bg: #f8fafc; --hub-code-text: #0e7490; --hub-ok-text: #047857; --hub-warn-text: #b45309;
+  --hub-err-text: #be123c; --hub-err-border: #e11d48; --hub-backdrop: rgb(15 23 42 / 0.4); }
 .bg-\[\#0a0e17\] { background-color: #0a0e17; }
 body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
 .mono-id { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.8125rem; color: #e2e8f0; font-variant-numeric: tabular-nums; }

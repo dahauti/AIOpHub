@@ -1,7 +1,7 @@
 # ADR 0001: Vienas vizualinis sprendimas AIOpHub ir AlwarkOperationHub_Dev
 
 - Data: 2026-10-21
-- Būsena: Priimtas (šviesi tema – atvira)
+- Būsena: Priimtas; 3–4 p. pakeisti [ADR 0002](0002-tema-ir-kalbos.md)
 
 ## Kontekstas
 

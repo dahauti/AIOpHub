@@ -72,6 +72,8 @@
 
 [PROPOSED] Kiekvienas naujas sąrašo ekranas laikosi 1–8 tvarkos; nereikalingus blokus praleisti, bet nekeisti tvarkos.
 
+[STANDARD] **Pilnas plotis.** Turinys neturi `max-width` konteinerio: visas ekrano plotis, šonuose 32 px (siauruose ekranuose 24 px). Lentelės, žurnalai, kortelės ir sąrašai užima visą plotį. Prozos tekstas (paskirties sakiniai, paaiškinimai, dialogo tekstas) – ne daugiau ~75 simbolių eilutėje (`max-width: 75ch`).
+
 ## 3. Sąveikos šablonai
 
 Šaltinis: `templates/reservations.html`.

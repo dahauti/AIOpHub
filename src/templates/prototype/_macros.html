@@ -1,67 +1,84 @@
 {#- Prototipo komponentai: režimo juosta, ženkliukai ir veiksmų mygtukai su patvirtinimo dialogu
-    (UX_GUIDELINES 5–6 sk.). Lygį tikrina ir serveris: mygtukas nerodomas, bet ir POST grąžina 403. -#}
+    (UX_GUIDELINES 5–6 sk.). Lygį tikrina ir serveris: mygtukas nerodomas, bet ir POST grąžina 403.
+    Tekstai iš kalbos katalogo (ADR 0002): importuoti `with context`, kad būtų `t`. -#}
+
+{% macro pavadinimas(procesas) -%}
+{{ t("procesas." ~ procesas.id ~ ".pavadinimas") }}
+{%- endmacro %}
+
+{% macro grafikas(procesas) -%}
+{{ t("procesas." ~ procesas.id ~ ".grafikas") }}
+{%- endmacro %}
+
+{% macro pranesimas(p, sritis, dalis="") -%}
+{{ t(sritis ~ "." ~ p.kodas ~ dalis, **p.parametrai) }}
+{%- endmacro %}
+
+{% macro kas(vardas) -%}
+{{ vardas or t("paleido.grafikas") }}
+{%- endmacro %}
 
 {% macro tikslas(procesas) -%}
-{{ "BC ir Frontu" if "⇄" in procesas.kryptis else "Frontu" }}
+{{ t("tikslas.abi") if "⇄" in procesas.kryptis else t("tikslas.frontu") }}
 {%- endmacro %}
 
 {% macro rezimo_juosta(procesas, aplinka) -%}
 {% if procesas.rezimas == "LIVE" %}
-<p class="proto-mode proto-mode-live" role="status">Režimas: LIVE – pakeitimai rašomi į {{ tikslas(procesas) }} ({{ aplinka }}).</p>
+<p class="proto-mode proto-mode-live" role="status">{{ t("rezimas.juosta_live", tikslas=tikslas(procesas), aplinka=aplinka) }}</p>
 {% else %}
-<p class="proto-mode proto-mode-dry" role="status"><span class="proto-badge proto-badge-dry">DRY RUN</span>Režimas: DRY RUN – į {{ tikslas(procesas) }} niekas nerašoma.</p>
+<p class="proto-mode proto-mode-dry" role="status"><span class="proto-badge proto-badge-dry">{{ t("rezimas.DRY_RUN") }}</span>{{ t("rezimas.juosta_dry", tikslas=tikslas(procesas)) }}</p>
 {% endif %}
 {%- endmacro %}
 
 {% macro rezimas(procesas) -%}
-<span class="proto-badge {{ 'proto-badge-live' if procesas.rezimas == 'LIVE' else 'proto-badge-dry' }}">{{ "LIVE" if procesas.rezimas == "LIVE" else "DRY RUN" }}</span>
+<span class="proto-badge {{ 'proto-badge-live' if procesas.rezimas == 'LIVE' else 'proto-badge-dry' }}">{{ t("rezimas." ~ procesas.rezimas) }}</span>
 {%- endmacro %}
 
 {% macro busena(klaidu) -%}
-{% if klaidu %}<span class="pill pill-failed">Reikia veiksmo</span>{% else %}<span class="pill pill-ok">Veikia</span>{% endif %}
+{% if klaidu %}<span class="pill pill-failed">{{ t("busena.reikia_veiksmo") }}</span>{% else %}<span class="pill pill-ok">{{ t("busena.veikia") }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro tipas(irasas) -%}
-{% if irasas.tipas == "duomenu" %}<span class="proto-type proto-type-data">Duomenų klaida</span>
-{% elif irasas.tipas == "sistemos" %}<span class="proto-type proto-type-system">Sistemos klaida</span>{% endif %}
+{% if irasas.tipas == "duomenu" %}<span class="proto-type proto-type-data">{{ t("tipas.duomenu") }}</span>
+{% elif irasas.tipas == "sistemos" %}<span class="proto-type proto-type-system">{{ t("tipas.sistemos") }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro rezultatas(paleidimas) -%}
 {% set r = paleidimas.rezultatas %}
-{% if r.butu_sinchronizuota is not none %}Būtų sinchronizuota: {{ r.butu_sinchronizuota }} &middot; praleista {{ r.praleista }}
-{% else %}Pavyko: {{ r.pavyko }} &middot; praleista {{ r.praleista }} &middot; klaidų {{ r.klaidos }}{% endif %}
+{% if r.butu_sinchronizuota is not none %}{{ t("rezultatas.dry_run", butu=sk(r.butu_sinchronizuota, 0), praleista=sk(r.praleista, 0)) }}
+{% else %}{{ t("rezultatas.live", pavyko=sk(r.pavyko, 0), praleista=sk(r.praleista, 0), klaidu=sk(r.klaidos, 0)) }}{% endif %}
 {%- endmacro %}
 
 {% macro veiksmas(key, procesas, lygis, aplinka, kiek="—") -%}
 {% set v = veiksmai[key] %}
 {% if can(lygis, v.lygis) %}
 {% if not v.pavojingas %}
-<button type="button" hx-post="/prototype/veiksmai/{{ key }}" hx-vals='{"procesas_id": "{{ procesas.id }}"}' hx-target="#proto-atsakymas" class="proto-btn proto-btn-primary">{{ v.pavadinimas }}</button>
+<button type="button" hx-post="/prototype/veiksmai/{{ key }}" hx-vals='{"procesas_id": "{{ procesas.id }}"}' hx-target="#proto-atsakymas" class="proto-btn proto-btn-primary">{{ t("veiksmas." ~ key ~ ".pavadinimas") }}</button>
 {% else %}
-<button type="button" onclick="document.getElementById('dlg-{{ key }}').showModal()" class="proto-btn proto-btn-danger">&#9888; {{ v.pavadinimas }}</button>
+<button type="button" onclick="document.getElementById('dlg-{{ key }}').showModal()" class="proto-btn proto-btn-danger">&#9888; {{ t("veiksmas." ~ key ~ ".pavadinimas") }}</button>
 <dialog id="dlg-{{ key }}" class="proto-dialog" aria-labelledby="dlg-{{ key }}-title">
   <form hx-post="/prototype/veiksmai/{{ key }}" hx-target="#dlg-{{ key }}-msg">
     <input type="hidden" name="procesas_id" value="{{ procesas.id }}">
-    <h2 id="dlg-{{ key }}-title" class="proto-dialog-title">&#9888; {{ v.pavadinimas }}: {{ procesas.pavadinimas }}</h2>
+    <h2 id="dlg-{{ key }}-title" class="proto-dialog-title">&#9888; {{ t("veiksmas." ~ key ~ ".pavadinimas") }}: {{ pavadinimas(procesas) }}</h2>
     <dl class="proto-facts">
-      <div><dt>Ką padarys</dt><dd>{{ v.aprasas }}</dd></div>
-      <div><dt>Kiek įrašų</dt><dd>{{ kiek }}</dd></div>
-      <div><dt>Sistema ir aplinka</dt><dd>{{ tikslas(procesas) }} &middot; {{ aplinka }}</dd></div>
-      <div><dt>Ar grįžtama</dt><dd>{{ v.grizta }}</dd></div>
+      <div><dt>{{ t("dialogas.ka_padarys") }}</dt><dd class="proto-prose">{{ t("veiksmas." ~ key ~ ".aprasas") }}</dd></div>
+      <div><dt>{{ t("dialogas.kiek") }}</dt><dd>{{ kiek }}</dd></div>
+      <div><dt>{{ t("dialogas.sistema") }}</dt><dd>{{ tikslas(procesas) }} &middot; {{ aplinka }}</dd></div>
+      <div><dt>{{ t("dialogas.grizta") }}</dt><dd class="proto-prose">{{ t("veiksmas." ~ key ~ ".grizta") }}</dd></div>
     </dl>
     {% if key == "kursorius" %}
-    <label class="proto-field">Naujas kursorius<input type="datetime-local" name="naujas_kursorius" value="{{ procesas.kursorius.strftime('%Y-%m-%dT%H:%M') }}" class="field"></label>
+    <label class="proto-field">{{ t("dialogas.naujas_kursorius") }}<input type="datetime-local" name="naujas_kursorius" value="{{ procesas.kursorius.strftime('%Y-%m-%dT%H:%M') }}" class="field"></label>
     {% endif %}
     {% if v.reikia_priezasties %}
-    <label class="proto-field">Priežastis (privaloma, įrašoma į žurnalą)<textarea name="priezastis" required maxlength="500" rows="3" class="field proto-reason"></textarea></label>
+    <label class="proto-field">{{ t("dialogas.priezastis") }}<textarea name="priezastis" required maxlength="500" rows="3" class="field proto-reason"></textarea></label>
     {% endif %}
-    {% if aplinka == "PROD" and v.grizta.startswith("Negrįžtama") %}
-    <label class="proto-field">Patvirtinimui įveskite „PROD“<input type="text" name="patvirtinimas" required pattern="PROD" class="field"></label>
+    {% if aplinka == "PROD" and v.negrizta %}
+    <label class="proto-field">{{ t("dialogas.ivesti_prod") }}<input type="text" name="patvirtinimas" required pattern="PROD" class="field"></label>
     {% endif %}
     <div id="dlg-{{ key }}-msg" class="proto-dialog-msg" aria-live="polite"></div>
     <div class="proto-dialog-actions">
-      <button type="button" onclick="this.closest('dialog').close()" class="proto-btn">Uždaryti</button>
-      <button type="submit" class="proto-btn proto-btn-danger">Patvirtinti</button>
+      <button type="button" onclick="this.closest('dialog').close()" class="proto-btn">{{ t("dialogas.uzdaryti") }}</button>
+      <button type="submit" class="proto-btn proto-btn-danger">{{ t("dialogas.patvirtinti") }}</button>
     </div>
   </form>
 </dialog>

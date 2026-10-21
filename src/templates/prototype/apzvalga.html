@@ -1,38 +1,38 @@
 {% extends "prototype/_layout.html" %}
-{% from "prototype/_macros.html" import busena, rezimas, rezultatas, tipas %}
-{% block title %}Apžvalga{% endblock %}
+{% from "prototype/_macros.html" import busena, pavadinimas, pranesimas, rezimas, rezultatas, tipas with context %}
+{% block title %}{{ t("apzvalga.pavadinimas") }}{% endblock %}
 {% block content %}
 {% set klaidos = visible_errors(lygis) %}
 <header class="proto-head">
-  <p class="proto-kicker">Operacijų centras &middot; Apžvalga</p>
-  <h1 class="proto-title">Ar procesai veikia?</h1>
-  <p class="proto-purpose">Viršuje – tai, kas reikalauja veiksmo; visa kita – proceso puslapyje.{% if lygis == "matyti" %} Rodomos tik duomenų klaidos, kurias galite ištaisyti BC.{% endif %}</p>
+  <p class="proto-kicker">{{ t("app.pavadinimas") }} &middot; {{ t("apzvalga.pavadinimas") }}</p>
+  <h1 class="proto-title">{{ t("apzvalga.antraste") }}</h1>
+  <p class="proto-purpose">{{ t("apzvalga.paskirtis") }}{% if lygis == "matyti" %} {{ t("apzvalga.paskirtis_matyti") }}{% endif %}</p>
 </header>
 <section class="proto-section" aria-labelledby="veiksmo-h">
-  <h2 id="veiksmo-h" class="proto-section-title">Reikia veiksmo ({{ klaidos | length }})</h2>
+  <h2 id="veiksmo-h" class="proto-section-title">{{ tn("apzvalga.reikia_veiksmo", klaidos | length) }}</h2>
   {% for irasas in klaidos %}
   {% set procesas = (procesai | selectattr("id", "equalto", irasas.procesas_id) | first) %}
   <a href="/prototype/irasai/{{ irasas.id }}" class="proto-row">
     <span class="mono-id">{{ irasas.objektas }}</span>
     {{ tipas(irasas) }}
-    <span class="proto-row-main">{{ irasas.verslo_priezastis }}{% if can(lygis, "valdyti") and irasas.techninis and irasas.techninis.http_statusas %} <span class="proto-muted">&middot; Frontu HTTP {{ irasas.techninis.http_statusas }}</span>{% endif %}</span>
-    <span class="proto-muted">{{ procesas.pavadinimas }}</span>
+    <span class="proto-row-main">{{ pranesimas(irasas.klaida, "klaida", ".priezastis") }}{% if can(lygis, "valdyti") and irasas.techninis and irasas.techninis.http_statusas %} <span class="proto-muted">&middot; {{ t("technine.frontu_http", statusas=irasas.techninis.http_statusas) }}</span>{% endif %}</span>
+    <span class="proto-muted">{{ pavadinimas(procesas) }}</span>
   </a>
   {% else %}
-  <p class="proto-muted">Veiksmo reikalaujančių įrašų nėra.</p>
+  <p class="proto-muted">{{ t("apzvalga.nera_veiksmo") }}</p>
   {% endfor %}
 </section>
 <section class="proto-section" aria-labelledby="procesai-h">
-  <h2 id="procesai-h" class="proto-section-title">Procesai</h2>
+  <h2 id="procesai-h" class="proto-section-title">{{ t("apzvalga.procesai") }}</h2>
   <div class="proto-grid">
     {% for procesas in procesai %}
     {% set paskutinis = last_run(procesas.id) %}
     <a href="/prototype/procesai/{{ procesas.id }}" class="proto-card">
-      <div class="proto-card-head"><h3 class="proto-card-title">{{ procesas.pavadinimas }}</h3>{{ busena(visible_errors(lygis, procesas.id) | length) }}</div>
+      <div class="proto-card-head"><h3 class="proto-card-title">{{ pavadinimas(procesas) }}</h3>{{ busena(visible_errors(lygis, procesas.id) | length) }}</div>
       <p class="proto-muted">{{ procesas.kryptis }} &middot; {{ procesas.saltinis }} → {{ procesas.tikslas }}</p>
-      <p class="proto-card-line">{{ rezimas(procesas) }}{% if paskutinis %}<span>Paskutinis paleidimas: <span class="mono-id">{{ laikas(paskutinis.pradzia) }}</span></span>{% endif %}</p>
+      <p class="proto-card-line">{{ rezimas(procesas) }}{% if paskutinis %}<span>{{ t("procesas.paskutinis") }}: <span class="mono-id">{{ laikas(paskutinis.pradzia) }}</span></span>{% endif %}</p>
       {% if paskutinis %}<p class="proto-card-line">{{ rezultatas(paskutinis) }}</p>{% endif %}
-      <p class="proto-muted">Kitas paleidimas: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else "nesuplanuotas" }} &middot; {{ "LIVE" if procesas.rezimas == "LIVE" else "DRY RUN" }}</p>
+      <p class="proto-muted">{{ t("procesas.kitas") }}: {{ laikas(procesas.kitas_paleidimas) if procesas.kitas_paleidimas else t("procesas.nesuplanuotas") }} &middot; {{ t("rezimas." ~ procesas.rezimas) }}</p>
     </a>
     {% endfor %}
   </div>

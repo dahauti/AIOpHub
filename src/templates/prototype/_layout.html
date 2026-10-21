@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="lt" class="dark">
+<html lang="{{ kalba }}" data-theme="{{ tema }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="{{ tema }}">
   <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"403|422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
-  <title>{% block title %}Operacijų centras{% endblock %} &middot; Prototipas</title>
+  <title>{% block title %}{{ t("app.pavadinimas") }}{% endblock %} &middot; {{ t("app.prototipas") }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -13,25 +14,41 @@
   <link rel="stylesheet" href="/static/proto.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
-{#- Operacijų centro UX prototipas: duomenys iš src/prototype/fixtures.json, jokių integracijų. -#}
-<body class="min-h-screen bg-[#0a0e17] font-sans text-slate-200 antialiased">
+{#- Operacijų centro UX prototipas: duomenys iš src/prototype/fixtures.json, jokių integracijų.
+    Tema ir kalba ateina iš slapukų ir piešiamos serveryje (ADR 0002), todėl nėra mirgėjimo. -#}
+<body class="proto-body font-sans antialiased">
   {% if aplinka == "PROD" %}
-  <div class="proto-env proto-env-prod" role="note">PROD &middot; produkcinės sistemos &middot; pakeitimai paveikia realius duomenis</div>
+  <div class="proto-env proto-env-prod" role="note">{{ t("aplinka.prod_juosta") }}</div>
   {% else %}
-  <div class="proto-env proto-env-dev" role="note">DEV &middot; BC Copy LT + alwarktest</div>
+  <div class="proto-env proto-env-dev" role="note">{{ t("aplinka.dev_juosta") }}</div>
   {% endif %}
-  <form class="proto-switch" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none" aria-label="Prototipo vaizdas">
-    <span class="proto-switch-title">Prototipo vaizdas:</span>
-    {% for value, label in [("matyti", "Matyti"), ("valdyti", "Valdyti"), ("administruoti", "Administruoti")] %}
-    <label class="proto-switch-option"><input type="radio" name="lygis" value="{{ value }}"{% if lygis == value %} checked{% endif %}>{{ label }}</label>
+  <header class="proto-top">
+    <a href="/prototype/" class="proto-brand">{{ t("app.pavadinimas") }}</a>
+    <form class="proto-prefs" hx-post="/prototype/nuostatos" hx-trigger="change" hx-swap="none" aria-label="{{ t('nuostatos.aria') }}">
+      <label class="proto-pref">{{ t("nuostatos.tema") }}
+        <select name="tema" class="field proto-pref-select">
+          {% for value in temos %}<option value="{{ value }}"{% if tema == value %} selected{% endif %}>{{ t("tema." ~ value) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="proto-pref">{{ t("nuostatos.kalba") }}
+        <select name="kalba" class="field proto-pref-select">
+          {% for value in kalbos %}<option value="{{ value }}" lang="{{ value }}"{% if kalba == value %} selected{% endif %}>{{ t("kalba." ~ value) }}</option>{% endfor %}
+        </select>
+      </label>
+    </form>
+  </header>
+  <form class="proto-switch" hx-post="/prototype/vaizdas" hx-trigger="change" hx-swap="none" aria-label="{{ t('vaizdas.aria') }}">
+    <span class="proto-switch-title">{{ t("vaizdas.antraste") }}</span>
+    {% for value in lygiai %}
+    <label class="proto-switch-option"><input type="radio" name="lygis" value="{{ value }}"{% if lygis == value %} checked{% endif %}>{{ t("lygis." ~ value) }}</label>
     {% endfor %}
-    <select name="aplinka" aria-label="Aplinkos žyma" class="field proto-switch-env">
-      {% for value in ["DEV", "PROD"] %}<option value="{{ value }}"{% if aplinka == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+    <select name="aplinka" aria-label="{{ t('vaizdas.aplinka_aria') }}" class="field proto-switch-env">
+      {% for value in aplinkos %}<option value="{{ value }}"{% if aplinka == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
     </select>
-    <span class="proto-switch-note">Tik prototipui: tikri lygiai ateis iš teisių modulio. Duomenys iš fixture, jokių integracijų.</span>
+    <span class="proto-switch-note">{{ t("vaizdas.pastaba") }}</span>
   </form>
   <main class="proto-main">
-    <nav class="proto-crumbs" aria-label="Kelias"><a href="/prototype/" class="proto-link">Operacijų centras</a>{% block crumbs %}{% endblock %}</nav>
+    <nav class="proto-crumbs" aria-label="{{ t('kelias.aria') }}"><a href="/prototype/" class="proto-link">{{ t("app.pavadinimas") }}</a>{% block crumbs %}{% endblock %}</nav>
     {% block content %}{% endblock %}
     <div id="proto-atsakymas" aria-live="polite"></div>
   </main>

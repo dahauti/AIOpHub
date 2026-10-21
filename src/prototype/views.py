@@ -18,55 +18,26 @@ RANGAS: dict[Lygis, int] = {"matyti": 0, "valdyti": 1, "administruoti": 2}
 
 
 class Veiksmas(BaseModel):
-    """Prototipo veiksmas: nieko nekeičia, tik parodo dialogą ir serverio patikras."""
+    """Prototipo veiksmas: nieko nekeičia, tik parodo dialogą ir serverio patikras.
+
+    Tekstai kataloge: `veiksmas.<raktas>.pavadinimas` (+ `.aprasas`, `.grizta` pavojingiems).
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    pavadinimas: str
     lygis: Lygis
     pavojingas: bool
     reikia_priezasties: bool
-    aprasas: str = ""
-    grizta: str = ""
+    negrizta: bool = False  # PROD: patvirtinimui reikia įvesti aplinkos pavadinimą
 
 
 VEIKSMAI: dict[str, Veiksmas] = {
-    "pakartoti": Veiksmas(
-        pavadinimas="Pakartoti", lygis="matyti", pavojingas=False, reikia_priezasties=False
-    ),
-    "paleisti": Veiksmas(
-        pavadinimas="Paleisti",
-        lygis="valdyti",
-        pavojingas=True,
-        reikia_priezasties=False,
-        aprasas="Paleidžia procesą dabar ir rašo į tikslo sistemą pagal proceso režimą.",
-        grizta="Negrįžtama: įrašyti pakeitimai lieka tikslo sistemoje.",
-    ),
-    "testinis": Veiksmas(
-        pavadinimas="Testinis šūvis", lygis="valdyti", pavojingas=False, reikia_priezasties=False
-    ),
-    "dryrun": Veiksmas(
-        pavadinimas="Perjungti į DRY RUN",
-        lygis="administruoti",
-        pavojingas=False,
-        reikia_priezasties=False,
-    ),
-    "live": Veiksmas(
-        pavadinimas="Įjungti LIVE",
-        lygis="administruoti",
-        pavojingas=True,
-        reikia_priezasties=True,
-        aprasas="Procesas pradės rašyti į tikslo sistemą kiekvieno paleidimo metu.",
-        grizta="Grįžtama: režimą galima vėl perjungti į DRY RUN.",
-    ),
-    "kursorius": Veiksmas(
-        pavadinimas="Keisti kursorių",
-        lygis="administruoti",
-        pavojingas=True,
-        reikia_priezasties=True,
-        aprasas="Kitas paleidimas apdoros visus įrašus, pakeistus po naujo kursoriaus.",
-        grizta="Iš dalies grįžtama: jau apdoroti įrašai lieka apdoroti.",
-    ),
+    "pakartoti": Veiksmas(lygis="matyti", pavojingas=False, reikia_priezasties=False),
+    "paleisti": Veiksmas(lygis="valdyti", pavojingas=True, reikia_priezasties=False, negrizta=True),
+    "testinis": Veiksmas(lygis="valdyti", pavojingas=False, reikia_priezasties=False),
+    "dryrun": Veiksmas(lygis="administruoti", pavojingas=False, reikia_priezasties=False),
+    "live": Veiksmas(lygis="administruoti", pavojingas=True, reikia_priezasties=True),
+    "kursorius": Veiksmas(lygis="administruoti", pavojingas=True, reikia_priezasties=True),
 }
 
 

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 Rezimas = Literal["LIVE", "DRY_RUN"]
 Lygis = Literal["matyti", "valdyti", "administruoti"]
@@ -11,20 +11,29 @@ Aplinka = Literal["DEV", "PROD"]
 KlaidosTipas = Literal["duomenu", "sistemos"]
 IrasoBusena = Literal["pavyko", "praleista", "klaida"]
 ZurnaloLygis = Literal["INFO", "WARN", "ERROR"]
+Tema = Literal["dark", "light"]
+Kalba = Literal["lt", "en"]
 
 
 class _Fixture(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class Pranesimas(_Fixture):
+    """Verslo klaida ar žurnalo įvykis: kodas + parametrai; tekstas kalbos kataloge (ADR 0002)."""
+
+    kodas: str
+    parametrai: dict[str, str] = Field(default_factory=dict)
+
+
 class Procesas(_Fixture):
+    """Pavadinimas ir grafiko aprašas yra kataloge pagal `id`."""
+
     id: str
-    pavadinimas: str
     kryptis: str
     saltinis: str
     tikslas: str
     rezimas: Rezimas
-    grafikas: str
     savininkas: str
     kitas_paleidimas: datetime | None
     kursorius: datetime
@@ -51,7 +60,7 @@ class Paleidimas(_Fixture):
     procesas_id: str
     pradzia: datetime
     trukme_s: float
-    paleido: str
+    paleido: str | None  # None = grafikas
     rezimas: Rezimas
     rezultatas: Rezultatas
     watermark: datetime
@@ -73,8 +82,7 @@ class Irasas(_Fixture):
     objektas: str
     busena: IrasoBusena
     tipas: KlaidosTipas | None
-    verslo_priezastis: str | None
-    ka_daryti: str | None
+    klaida: Pranesimas | None
     techninis: Techninis | None
     payload: dict[str, JsonValue] | None
     trace_id: str
@@ -84,8 +92,8 @@ class ZurnaloIrasas(_Fixture):
     laikas: datetime
     lygis: ZurnaloLygis
     procesas_id: str
-    ivykis: str
-    kas: str
+    ivykis: Pranesimas
+    kas: str | None  # None = grafikas
     trace_id: str
 
 

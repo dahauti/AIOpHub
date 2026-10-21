@@ -1,4 +1,5 @@
 {#- Veiksmo atsakymas (be poveikio): 200 = patikros praeitos, 403/422 = serverio atmesta. -#}
+{% from "prototype/_macros.html" import pavadinimas with context %}
 <p role="status" class="proto-result {{ 'proto-result-ok' if ok else 'proto-result-err' }}">
-  <strong>{{ veiksmas.pavadinimas }}</strong> &middot; {{ procesas.pavadinimas }}: {{ pranesimas }}{% if ok and priezastis %} Priežastis: „{{ priezastis }}“.{% endif %}
+  <strong>{{ t("veiksmas." ~ raktas ~ ".pavadinimas") }}</strong> &middot; {{ pavadinimas(procesas) }}: {{ pranesimas }}{% if ok and priezastis %} {{ t("atsakymas.priezastis", priezastis=priezastis) }}{% endif %}
 </p>

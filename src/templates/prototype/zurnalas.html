@@ -1,19 +1,20 @@
 {% extends "prototype/_layout.html" %}
-{% block title %}Žurnalas{% endblock %}
-{% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ procesas.pavadinimas }}</a> / Žurnalas{% endblock %}
+{% from "prototype/_macros.html" import kas, pavadinimas, pranesimas with context %}
+{% block title %}{{ t("zurnalas.pavadinimas") }}{% endblock %}
+{% block crumbs %} / <a href="/prototype/procesai/{{ procesas.id }}" class="proto-link">{{ pavadinimas(procesas) }}</a> / {{ t("zurnalas.pavadinimas") }}{% endblock %}
 {% block content %}
 <header class="proto-head">
-  <p class="proto-kicker">Žurnalas &middot; {{ procesas.pavadinimas }}</p>
-  <h1 class="proto-title">Visi proceso įvykiai</h1>
-  <p class="proto-purpose">Vienas žurnalas: paleidimai, klaidos, režimo ir kursoriaus keitimai su priežastimi.</p>
+  <p class="proto-kicker">{{ t("zurnalas.pavadinimas") }} &middot; {{ pavadinimas(procesas) }}</p>
+  <h1 class="proto-title">{{ t("zurnalas.antraste") }}</h1>
+  <p class="proto-purpose">{{ t("zurnalas.paskirtis") }} {{ tn("zurnalas.kiek", zurnalas | length) }}</p>
 </header>
 <table class="proto-table">
-  <thead><tr><th>Laikas</th><th>Lygis</th><th>Įvykis</th><th>Kas</th><th>Trace ID</th></tr></thead>
+  <thead><tr><th>{{ t("zurnalas.laikas") }}</th><th>{{ t("zurnalas.lygis") }}</th><th>{{ t("zurnalas.ivykis") }}</th><th>{{ t("zurnalas.kas") }}</th><th>{{ t("technine.trace") }}</th></tr></thead>
   <tbody>
     {% for e in zurnalas %}
-    <tr class="proto-level-{{ e.lygis | lower }}"><td class="mono-id">{{ laikas(e.laikas) }}</td><td class="proto-level">{{ e.lygis }}</td><td>{{ e.ivykis }}</td><td>{{ e.kas }}</td><td class="mono-id">{{ e.trace_id }}</td></tr>
+    <tr class="proto-level-{{ e.lygis | lower }}"><td class="mono-id">{{ laikas(e.laikas) }}</td><td class="proto-level">{{ e.lygis }}</td><td>{{ pranesimas(e.ivykis, "ivykis") }}</td><td>{{ kas(e.kas) }}</td><td class="mono-id">{{ e.trace_id }}</td></tr>
     {% else %}
-    <tr><td colspan="5" class="proto-muted">Įvykių nėra.</td></tr>
+    <tr><td colspan="5" class="proto-muted">{{ t("zurnalas.nera") }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
