@@ -4,7 +4,14 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from src.repositories.sync_statements import STALE_RUN_AFTER
-from src.schemas.sync import RUNNING, AuditEntry, DashboardSnapshot, ReleaseStatus
+from src.schemas.sync import (
+    RUNNING,
+    AuditEntry,
+    ConfigFlag,
+    DashboardSnapshot,
+    ReleaseStatus,
+    RuntimeConfig,
+)
 
 
 class FakeSyncRepository:
@@ -73,3 +80,20 @@ class FakeSyncRepository:
 
     async def dashboard_snapshot(self, since: datetime, limit: int) -> DashboardSnapshot:
         return DashboardSnapshot(status=self.status, cursor_timestamp=self.cursor)
+
+
+class FakeConfigStore:
+    """In-memory runtime config; `toggle` flips one flag like the SQL store."""
+
+    def __init__(self, dry_run: bool = True, auto_sync_enabled: bool = False) -> None:
+        self.config = RuntimeConfig(dry_run=dry_run, auto_sync_enabled=auto_sync_enabled)
+        self.toggles: list[ConfigFlag] = []
+
+    async def get(self) -> RuntimeConfig:
+        return self.config
+
+    async def toggle(self, flag: ConfigFlag) -> RuntimeConfig:
+        self.toggles.append(flag)
+        current = self.config.model_dump()
+        self.config = RuntimeConfig.model_validate({**current, flag: not current[flag]})
+        return self.config

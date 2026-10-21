@@ -37,12 +37,14 @@ C:\AIOpHub\
 |   |   +-- frontu_client.py
 |   |-- api/
 |   |   |-- __init__.py
+|   |   |-- config_handlers.py
 |   |   +-- routes_ui.py
 |   |-- pipelines/
 |   |   |-- __init__.py
 |   |   +-- sync_vehicles.py
 |   |-- repositories/
 |   |   |-- __init__.py
+|   |   |-- config_repository.py
 |   |   +-- sync_repository.py
 |   +-- templates/
 |       |-- base.html
@@ -64,6 +66,13 @@ CREATE TABLE IF NOT EXISTS sync_states (
     module_name VARCHAR(64) NOT NULL PRIMARY KEY,
     cursor_timestamp DATETIME NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'IDLE',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_config (
+    module_name VARCHAR(64) NOT NULL PRIMARY KEY,
+    dry_run BOOLEAN NOT NULL DEFAULT 1,
+    auto_sync_enabled BOOLEAN NOT NULL DEFAULT 0,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -150,7 +159,8 @@ FrontuWorkspaceUpsert fields:
 
 ## 7. Pipeline Execution Logic (src/pipelines/sync_vehicles.py)
 1. Acquire module execution lock for workspaces_vehicles.
-2. Read cursor from sync_states (fallback: NOW() - 30 days).
+2. Read cursor from sync_states (fallback on a clean database: NOW() - SYNC_INITIAL_LOOKBACK_DAYS, default 0 = NOW()).
+   Run mode (DRY RUN / LIVE) is read from sync_config at the start of each run (section 11).
 3. Compute fetch start window: cursor - 15 minutes.
 4. Read batch from BC VehicleCard ($top=500).
 5. For vehicles having CustomerNo + CustomerServiceAddressCode, resolve address via TG_ShipToAdress lookup.
@@ -217,3 +227,22 @@ Frontu holds about 2,000 workspaces created manually or by a legacy import: `ser
 - Matching (src/pipelines/identity_resolver.py, report use only): managed = non-blank `systemId`; unmanaged objects keyed by `serialNumber.strip().upper()`; per active vehicle the VIN key is tried first, then SerialNo. Exactly one unmanaged match -> LEGACY_MATCH; several -> AMBIGUOUS; a vehicle already managed or blocked is never matched.
 - `python -m scripts.export_legacy_candidates` -> `legacy_adoption_candidates.csv`: active BC vehicle, matched legacy guid, matched key and the action (set `systemId`).
 - `python -m scripts.export_ambiguous_frontu` -> `frontu_ambiguous_duplicates.csv`: unmanaged serial keys shared by several workspaces (merge candidates).
+
+## 11. Runtime Dashboard Controls (2026-10-21)
+
+### 11.1 Runtime Configuration (`sync_config`)
+- One row per module: `dry_run` (default true) and `auto_sync_enabled` (default false).
+- Precedence: a stored row wins over `.env`. Without a row, `SYNC_DRY_RUN` / `SYNC_ENABLED` apply; the first dashboard toggle seeds the row from them.
+- The batch pipeline, the single-vehicle sync (unless `force_live`) and the CLI batch read `dry_run` at the start of each run.
+- The web app always starts the daemon loop; each `SYNC_INTERVAL_SECONDS` tick runs the pipeline only while `auto_sync_enabled` is true.
+- The app lifespan runs `init_db()` so tables added after deployment (e.g. `sync_config`) are created without migrations.
+
+### 11.2 Endpoints (src/api/config_handlers.py; each returns the `#sync-status` partial)
+- `POST /partials/config/toggle-dry-run`: flips DRY RUN / LIVE. 409 while a run is active (the mode of a running sync cannot change).
+- `POST /partials/config/toggle-auto-sync`: flips auto-sync (allowed while running; affects the next tick).
+- `POST /partials/sync/abort`: when a run is active in-process or `sync_states.status = RUNNING`, cancels the run task, releases `sync_states` to `IDLE` and writes an `ABORTED` row to `sync_audit_log` (`entity_key` = module name). 409 when nothing is running.
+- Fingerprints and the cursor are only written per confirmed record or page, so an aborted run is resumed safely by the next run.
+
+### 11.3 Dashboard
+- Mode card: amber `DRY RUN` / emerald `LIVE` toggle (switching to LIVE asks for confirmation; disabled while running) and an `Auto-sync ON/OFF` toggle.
+- Action bar (inside the polled KPI block): `Sync now` while idle; a red `Abort Sync` (with confirmation) while `RUNNING`.

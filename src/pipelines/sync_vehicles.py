@@ -20,6 +20,12 @@ from src.pipelines.audit_helpers import (
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
+from src.repositories.config_repository import (
+    RuntimeConfigStore,
+    SqlConfigStore,
+    resolve_dry_run,
+    runtime_defaults,
+)
 from src.repositories.sync_repository import SqlSyncRepository, SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
@@ -30,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 MODULE = "workspaces_vehicles"
 LOOKBACK = timedelta(minutes=15)
-INITIAL_WINDOW = timedelta(days=30)
 CONFIRMED_STATUSES = frozenset({200, 201})
 HTTP_TIMEOUT_SECONDS = 30.0
 
@@ -39,7 +44,9 @@ class VehicleSyncPipeline:
     """One-module sync run guarded by an in-process lock plus the DB RUNNING claim.
 
     In dry-run mode Frontu is never mutated, and fingerprints and the cursor are left
-    untouched so a later live run still processes every record the dry run saw.
+    untouched so a later live run still processes every record the dry run saw. The mode
+    is read per run from the runtime config store when one is wired (`dry_run` otherwise).
+    A module without a cursor starts `initial_lookback` before now (default: now).
     """
 
     def __init__(
@@ -50,6 +57,8 @@ class VehicleSyncPipeline:
         internal_client_id: str,
         *,
         dry_run: bool = True,
+        config: RuntimeConfigStore | None = None,
+        initial_lookback: timedelta = timedelta(0),
         lock: asyncio.Lock | None = None,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
@@ -57,7 +66,9 @@ class VehicleSyncPipeline:
         self._sink = sink
         self._repo = repository
         self._internal_client_id = internal_client_id
-        self._dry_run = dry_run
+        self._dry_run = self._static_dry_run = dry_run
+        self._config = config
+        self._initial_lookback = initial_lookback
         self._clock = clock
         self._lock = lock if lock is not None else asyncio.Lock()
 
@@ -75,11 +86,12 @@ class VehicleSyncPipeline:
             return None
         async with self._lock:
             now = self._clock()
-            if not await self._repo.try_acquire(now, now - INITIAL_WINDOW):
+            if not await self._repo.try_acquire(now, now - self._initial_lookback):
                 logger.info("Sync skipped: module claimed elsewhere", extra={"sync_module": MODULE})
                 return None
             status: ReleaseStatus = "FAILED"
             try:
+                self._dry_run = await resolve_dry_run(self._config, self._static_dry_run)
                 result = await self._sync()
                 status = "IDLE"
                 return result
@@ -102,6 +114,7 @@ class VehicleSyncPipeline:
             failed=run.failed,
             planned=run.planned,
             cursor=run.cursor,
+            dry_run=self._dry_run,
         )
 
     async def _process(self, vehicle: BCODataVehicle, known: str | None, run: RunState) -> None:
@@ -172,12 +185,14 @@ async def sync_vehicles_batch(settings: Settings) -> SyncRunResult | None:
     Returns None when `sync_states` shows the module claimed by another run or process.
     """
     repository = SqlSyncRepository(get_sessionmaker(), MODULE)
+    config = SqlConfigStore(get_sessionmaker(), MODULE, runtime_defaults(settings))
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as http:
         pipeline = VehicleSyncPipeline(
             BCClient(http, select_connection(settings)),
             FrontuClient(http, settings.frontu_subdomain, settings.frontu_api_key),
             repository,
             settings.internal_company_client_id,
-            dry_run=settings.sync_dry_run,
+            config=config,
+            initial_lookback=timedelta(days=settings.sync_initial_lookback_days),
         )
         return await pipeline.run()

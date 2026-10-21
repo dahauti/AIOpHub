@@ -3,7 +3,20 @@
 from datetime import UTC, datetime
 
 from pydantic import JsonValue
-from sqlalchemy import JSON, BigInteger, DateTime, Dialect, Index, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Dialect,
+    Index,
+    Integer,
+    String,
+    Text,
+    false,
+    func,
+    true,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
@@ -41,6 +54,17 @@ class SyncState(Base):
     module_name: Mapped[str] = mapped_column(String(64), primary_key=True)
     cursor_timestamp: Mapped[datetime] = mapped_column(UtcDateTime())
     status: Mapped[str] = mapped_column(String(32), server_default="IDLE")
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
+
+
+class SyncConfig(Base):
+    """Per-module runtime toggles set from the dashboard; absent row -> `.env` defaults."""
+
+    __tablename__ = "sync_config"
+
+    module_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dry_run: Mapped[bool] = mapped_column(Boolean, server_default=true())
+    auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime(), server_default=func.now())
 
 

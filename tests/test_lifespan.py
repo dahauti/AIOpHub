@@ -1,4 +1,4 @@
-"""App lifespan smoke test on temp SQLite with the daemon disabled (no BC/Frontu traffic)."""
+"""App lifespan smoke test on temp SQLite with auto-sync off (no BC/Frontu traffic)."""
 
 import logging
 from pathlib import Path
@@ -25,7 +25,7 @@ async def test_lifespan_wires_runner_logs_to_file_and_respects_safety_flags(
         async with app.router.lifespan_context(app):
             runner = app.state.sync_control
             assert isinstance(runner, SyncRunner)
-            assert runner.dry_run is True
+            assert (await runner.config()).dry_run is True
     finally:
         for handler in root.handlers:
             if handler not in handlers:
@@ -34,8 +34,8 @@ async def test_lifespan_wires_runner_logs_to_file_and_respects_safety_flags(
         root.setLevel(level)
 
     log_text = (log_dir / "app.log").read_text(encoding="utf-8")
-    assert "[WARNING] [src.main]: SYNC_DRY_RUN is on: Frontu will not be modified" in log_text
+    assert "[WARNING] [src.main]: Dry run is on: Frontu will not be modified" in log_text
     assert (
-        "[WARNING] [src.pipelines.scheduler]: Background sync daemon is disabled by config"
+        "[WARNING] [src.main]: Auto-sync is off: scheduled runs are skipped until enabled"
         in log_text
     )

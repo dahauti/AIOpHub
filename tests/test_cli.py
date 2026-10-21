@@ -8,8 +8,8 @@ import pytest
 
 from src import cli
 from src.config import Settings, get_settings
-from src.database import get_sessionmaker, init_db
-from src.pipelines.sync_vehicles import INITIAL_WINDOW, MODULE, sync_vehicles_batch
+from src.database import get_engine, get_sessionmaker, init_db
+from src.pipelines.sync_vehicles import MODULE, sync_vehicles_batch
 from src.repositories.sync_repository import SqlSyncRepository
 from src.schemas.sync import SyncRunResult
 
@@ -101,11 +101,12 @@ async def test_batch_bails_out_when_sync_states_claims_the_module(
     await init_db()
     repository = SqlSyncRepository(get_sessionmaker(), MODULE)
     now = datetime.now(UTC)
-    assert await repository.try_acquire(now, now - INITIAL_WINDOW)
+    assert await repository.try_acquire(now, now)
 
     assert await sync_vehicles_batch(get_settings()) is None
 
     snapshot = await repository.dashboard_snapshot(now - timedelta(hours=1), limit=5)
+    await get_engine().dispose()
     assert snapshot.status == "RUNNING" and snapshot.recent == []
     skipped = next(r for r in caplog.records if "claimed elsewhere" in r.getMessage())
     assert getattr(skipped, "sync_module", None) == MODULE
@@ -131,4 +132,6 @@ async def test_init_db_creates_schema_on_a_fresh_database(temp_database: Path) -
     await init_db()
     repository = SqlSyncRepository(get_sessionmaker(), MODULE)
 
-    assert (await repository.dashboard_snapshot(datetime.now(UTC), limit=1)).status == "IDLE"
+    snapshot = await repository.dashboard_snapshot(datetime.now(UTC), limit=1)
+    await get_engine().dispose()
+    assert snapshot.status == "IDLE"

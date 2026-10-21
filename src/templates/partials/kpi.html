@@ -1,6 +1,14 @@
 {% from "partials/macros.html" import local_time, spinner %}
 {% set running = snapshot.status == "RUNNING" %}
 <div id="kpi-metrics" {% if poll %}hx-get="/partials/status" hx-trigger="every 5s" hx-swap="morph" {% endif %}class="space-y-4">
+  <div class="flex items-center justify-between gap-4">
+    <h2 id="batch-heading" class="label">Batch sync</h2>
+    {% if running %}
+    <button hx-post="/partials/sync/abort" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" hx-confirm="Abort the running sync?" class="btn-danger">{{ spinner() }}Abort Sync</button>
+    {% else %}
+    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" class="btn-primary">{{ spinner() }}Sync now</button>
+    {% endif %}
+  </div>
   <div id="status-banner" class="min-h-[2.5rem]">
     {% if banner %}
     <div role="status" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-100"><strong>{{ banner }}</strong></div>
@@ -9,7 +17,10 @@
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
     <div class="card min-h-[96px]">
       <p class="label">Mode</p>
-      <p class="mt-2 text-lg font-semibold {{ 'text-amber-300' if dry_run else 'text-emerald-300' }}">{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</p>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <button hx-post="/partials/config/toggle-dry-run" hx-target="#sync-status" hx-swap="morph:outerHTML"{% if dry_run %} hx-confirm="Switch to LIVE? The next sync writes to Frontu."{% endif %} aria-pressed="{{ 'false' if dry_run else 'true' }}" title="Toggle sync mode" class="toggle {{ 'toggle-amber' if dry_run else 'toggle-emerald' }}"{% if running %} disabled{% endif %}>{% if dry_run %}DRY RUN{% else %}LIVE{% endif %}</button>
+        <button hx-post="/partials/config/toggle-auto-sync" hx-target="#sync-status" hx-swap="morph:outerHTML" aria-pressed="{{ 'true' if auto_sync else 'false' }}" title="Toggle scheduled sync" class="toggle {{ 'toggle-emerald' if auto_sync else 'toggle-off' }}">Auto-sync {% if auto_sync %}ON{% else %}OFF{% endif %}</button>
+      </div>
     </div>
     <div class="card min-h-[96px]">
       <p class="label">State</p>

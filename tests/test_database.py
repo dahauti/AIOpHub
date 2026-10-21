@@ -50,7 +50,7 @@ async def test_init_db_creates_tables_and_index_idempotently(temp_database: Path
         indexes = await connection.run_sync(lambda c: inspect(c).get_indexes("sync_audit_log"))
     await get_engine().dispose()
 
-    assert tables == ["sync_audit_log", "sync_fingerprints", "sync_states"]
+    assert tables == ["sync_audit_log", "sync_config", "sync_fingerprints", "sync_states"]
     assert [ix["name"] for ix in indexes] == ["idx_audit_entity"]
     assert temp_database.is_file()
 

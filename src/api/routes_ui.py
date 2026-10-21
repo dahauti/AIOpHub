@@ -77,17 +77,18 @@ router = APIRouter()
 
 async def _context(control: SyncControl, banner: str | None, **extra: object) -> dict[str, object]:
     """Template context; the KPI block polls only while the snapshot says RUNNING."""
-    snapshot = await control.snapshot()
+    snapshot, config = await control.snapshot(), await control.config()
     base: dict[str, object] = {
         "snapshot": snapshot,
         "banner": banner,
-        "dry_run": control.dry_run,
+        "dry_run": config.dry_run,
+        "auto_sync": config.auto_sync_enabled,
         "poll": snapshot.status == RUNNING,
     }
     return base | extra
 
 
-async def _status(
+async def status_response(
     request: Request,
     control: SyncControl,
     banner: str | None,
@@ -104,8 +105,8 @@ async def _status(
 
 async def _apply_cursor(request: Request, control: SyncControl, cursor: datetime) -> HTMLResponse:
     if not await control.set_cursor(cursor):
-        return await _status(request, control, CURSOR_LOCKED, status.HTTP_409_CONFLICT)
-    return await _status(request, control, f"Cursor set to {format_utc(cursor)}")
+        return await status_response(request, control, CURSOR_LOCKED, status.HTTP_409_CONFLICT)
+    return await status_response(request, control, f"Cursor set to {format_utc(cursor)}")
 
 
 async def _vehicle_result(
@@ -137,9 +138,9 @@ async def status_partial(request: Request, control: Control) -> HTMLResponse:
 async def trigger_sync(request: Request, control: Control) -> HTMLResponse:
     started = control.trigger()
     banner = SYNC_STARTED if started else SYNC_ALREADY_RUNNING
-    if control.dry_run:
+    if (await control.config()).dry_run:
         banner += DRY_RUN_NOTE
-    return await _status(request, control, banner, force_poll=started)
+    return await status_response(request, control, banner, force_poll=started)
 
 
 @router.post("/api/sync/vehicle", response_class=HTMLResponse)
@@ -172,5 +173,6 @@ async def set_cursor(
     try:
         cursor = parse_cursor(cursor_timestamp, datetime.now(UTC))
     except CursorInputError as exc:
-        return await _status(request, control, str(exc), status.HTTP_422_UNPROCESSABLE_CONTENT)
+        unprocessable = status.HTTP_422_UNPROCESSABLE_CONTENT
+        return await status_response(request, control, str(exc), unprocessable)
     return await _apply_cursor(request, control, cursor)

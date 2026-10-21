@@ -2,7 +2,13 @@
 
 from datetime import UTC, datetime
 
-from src.schemas.sync import AuditRecord, DashboardSnapshot, SingleSyncResult
+from src.schemas.sync import (
+    AuditRecord,
+    ConfigFlag,
+    DashboardSnapshot,
+    RuntimeConfig,
+    SingleSyncResult,
+)
 
 NOW = datetime(2026, 10, 20, 12, 30, 5, tzinfo=UTC)
 SNAPSHOT = DashboardSnapshot(
@@ -31,6 +37,9 @@ class FakeControl:
         self.accept = accept
         self.triggers = 0
         self.dry_run = False
+        self.auto_sync = False
+        self.mode_locked = False
+        self.aborts = 0
         self.cursor_locked = False
         self.cursor_sets: list[datetime] = []
 
@@ -46,6 +55,25 @@ class FakeControl:
             return False
         self.cursor_sets.append(cursor)
         self._snapshot = self._snapshot.model_copy(update={"cursor_timestamp": cursor})
+        return True
+
+    async def config(self) -> RuntimeConfig:
+        return RuntimeConfig(dry_run=self.dry_run, auto_sync_enabled=self.auto_sync)
+
+    async def toggle(self, flag: ConfigFlag) -> RuntimeConfig | None:
+        if flag == "dry_run":
+            if self.mode_locked:
+                return None
+            self.dry_run = not self.dry_run
+        else:
+            self.auto_sync = not self.auto_sync
+        return await self.config()
+
+    async def abort(self) -> bool:
+        if self._snapshot.status != "RUNNING":
+            return False
+        self.aborts += 1
+        self._snapshot = self._snapshot.model_copy(update={"status": "IDLE"})
         return True
 
 

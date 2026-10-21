@@ -8,12 +8,6 @@
   </div>
 </header>
 <section id="batch-sync" aria-labelledby="batch-heading" class="mb-10">
-  <div class="mb-4 flex items-center justify-between gap-4">
-    <h2 id="batch-heading" class="label">Batch sync</h2>
-    <button hx-post="/api/sync/trigger" hx-target="#sync-status" hx-swap="outerHTML" hx-disabled-elt="this" class="btn-primary">
-      {{ spinner() }}Sync now
-    </button>
-  </div>
   {% include "partials/status.html" %}
 </section>
 <section id="single-vehicle" aria-labelledby="single-heading" class="card">

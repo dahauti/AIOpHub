@@ -1,4 +1,4 @@
-"""SyncRunner: periodic daemon loop, on-demand trigger, dashboard snapshot window."""
+"""SyncRunner: periodic daemon loop gated by auto-sync, on-demand trigger, snapshot window."""
 
 import asyncio
 import logging
@@ -9,6 +9,7 @@ import pytest
 from src.pipelines.scheduler import SyncControl, SyncRunner
 from src.schemas.sync import DashboardSnapshot, SyncRunResult
 from tests.pipeline_fakes import NOW, FakeSyncRepository
+from tests.repository_fakes import FakeConfigStore
 
 
 class FakePipeline:
@@ -18,7 +19,6 @@ class FakePipeline:
         self.release = asyncio.Event()
         self.runs = 0
         self._running = False
-        self.dry_run = False
 
     @property
     def is_running(self) -> bool:
@@ -42,8 +42,14 @@ class StopLoop(BaseException):
     """Escapes the daemon loop from the fake sleep."""
 
 
-def _runner(pipeline: FakePipeline, repo: FakeSyncRepository | None = None) -> SyncRunner:
-    return SyncRunner(pipeline, repo or FakeSyncRepository(cursor=NOW), clock=lambda: NOW)
+def _runner(
+    pipeline: FakePipeline,
+    repo: FakeSyncRepository | None = None,
+    config: FakeConfigStore | None = None,
+) -> SyncRunner:
+    repository = repo or FakeSyncRepository(cursor=NOW)
+    store = config or FakeConfigStore(auto_sync_enabled=True)
+    return SyncRunner(pipeline, repository, store, clock=lambda: NOW)
 
 
 def test_runner_satisfies_dashboard_port() -> None:
@@ -129,38 +135,42 @@ async def test_snapshot_counts_from_utc_midnight() -> None:
 
 
 @pytest.mark.asyncio
-async def test_disabled_daemon_logs_and_schedules_nothing(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+async def test_auto_sync_off_skips_scheduled_runs_until_toggled_on() -> None:
     pipeline = FakePipeline()
+    config = FakeConfigStore(auto_sync_enabled=False)
+    ticks: list[float] = []
 
-    with caplog.at_level(logging.WARNING):
-        task = _runner(pipeline).start_daemon(enabled=False, interval_seconds=300)
-    await asyncio.sleep(0)
+    async def fake_sleep(seconds: float) -> None:
+        ticks.append(seconds)
+        if len(ticks) == 1:
+            await config.toggle("auto_sync_enabled")
+        if len(ticks) == 2:
+            raise StopLoop
 
-    assert task is None
-    assert pipeline.runs == 0
-    assert [r.getMessage() for r in caplog.records] == [
-        "Background sync daemon is disabled by config"
-    ]
+    with pytest.raises(StopLoop):
+        await _runner(pipeline, config=config).run_forever(300, sleep=fake_sleep)
+
+    assert (pipeline.runs, ticks) == (1, [300, 300])
 
 
 @pytest.mark.asyncio
-async def test_enabled_daemon_starts_background_loop() -> None:
+async def test_daemon_starts_background_loop() -> None:
     pipeline = FakePipeline()
 
-    task = _runner(pipeline).start_daemon(enabled=True, interval_seconds=300)
-    await asyncio.sleep(0)
+    task = _runner(pipeline).start_daemon(interval_seconds=300)
+    for _ in range(3):
+        await asyncio.sleep(0)
 
-    assert task is not None
     assert pipeline.runs == 1
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
 
 
-def test_runner_exposes_pipeline_dry_run_mode() -> None:
-    pipeline = FakePipeline()
-    pipeline.dry_run = True
+@pytest.mark.asyncio
+async def test_runner_exposes_runtime_config() -> None:
+    config = FakeConfigStore(dry_run=True, auto_sync_enabled=False)
 
-    assert _runner(pipeline).dry_run is True
+    current = await _runner(FakePipeline(), config=config).config()
+
+    assert (current.dry_run, current.auto_sync_enabled) == (True, False)

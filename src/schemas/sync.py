@@ -20,10 +20,21 @@ AuditAction = Literal[
     "SINGLE_ARCHIVE",
     "DRY_RUN_SINGLE_UPSERT",
     "DRY_RUN_SINGLE_ARCHIVE",
+    "ABORTED",
 ]
 SingleSyncOutcome = Literal["SYNCED", "DRY_RUN", "NOT_FOUND", "FAILED", "BUSY"]
 ReleaseStatus = Literal["IDLE", "FAILED"]
+ConfigFlag = Literal["dry_run", "auto_sync_enabled"]
 RUNNING = "RUNNING"
+
+
+class RuntimeConfig(BaseModel):
+    """Dashboard-controlled run flags (`sync_config`); override the `.env` defaults."""
+
+    model_config = ConfigDict(from_attributes=True, frozen=True)
+
+    dry_run: bool = True
+    auto_sync_enabled: bool = False
 
 
 class AuditEntry(BaseModel):
@@ -71,6 +82,7 @@ class SyncRunResult(BaseModel):
     failed: int = 0
     planned: int = 0
     cursor: datetime
+    dry_run: bool = True
 
 
 class SingleSyncDebug(BaseModel):

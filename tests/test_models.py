@@ -6,7 +6,14 @@ import pytest
 from sqlalchemy import JSON, Table, make_url
 from sqlalchemy.schema import CreateTable
 
-from src.models.audit import Base, SyncAuditLog, SyncFingerprint, SyncState, UtcDateTime
+from src.models.audit import (
+    Base,
+    SyncAuditLog,
+    SyncConfig,
+    SyncFingerprint,
+    SyncState,
+    UtcDateTime,
+)
 
 SQLITE = make_url("sqlite://").get_dialect()()
 
@@ -26,6 +33,7 @@ def test_tables_use_flat_namespace() -> None:
         "sync_states",
         "sync_fingerprints",
         "sync_audit_log",
+        "sync_config",
     }
     assert all(t.schema is None for t in Base.metadata.sorted_tables)
 
@@ -38,6 +46,16 @@ def test_sync_states_matches_spec() -> None:
     ddl = _ddl(table)
     assert "module_name VARCHAR(64) NOT NULL" in ddl
     assert "status VARCHAR(32) DEFAULT 'IDLE' NOT NULL" in ddl
+    assert "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL" in ddl
+
+
+def test_sync_config_defaults_to_dry_run_with_auto_sync_off() -> None:
+    table = _table(SyncConfig)
+
+    assert [c.name for c in table.primary_key] == ["module_name"]
+    ddl = _ddl(table)
+    assert "dry_run BOOLEAN DEFAULT 1 NOT NULL" in ddl
+    assert "auto_sync_enabled BOOLEAN DEFAULT 0 NOT NULL" in ddl
     assert "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL" in ddl
 
 

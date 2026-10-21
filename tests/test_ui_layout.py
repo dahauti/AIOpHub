@@ -31,8 +31,8 @@ async def test_batch_and_canary_live_in_separate_cards(client: httpx.AsyncClient
     html = (await client.get("/")).text
 
     batch, canary = html.index('id="batch-sync"'), html.index('id="single-vehicle"')
-    assert batch < html.index('hx-post="/api/sync/trigger"') < html.index('id="sync-status"')
-    assert html.index('id="sync-status"') < canary
+    assert batch < html.index('id="sync-status"') < html.index('hx-post="/api/sync/trigger"')
+    assert html.index('hx-post="/api/sync/trigger"') < canary
     assert canary < html.index('hx-post="/api/sync/vehicle"') < html.index('id="single-debug"')
     assert 'hx-target="#single-debug"' in html
 

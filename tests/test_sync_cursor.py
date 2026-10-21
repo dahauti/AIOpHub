@@ -11,7 +11,7 @@ from src.database import get_engine, get_sessionmaker, init_db
 from src.pipelines.scheduler import SyncRunner
 from src.repositories.sync_repository import SqlSyncRepository
 from src.schemas.sync import SyncRunResult
-from tests.repository_fakes import FakeSyncRepository
+from tests.repository_fakes import FakeConfigStore, FakeSyncRepository
 
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
 EARLIER = NOW - timedelta(days=10)
@@ -67,7 +67,7 @@ class _Pipeline:
 @pytest.mark.asyncio
 async def test_runner_refuses_cursor_change_during_in_process_run(running: bool) -> None:
     repository = FakeSyncRepository(cursor=EARLIER)
-    runner = SyncRunner(_Pipeline(running), repository, clock=lambda: NOW)
+    runner = SyncRunner(_Pipeline(running), repository, FakeConfigStore(), clock=lambda: NOW)
 
     changed = await runner.set_cursor(NOW)
 

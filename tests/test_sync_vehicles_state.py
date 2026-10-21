@@ -28,14 +28,26 @@ def _pipeline(
 
 
 @pytest.mark.asyncio
-async def test_first_run_falls_back_to_thirty_days_minus_lookback() -> None:
+async def test_first_run_on_clean_database_starts_at_now_minus_lookback() -> None:
     bc, repo = FakeBC([]), FakeSyncRepository()
 
     await _pipeline(bc, repo).run()
 
-    assert bc.since == [NOW - timedelta(days=30) - timedelta(minutes=15)]
+    assert bc.since == [NOW - timedelta(minutes=15)]
     assert repo.statuses == ["RUNNING", "IDLE"]
-    assert repo.cursor == NOW - timedelta(days=30)
+    assert repo.cursor == NOW
+
+
+@pytest.mark.asyncio
+async def test_first_run_honours_configured_initial_lookback_days() -> None:
+    bc, repo = FakeBC([]), FakeSyncRepository()
+    pipeline = VehicleSyncPipeline(
+        bc, FakeFrontu(), repo, INTERNAL_CLIENT, initial_lookback=timedelta(7), clock=lambda: NOW
+    )
+
+    await pipeline.run()
+
+    assert repo.cursor == NOW - timedelta(days=7)
 
 
 @pytest.mark.asyncio

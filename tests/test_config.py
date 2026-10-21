@@ -98,7 +98,11 @@ def test_runtime_defaults_select_onprem_and_five_minute_interval() -> None:
 
 @pytest.mark.parametrize(
     ("env_key", "value"),
-    [("BC_ACTIVE_PROFILE", "cloud"), ("SYNC_INTERVAL_SECONDS", "0")],
+    [
+        ("BC_ACTIVE_PROFILE", "cloud"),
+        ("SYNC_INTERVAL_SECONDS", "0"),
+        ("SYNC_INITIAL_LOOKBACK_DAYS", "-1"),
+    ],
 )
 def test_runtime_settings_reject_invalid_values(
     env_key: str, value: str, monkeypatch: pytest.MonkeyPatch, isolated_env: None
@@ -112,6 +116,7 @@ def test_runtime_settings_reject_invalid_values(
 def test_safety_flag_code_defaults_are_fail_safe() -> None:
     assert Settings.model_fields["sync_enabled"].default is False
     assert Settings.model_fields["sync_dry_run"].default is True
+    assert Settings.model_fields["sync_initial_lookback_days"].default == 0
 
 
 @pytest.mark.usefixtures("isolated_env")

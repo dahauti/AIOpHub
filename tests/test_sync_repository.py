@@ -133,7 +133,13 @@ async def test_pipeline_round_trip_on_sqlite(repo: SqlSyncRepository) -> None:
     modified = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)
     bc, frontu = FakeBC([[vehicle("SN-1", modified)]]), FakeFrontu()
     pipeline = VehicleSyncPipeline(
-        bc, frontu, repo, INTERNAL_CLIENT, dry_run=False, clock=lambda: PIPELINE_NOW
+        bc,
+        frontu,
+        repo,
+        INTERNAL_CLIENT,
+        dry_run=False,
+        initial_lookback=timedelta(days=30),
+        clock=lambda: PIPELINE_NOW,
     )
 
     first = await pipeline.run()

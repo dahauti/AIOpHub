@@ -16,6 +16,7 @@ from src.pipelines.ports import WorkspaceSink, utc_now
 from src.pipelines.sync_vehicles import CONFIRMED_STATUSES
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
+from src.repositories.config_repository import RuntimeConfigStore, resolve_dry_run
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.bc_vehicle import BCODataShipToAddress, BCODataVehicle, BCVehicleWarranty
 from src.schemas.frontu_models import FrontuWorkspaceUpsert
@@ -49,6 +50,7 @@ class SingleVehicleSync:
         *,
         lock: asyncio.Lock,
         dry_run: bool = True,
+        config: RuntimeConfigStore | None = None,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._source = source
@@ -57,13 +59,14 @@ class SingleVehicleSync:
         self._internal_client_id = internal_client_id
         self._lock = lock
         self._dry_run = dry_run
+        self._config = config
         self._clock = clock
 
     async def sync_single_vehicle(
         self, serial_no: str, force_live: bool = False
     ) -> SingleSyncResult:
-        """Sync one vehicle; live when `force_live` or SYNC_DRY_RUN is off, else dry run."""
-        live = force_live or not self._dry_run
+        """Sync one vehicle; live when `force_live` or the runtime mode is LIVE, else dry run."""
+        live = force_live or not await resolve_dry_run(self._config, self._dry_run)
         if self._lock.locked():
             return SingleSyncResult(serial_no=serial_no, outcome="BUSY", dry_run=not live)
         async with self._lock:

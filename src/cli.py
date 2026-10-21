@@ -11,7 +11,7 @@ import sys
 import time
 from collections.abc import Sequence
 
-from src.config import Settings, get_settings
+from src.config import get_settings
 from src.database import get_engine, init_db
 from src.logging_setup import configure_logging
 from src.pipelines.sync_vehicles import sync_vehicles_batch
@@ -36,8 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def format_summary(result: SyncRunResult, elapsed: float, settings: Settings) -> str:
-    mode = "DRY RUN" if settings.sync_dry_run else "LIVE"
+def format_summary(result: SyncRunResult, elapsed: float) -> str:
+    mode = "DRY RUN" if result.dry_run else "LIVE"
     return (
         f"sync --batch [{mode}]: processed={result.processed} planned={result.planned} "
         f"skipped={result.skipped} errors={result.failed} elapsed={elapsed:.1f}s"
@@ -56,7 +56,7 @@ async def _run_batch() -> int:
     if result is None:
         logger.warning("Batch sync skipped: another run holds the module lock in sync_states")
         return EXIT_OK
-    print(format_summary(result, time.monotonic() - started, settings))
+    print(format_summary(result, time.monotonic() - started))
     return EXIT_OK
 
 

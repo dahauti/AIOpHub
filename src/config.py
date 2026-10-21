@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     sync_interval_seconds: int = Field(default=300, ge=1)
     sync_enabled: bool = False
     sync_dry_run: bool = True
+    sync_initial_lookback_days: int = Field(default=0, ge=0)
 
     # Business Central OnPrem Prod
     bc_tenant_id_onprem: str
