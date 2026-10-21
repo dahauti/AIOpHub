@@ -110,3 +110,4 @@ No code walkthroughs, no restating the diff.
 - No outbound network calls (curl, wget, webfetch, live API calls) unless the active prompt explicitly instructs it and names the profile. Live calls only against `*_dev` / `*_test` profiles unless the owner states otherwise.
 - Do not inspect or change system environment variables outside `.venv`.
 - Ask before any filesystem change outside `src/`, `tests/`, `contracts/`, `db/migrations/`, `docs/`.
+- Temporary files (scratch scripts, test clones, diffs) go only to C:\AIOpHub\.tmp\. Never use the system temp folder or the tool's own scratchpad. Clean .tmp/ at the end of each task.

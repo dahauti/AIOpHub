@@ -30,3 +30,6 @@ data/
 
 # Build output
 dist/
+
+# Temporary files (scratch scripts, test clones, diffs); see CLAUDE.md §11
+.tmp/
