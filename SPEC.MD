@@ -231,11 +231,34 @@ Frontu holds about 2,000 workspaces created manually or by a legacy import: `ser
 ## 11. Runtime Dashboard Controls (2026-10-21)
 
 ### 11.1 Runtime Configuration (`sync_config`)
-- One row per module: `dry_run` (default true) and `auto_sync_enabled` (default false).
-- Precedence: a stored row wins over `.env`. Without a row, `SYNC_DRY_RUN` / `SYNC_ENABLED` apply; the first dashboard toggle seeds the row from them.
+- One row per module (`module_name` PK). Strongly typed columns (DTO: `RuntimeConfig` extends `ScheduleSettings`, src/schemas/schedule.py); never serialized label strings:
+
+| Column | Type | Default | Constraint |
+|---|---|---|---|
+| `dry_run` | BOOLEAN | true | DRY RUN / LIVE run mode |
+| `auto_sync_enabled` | BOOLEAN | false | master switch for all scheduled runs |
+| `schedule_mode` | VARCHAR(16) | `nightly` | `nightly` \| `interval` |
+| `nightly_time` | VARCHAR(5) | `02:00` | `HH:MM`, 00:00-23:59 |
+| `interval_minutes` | INTEGER | 60 | 5-1440 |
+| `full_sync_enabled` | BOOLEAN | false | weekly full sync on/off |
+| `full_sync_weekday` | INTEGER | 6 | 0 = Monday ... 6 = Sunday |
+| `full_sync_time` | VARCHAR(5) | `02:00` | `HH:MM`, 00:00-23:59 |
+
+- Precedence: a stored row wins over `.env`. Without a row, `SYNC_DRY_RUN` / `SYNC_ENABLED` and the schedule defaults above apply; the first dashboard write seeds the row from them.
 - The batch pipeline, the single-vehicle sync (unless `force_live`) and the CLI batch read `dry_run` at the start of each run.
-- The web app always starts the daemon loop; each `SYNC_INTERVAL_SECONDS` tick runs the pipeline only while `auto_sync_enabled` is true.
-- The app lifespan runs `init_db()` so tables added after deployment (e.g. `sync_config`) are created without migrations.
+- The app lifespan runs `init_db()`: missing tables are created and model columns missing from existing tables are added (`ALTER TABLE ... ADD COLUMN` with the server default), so deployed databases upgrade without migrations.
+
+### 11.1a Scheduler Execution Semantics (src/pipelines/schedule.py, src/pipelines/scheduler.py)
+- The web app always starts the daemon loop; every `SYNC_INTERVAL_SECONDS` tick (schedule check granularity) reads `sync_config` and starts at most one due run.
+- Schedule times are interpreted in the server's local time zone (DST-aware).
+- Incremental slots: `nightly` -> next `nightly_time` strictly after now; `interval` -> `interval_minutes` after the last scheduled start.
+- Startup sync suppression: the daemon never runs on startup; the first tick only plans the next slots from the current time.
+- Schedule edits re-plan from the current time; a slot that an edit moves into the past never fires.
+- Missed slot drops on re-enable: while `auto_sync_enabled` is false the plan is discarded; re-enabling re-plans from that moment, so slots missed while disabled are dropped, not caught up.
+- A due run that finds another run active stays due and starts on the first tick after it finishes.
+- Weekly full sync (`full_sync_enabled`): due at `full_sync_weekday` + `full_sync_time`. It supersedes an incremental run due on the same tick and also re-plans the incremental slot.
+- Full sync behavior: the cursor window is bypassed (`SystemModifiedAt ge 1753-01-01`, BC's minimum date, i.e. all records), but fingerprint filtering stays active: only vehicles with a payload delta or without a stored fingerprint (never written with their `systemId`) are dispatched to Frontu. The cursor stays forward-only, and dry-run rules (section 7 / 11.1) apply unchanged.
+- `POST /partials/config/schedule` (src/api/schedule_handlers.py) validates and stores the whole schedule (an unchecked full-sync switch = off) and returns the `#schedule-card` partial; 422 with the first validation error and nothing stored.
 
 ### 11.2 Endpoints (src/api/config_handlers.py; each returns the `#sync-status` partial)
 - `POST /partials/config/toggle-dry-run`: flips DRY RUN / LIVE. 409 while a run is active (the mode of a running sync cannot change).
@@ -246,3 +269,4 @@ Frontu holds about 2,000 workspaces created manually or by a legacy import: `ser
 ### 11.3 Dashboard
 - Mode card: amber `DRY RUN` / emerald `LIVE` toggle (switching to LIVE asks for confirmation; disabled while running) and an `Auto-sync ON/OFF` toggle.
 - Action bar (inside the polled KPI block): `Sync now` while idle; a red `Abort Sync` (with confirmation) while `RUNNING`.
+- Schedule card (outside the poll loop): incremental mode selector (nightly time / interval minutes), weekly full sync switch with weekday and time selectors, `Save schedule`; shows `paused while Auto-sync is OFF`.
