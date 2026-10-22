@@ -84,6 +84,7 @@ CHECKS: ruff=<ok|fail> mypy=<ok|fail> pytest=<passed/failed>
 INTENT: <max 2 lines: what behavior changed>
 RISKS/OPEN: <max 3 bullets or "none">
 DEVIATIONS: <every departure from the plan or from this file, or "none">
+TESTS WEAKENED: <every loosened test, assertion or check, with its diff; or "none">
 ```
 No code walkthroughs, no restating the diff.
 
