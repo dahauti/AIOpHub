@@ -45,3 +45,8 @@ Perkelta iš `docs/UX_GUIDELINES.md` 8 sk. („Inžinerinis backlog (ne UX)“).
 - **Saugojimo politika `job_runs` / `record_outcomes`.** Lentelės auga su kiekvienu paleidimu; reikia nuspręsti, kiek laiko laikyti (pvz. N dienų arba N paleidimų per procesą) ir kas valo (worker job).
 - **Transporto priemonių `record_outcomes`.** Dabar transporto priemonės rašo tik `job_runs`; įrašų rezultatams reikia pirma išskaidyti `src/pipelines/sync_vehicles.py` (~200 LOC).
 - **Prisegti `requirements.txt` versijas** (CLAUDE.md §4 reikalauja prisegtų): dabar `>=` intervalai.
+
+## Diegimas
+
+- **Server must reach BC on-prem (lt.alwark.eu:7048) without a personal VPN; disappears with BC SaaS.**
+  - DEV 2026-10-22: BC nepasiekiamas be VPN (`ConnectError`, canary SO029748); tokia klaida dabar saugoma kaip `system.bc_unreachable` (`src/services/error_catalog.py`).

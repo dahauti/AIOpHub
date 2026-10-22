@@ -212,6 +212,25 @@ async def test_failed_canary_is_an_error_outcome_of_its_target(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("live")
+async def test_unreachable_bc_fails_the_canary_as_unreachable(backends: MockBackends) -> None:
+    backends.bc_unreachable = True
+
+    with pytest.raises(ExternalServiceError):
+        await run_single(get_settings(), CanaryTarget(kind="order", value="SO00001"))
+
+    [(run, [outcome])] = await _stored()
+    assert (run.status, run.error_code, run.count_failed) == ("failed", "system.bc_unreachable", 1)
+    assert (outcome.object_id, outcome.error_code, outcome.error_type, outcome.http_status) == (
+        "SO00001",
+        "system.bc_unreachable",
+        "system",
+        None,
+    )
+    assert backends.writes == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("live")
 async def test_bookkeeping_failure_never_changes_the_sync(
     backends: MockBackends, monkeypatch: pytest.MonkeyPatch
 ) -> None:

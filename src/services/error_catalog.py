@@ -71,6 +71,20 @@ CATALOG: dict[str, ErrorDefinition] = {
             "en": "Frontu did not respond or returned an error (HTTP {http_status}).",
         },
     ),
+    "system.bc_unreachable": ErrorDefinition(
+        error_type="system",
+        text={
+            "lt": "Nepavyko prisijungti prie BC \u2013 patikrinkite tinklo ryšį arba VPN.",
+            "en": "Could not connect to BC \u2013 check the network connection or VPN.",
+        },
+    ),
+    "system.frontu_unreachable": ErrorDefinition(
+        error_type="system",
+        text={
+            "lt": "Nepavyko prisijungti prie Frontu \u2013 patikrinkite tinklo ryšį.",
+            "en": "Could not connect to Frontu \u2013 check the network connection.",
+        },
+    ),
     "system.auth": ErrorDefinition(
         error_type="system",
         text={
@@ -93,6 +107,11 @@ SERVICE_CODES: dict[str, str] = {
     "frontu": "system.frontu_error",
     "entra-id": "system.auth",
 }
+# The same services when no HTTP response came back (ExternalServiceError.unreachable)
+UNREACHABLE_CODES: dict[str, str] = {
+    "business-central": "system.bc_unreachable",
+    "frontu": "system.frontu_unreachable",
+}
 
 
 def error_type(code: str) -> ErrorType:
@@ -102,7 +121,8 @@ def error_type(code: str) -> ErrorType:
 def classify(error: BaseException) -> ClassifiedError:
     """Code, HTTP status and raw (unsanitised) detail of an exception."""
     if isinstance(error, ExternalServiceError):
-        code = SERVICE_CODES.get(error.service, UNKNOWN)
+        codes = UNREACHABLE_CODES if error.unreachable else {}
+        code = codes.get(error.service) or SERVICE_CODES.get(error.service, UNKNOWN)
         return ClassifiedError(code=code, http_status=error.status_code, detail=str(error))
     return ClassifiedError(code=UNKNOWN, detail=f"{type(error).__name__}: {error}")
 

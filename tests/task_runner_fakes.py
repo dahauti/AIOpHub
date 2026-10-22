@@ -40,6 +40,7 @@ class MockBackends:
     def __init__(self) -> None:
         self.requests: list[httpx.Request] = []
         self.fail_bc_reads = False
+        self.bc_unreachable = False  # BC reads fail at TCP connect (e.g. no VPN)
         self.frontu_write_status: int | None = None  # e.g. 422: Frontu rejects every POST
         self.frontu_read_status: int | None = None  # e.g. 500: Frontu fails every GET
 
@@ -63,6 +64,8 @@ class MockBackends:
                 return httpx.Response(self.frontu_read_status, json={"error": "unavailable"})
             path = request.url.path.removeprefix(FRONTU_PREFIX)
             return httpx.Response(200, json={"items": FRONTU_GETS[path], "next_page": 0})
+        if self.bc_unreachable:
+            raise httpx.ConnectError("All connection attempts failed", request=request)
         if self.fail_bc_reads:
             return httpx.Response(400, json={"error": {"message": "bad filter"}})
         rows = [LINE] if "/TG_Lines" in request.url.path else [ORDER]

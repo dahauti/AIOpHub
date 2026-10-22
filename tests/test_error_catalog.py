@@ -1,11 +1,13 @@
 """Error catalog: English ASCII codes, text in every language, unknown -> system."""
 
 import re
+from collections.abc import Callable
 from typing import get_args
 
+import httpx
 import pytest
 
-from src.adapters.resilience import ExternalServiceError
+from src.adapters.resilience import ExternalServiceError, send_with_retry
 from src.services.error_catalog import (
     CATALOG,
     UNKNOWN,
@@ -24,6 +26,8 @@ EXPECTED_CODES = {
     "task.not_frontu_status",
     "system.bc_error",
     "system.frontu_error",
+    "system.bc_unreachable",
+    "system.frontu_unreachable",
     "system.auth",
     "system.unknown",
 }
@@ -74,6 +78,53 @@ def test_external_errors_are_classified_by_service(service: str, code: str) -> N
     assert (classified.code, classified.http_status) == (code, 503)
     assert error_type(classified.code) == "system"
     assert "unavailable" in classified.detail
+
+
+async def _send_error(
+    service: str, handler: Callable[[httpx.Request], httpx.Response]
+) -> ExternalServiceError:
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        request = http.build_request("GET", "https://example.test/x")
+        with pytest.raises(ExternalServiceError) as caught:
+            await send_with_retry(http, request, service=service)
+    return caught.value
+
+
+def _refuse(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("All connection attempts failed", request=request)
+
+
+def _reject(_request: httpx.Request) -> httpx.Response:
+    return httpx.Response(400, json={"error": "bad filter"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("service", "handler", "code", "http_status"),
+    [
+        ("business-central", _refuse, "system.bc_unreachable", None),
+        ("frontu", _refuse, "system.frontu_unreachable", None),
+        ("business-central", _reject, "system.bc_error", 400),
+        ("frontu", _reject, "system.frontu_error", 400),
+    ],
+)
+async def test_network_failure_is_unreachable_and_http_error_is_error(
+    service: str,
+    handler: Callable[[httpx.Request], httpx.Response],
+    code: str,
+    http_status: int | None,
+) -> None:
+    classified = classify(await _send_error(service, handler))
+
+    assert (classified.code, classified.http_status) == (code, http_status)
+    assert error_type(classified.code) == "system"
+
+
+def test_unreachable_bc_text_points_to_network_or_vpn() -> None:
+    assert message("system.bc_unreachable", "lt") == (
+        "Nepavyko prisijungti prie BC \u2013 patikrinkite tinklo ryšį arba VPN."
+    )
+    assert "VPN" in message("system.bc_unreachable", "en")
 
 
 def test_any_other_exception_is_unknown_system() -> None:
