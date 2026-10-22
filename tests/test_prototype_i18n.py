@@ -54,7 +54,7 @@ def _literal_ok(literal: str) -> bool:
     return (
         not LETTER.search(literal)
         or literal.endswith(".html")
-        or re.fullmatch(r"[a-z]+\.(css|js)", literal) is not None  # asset("proto.css")
+        or re.fullmatch(r"([a-z]+/)?[a-z]+\.(css|js|png)", literal) is not None  # asset("x.css")
         or literal.startswith("proto-")
         or literal in ENUMS | TECHNICAL
         or any(f".{core}." in f".{key}." for key in catalog("lt"))

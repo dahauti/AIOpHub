@@ -6,7 +6,12 @@
 @font-face { font-family: "Open Sans"; font-style: normal; font-weight: 300 800; font-display: swap; src: url("/static/fonts/open-sans-latin-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 .proto-body { min-height: 100vh; background-color: var(--hub-bg); color: var(--hub-text); font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
 .proto-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--proto-space-2); padding: var(--proto-space-1) var(--proto-space-4); border-bottom: 1px solid var(--hub-line); background-color: var(--hub-surface); }
-.proto-brand { font-size: 0.9375rem; font-weight: 700; color: var(--hub-text-strong); }
+.proto-brand { display: inline-flex; align-items: center; gap: 0.75rem; font-size: 0.9375rem; font-weight: 700; color: var(--hub-text-strong); }
+/* Logo (src/static/brand/logo.png): original colours on the light theme; the graphite wordmark and
+   red mark vanish on dark surfaces and the crimson PROD bar, so there it is rendered all white
+   until an official negative logo exists. */
+.proto-logo { display: block; height: 1.5rem; width: auto; }
+:root[data-theme="dark"] .proto-logo, .proto-top-prod .proto-logo { filter: brightness(0) invert(1); }
 /* Environment (UX_GUIDELINES 6 sk.): badge next to the title; PROD turns the whole header row
    crimson, and every header element switches to white / light amber (tests/test_prototype_theme.py). */
 .proto-brand-group { display: flex; align-items: center; gap: 0.5rem; }

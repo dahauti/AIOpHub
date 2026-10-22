@@ -4,6 +4,7 @@
   "_fmt.datetime": "{j} {mon} {Y} {H}:{M}",
   "_fmt.months": "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",
 
+  "app.logotipas": "Alwark",
   "app.pavadinimas": "Operations Center",
   "app.prototipas": "Prototype",
   "aplinka.prod_juosta": "PROD · production systems · changes affect real data",

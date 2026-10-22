@@ -121,6 +121,25 @@ async def test_rendered_prototype_page_has_no_font_cdn(client: httpx.AsyncClient
     assert font.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_header_shows_logo_linking_home(client: httpx.AsyncClient) -> None:
+    html = (await client.get("/prototype/")).text
+    brand = re.search(r'<a href="/prototype/" class="proto-brand">(.*?)</a>', html, re.S)
+    assert brand is not None
+    img = re.search(r'<img class="proto-logo" src="(/static/brand/logo\.png\?v=\w+)"', brand[1])
+    assert img is not None
+    assert 'alt="Alwark"' in brand[1] and 'width="102" height="24"' in brand[1]
+    assert (await client.get(img[1])).status_code == 200
+
+
+def test_logo_turns_white_on_dark_theme_and_prod_bar() -> None:
+    css = (STATIC / "proto.css").read_text(encoding="utf-8")
+    white = re.search(r"^(.*)\{ filter: brightness\(0\) invert\(1\); \}", css, re.M)
+    assert white is not None
+    selectors = {s.strip() for s in white[1].split(",")}
+    assert selectors == {':root[data-theme="dark"] .proto-logo', ".proto-top-prod .proto-logo"}
+
+
 def _proto_var(selector: str, name: str) -> str:
     """Hex value of one custom property inside a proto.css rule that starts with `selector`."""
     css = (STATIC / "proto.css").read_text(encoding="utf-8")
