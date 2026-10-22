@@ -25,6 +25,7 @@ from src.api.task_handlers import task_router
 from src.config import get_settings
 from src.database import get_engine, get_sessionmaker, init_db
 from src.logging_setup import configure_logging
+from src.pipelines.recorded_pipeline import recorded
 from src.pipelines.scheduler import SyncRunner
 from src.pipelines.single_vehicle import SingleVehicleSync
 from src.pipelines.sync_vehicles import MODULE, VehicleSyncPipeline
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             bc, frontu, repository, client_id, lock=run_lock, config=config
         )
         await _log_runtime_config(config)
-        runner = SyncRunner(pipeline, repository, config)
+        runner = SyncRunner(recorded(pipeline, settings), repository, config)
         app.state.sync_control = runner
         app.state.task_control = task_control = TaskSyncControl(settings)
         app.state.link_health = LinkHealthReader(get_sessionmaker())

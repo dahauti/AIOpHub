@@ -10,6 +10,7 @@ from src.adapters.bc_client import select_connection
 from src.clients.bc_tasks_client import BCTasksClient
 from src.clients.frontu_tasks_client import FrontuTasksClient
 from src.config import Settings
+from src.repositories.job_run_repository import JobRunRepository
 from src.services.dry_run import (
     AuditSink,
     DryRunBC,
@@ -18,6 +19,7 @@ from src.services.dry_run import (
     ReadOnlyTaskRepository,
 )
 from src.services.ports import BCTasksPort, FrontuTasksPort, utc_now
+from src.services.run_recorder import RunRecorder, run_profile
 from src.services.task_inbound import TaskInboundService
 from src.services.task_outbound import TaskOutboundService
 from src.storage.task_repository import TaskRepository
@@ -26,9 +28,14 @@ from src.storage.task_state_repository import TaskStateRepository
 
 @dataclass(frozen=True)
 class Wiring:
-    """Services for one locked run; `inbound_baseline` always writes the real watermark."""
+    """Services for one locked run; `inbound_baseline` always writes the real watermark.
+
+    `recorder` writes job_runs / record_outcomes in dry run too: they are AIOpHub's own
+    bookkeeping tables, not BC or Frontu.
+    """
 
     dry_run: bool
+    recorder: RunRecorder
     outbound: TaskOutboundService
     inbound: TaskInboundService
     inbound_baseline: TaskInboundService
@@ -51,10 +58,14 @@ def wire(
     if dry_run:
         bc, frontu = DryRunBC(bc, audit), DryRunFrontu(frontu, audit)
     initial = utc_now() - timedelta(days=settings.sync_initial_lookback_days)
-    outbound = TaskOutboundService(bc, frontu, watermarks, states, initial_watermark=initial)
+    recorder = RunRecorder(JobRunRepository(engine), run_profile(settings))
+    outbound = TaskOutboundService(
+        bc, frontu, watermarks, states, initial_watermark=initial, outcomes=recorder
+    )
     baseline = TaskInboundService(bc, frontu, TaskRepository(engine, buffer), states)
     return Wiring(
         dry_run=dry_run,
+        recorder=recorder,
         outbound=outbound,
         inbound=TaskInboundService(bc, frontu, watermarks, states),
         inbound_baseline=baseline,

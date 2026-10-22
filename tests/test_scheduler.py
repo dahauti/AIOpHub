@@ -53,6 +53,7 @@ async def test_weekly_full_sync_supersedes_the_incremental_slot_it_shares() -> N
         )
 
     assert pipeline.fulls == [True, False]
+    assert pipeline.triggers == ["schedule", "schedule"]
 
 
 @pytest.mark.asyncio
@@ -70,6 +71,7 @@ async def test_trigger_starts_background_run_and_rejects_while_active() -> None:
     await asyncio.sleep(0)
     await asyncio.sleep(0)
     assert pipeline.runs == 1
+    assert pipeline.triggers == ["manual"]
     assert runner.trigger() is True
     await runner.shutdown()
 

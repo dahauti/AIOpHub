@@ -32,3 +32,9 @@ Perkelta iš `docs/UX_GUIDELINES.md` 8 sk. („Inžinerinis backlog (ne UX)“).
   - `ExternalServiceError.url` užpildymas siuntimo funkcijoje (`send_with_retry`); kitose klaidų vietose URL nenustatomas.
   - FAILED Canary kelias: kas išsaugoma ekranui, kai `TaskSyncControl` gauna tikrą klaidą.
   - Dry-run Canary su tikrais audito įrašais: ar žingsniuose atsiranda būtent jo rašymai.
+
+## Operacijų centras (ADR 0003)
+
+- **Saugojimo politika `job_runs` / `record_outcomes`.** Lentelės auga su kiekvienu paleidimu; reikia nuspręsti, kiek laiko laikyti (pvz. N dienų arba N paleidimų per procesą) ir kas valo (worker job).
+- **Transporto priemonių `record_outcomes`.** Dabar transporto priemonės rašo tik `job_runs`; įrašų rezultatams reikia pirma išskaidyti `src/pipelines/sync_vehicles.py` (~200 LOC).
+- **Prisegti `requirements.txt` versijas** (CLAUDE.md §4 reikalauja prisegtų): dabar `>=` intervalai.

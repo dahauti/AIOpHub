@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.pipelines.scheduler import SyncRunner
+from src.schemas.operations import TriggerKind
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import RUNNING, SyncRunResult
 from tests.pipeline_fakes import NOW, FakeSyncRepository
@@ -27,7 +28,9 @@ class BlockingPipeline:
     def is_running(self) -> bool:
         return self._running
 
-    async def run(self, *, full: bool = False) -> SyncRunResult | None:
+    async def run(
+        self, *, full: bool = False, trigger: TriggerKind = "schedule"
+    ) -> SyncRunResult | None:
         self.runs += 1
         self._running = True
         await self.repo.try_acquire(NOW, NOW)

@@ -13,6 +13,7 @@ from src.pipelines.sync_vehicles import MODULE
 from src.repositories.config_repository import RuntimeConfigStore
 from src.repositories.sync_repository import SyncRepository
 from src.schemas.audit_filter import AuditQuery
+from src.schemas.operations import TriggerKind
 from src.schemas.schedule import RunKind, ScheduleSettings
 from src.schemas.sync import (
     RUNNING,
@@ -27,12 +28,14 @@ from src.schemas.sync import (
 logger = logging.getLogger(__name__)
 
 RECENT_AUDIT_LIMIT = 15
+_Result = SyncRunResult | None
+_RunTask = asyncio.Task[_Result]
 
 
 class RunnablePipeline(Protocol):
     @property
     def is_running(self) -> bool: ...
-    async def run(self, *, full: bool = False) -> SyncRunResult | None: ...
+    async def run(self, *, full: bool = ..., trigger: TriggerKind = ...) -> _Result: ...
 
 
 @runtime_checkable
@@ -69,7 +72,7 @@ class SyncRunner:
         self._repo = repository
         self._config = config
         self._clock = clock
-        self._tasks: set[asyncio.Task[SyncRunResult | None]] = set()
+        self._tasks: set[_RunTask] = set()
         self._schedule = ScheduleTracker(tz)
 
     @property
@@ -84,7 +87,7 @@ class SyncRunner:
         """Start a background run unless one is active; returns whether a run was started."""
         if self._busy:
             return False
-        self._start("vehicle-sync-manual").add_done_callback(self._on_manual_done)
+        self._start("vehicle-sync-manual", "manual").add_done_callback(self._on_manual_done)
         return True
 
     async def set_cursor(self, cursor: datetime) -> bool:
@@ -172,7 +175,7 @@ class SyncRunner:
         if kind is None or self._busy:
             return  # a due run stays due until the active run finishes
         self._schedule.started(kind, config, now)
-        task = self._start(f"vehicle-sync-{kind}", full=kind == "full")
+        task = self._start(f"vehicle-sync-{kind}", "schedule", full=kind == "full")
         try:
             result = await task
         except asyncio.CancelledError:
@@ -183,13 +186,13 @@ class SyncRunner:
         if result is not None:
             logger.info("Scheduled sync run finished", extra=result.model_dump(mode="json"))
 
-    def _start(self, name: str, *, full: bool = False) -> asyncio.Task[SyncRunResult | None]:
-        task = asyncio.create_task(self._pipeline.run(full=full), name=name)
+    def _start(self, name: str, trigger: TriggerKind, *, full: bool = False) -> _RunTask:
+        task = asyncio.create_task(self._pipeline.run(full=full, trigger=trigger), name=name)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task
 
-    def _on_manual_done(self, task: asyncio.Task[SyncRunResult | None]) -> None:
+    def _on_manual_done(self, task: _RunTask) -> None:
         if task.cancelled():
             return
         error = task.exception()

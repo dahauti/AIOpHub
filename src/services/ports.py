@@ -7,6 +7,7 @@ from pydantic import BaseModel, JsonValue
 
 from src.domain.bc_models import BCServiceOrderHeader, BCServiceOrderLine
 from src.domain.frontu_models import FrontuMaterial, FrontuTask, FrontuTaskPayload, FrontuWork
+from src.schemas.operations import OutcomeResult
 
 Outcome = Literal["SYNCED", "SKIPPED", "FAILED", "VALIDATION_ERROR"]
 # Upper bound for error text persisted to `task_sync_state.error_message`.
@@ -44,6 +45,21 @@ class FrontuTasksPort(Protocol):
     async def find_workspace_guid(self, system_id: str) -> str | None: ...
     async def find_task_type_guid(self, system_id: str) -> str | None: ...
     async def get_client_system_id(self, client_guid: str) -> str | None: ...
+
+
+class OutcomeSink(Protocol):
+    """Per-record outcome of the job run in progress (`RunRecorder`); never raises."""
+
+    async def record_outcome(
+        self,
+        object_type: str,
+        object_id: str,
+        result: OutcomeResult,
+        *,
+        error_code: str | None = None,
+        params: dict[str, str] | None = None,
+        error: BaseException | None = None,
+    ) -> None: ...
 
 
 class SyncRunResult(BaseModel):

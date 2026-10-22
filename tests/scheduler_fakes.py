@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 from src.pipelines.scheduler import SyncRunner
+from src.schemas.operations import TriggerKind
 from src.schemas.schedule import ScheduleSettings
 from src.schemas.sync import SyncRunResult
 from tests.pipeline_fakes import NOW, FakeSyncRepository
@@ -17,15 +18,19 @@ class FakePipeline:
         self.release = asyncio.Event()
         self.runs = 0
         self.fulls: list[bool] = []
+        self.triggers: list[TriggerKind] = []
         self._running = False
 
     @property
     def is_running(self) -> bool:
         return self._running
 
-    async def run(self, *, full: bool = False) -> SyncRunResult | None:
+    async def run(
+        self, *, full: bool = False, trigger: TriggerKind = "schedule"
+    ) -> SyncRunResult | None:
         self.runs += 1
         self.fulls.append(full)
+        self.triggers.append(trigger)
         self._running = True
         try:
             if self.block:

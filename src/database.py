@@ -22,6 +22,7 @@ from sqlalchemy.schema import CreateColumn
 
 from src.config import get_settings
 from src.models.audit import Base
+from src.repositories.migration_runner import apply_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +83,14 @@ def add_missing_columns(connection: Connection) -> None:
 
 
 async def init_db() -> None:
-    """Create any missing tables and indexes, and add columns introduced since deployment."""
+    """Create any missing tables and indexes, add columns introduced since deployment, then
+    apply pending numbered migrations (ADR 0003; a changed applied migration stops startup)."""
     engine = get_engine()
     try:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
             await connection.run_sync(add_missing_columns)
+        await apply_migrations(engine)
     finally:
         await engine.dispose()
 

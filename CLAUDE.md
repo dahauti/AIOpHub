@@ -16,7 +16,7 @@ Binding for every AI-assisted change in this repository. If a request conflicts 
 ## 2. Product Context
 - AIOpHub is the replacement for the legacy Operation Hub (`AlwarkOperationHub_Dev` / `AlwarkOperationHub`). One product, one visual system, UI: LT numatyta, daugiakalbis (ADR 0002).
 - Two processes: `hub` (FastAPI web UI) and `worker` (scheduled and on-demand jobs). Both use PostgreSQL 14.
-- Current state: SQLite (`sqlite+aiosqlite`, `ENV_DATABASE_URLS` in `src/config.py`, engine in `src/database.py`). Target: PostgreSQL 14. Migration is its own approved task.
+- Current state: SQLite (`sqlite+aiosqlite`, `ENV_DATABASE_URLS` in `src/config.py`, engine in `src/database.py`); new tables via portable numbered migrations in `db/migrations/` (ADR 0003). Target: PostgreSQL 14. Migration is its own approved task.
 - First module: Frontu (FSM) <-> Business Central integration.
 - BC targets: on-prem (OData V4, separate companies for Prod/Dev) now; BC SaaS (Entra ID OAuth2, environment Test, later Production) after migration. The same code serves both via configuration only.
 

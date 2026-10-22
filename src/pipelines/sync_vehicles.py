@@ -14,6 +14,7 @@ from src.config import Settings
 from src.database import get_sessionmaker
 from src.pipelines.audit_helpers import record_audit, record_failure, write_action
 from src.pipelines.ports import RunState, VehicleSource, WorkspaceSink, utc_now
+from src.pipelines.recorded_pipeline import recorded
 from src.pipelines.vehicle_mapping import build_workspace, payload_hash
 from src.pipelines.warranty_resolver import resolve_warranty
 from src.repositories.config_repository import (
@@ -180,7 +181,7 @@ class VehicleSyncPipeline:
 
 
 async def sync_vehicles_batch(settings: Settings) -> SyncRunResult | None:
-    """One headless batch run (CLI / OS scheduler), wired like the web app.
+    """One headless batch run (CLI / OS scheduler), wired like the web app; recorded in job_runs.
 
     Returns None when `sync_states` shows the module claimed by another run or process.
     """
@@ -195,4 +196,4 @@ async def sync_vehicles_batch(settings: Settings) -> SyncRunResult | None:
             config=config,
             initial_lookback=timedelta(days=settings.sync_initial_lookback_days),
         )
-        return await pipeline.run()
+        return await recorded(pipeline, settings).run(trigger="schedule")

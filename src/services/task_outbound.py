@@ -11,12 +11,14 @@ from src.domain.frontu_models import FrontuTask
 from src.domain.mapping import FALLBACK_STATUS, header_hash
 from src.domain.task_builders import FrontuRefs, build_task_payload, tasker_patch
 from src.domain.task_state import TaskSyncState, TaskSyncStatus
+from src.schemas.operations import OutcomeResult
 from src.services.line_reconciler import LineReconciler
 from src.services.ports import (
     MAX_ERROR_CHARS,
     BCTasksPort,
     FrontuTasksPort,
     Outcome,
+    OutcomeSink,
     SyncRunResult,
     utc_now,
 )
@@ -28,6 +30,16 @@ logger = logging.getLogger(__name__)
 STREAM = "operative_tasks_bc"
 # Only orders BC released for dispatch may be pushed, by the poll or by a canary.
 DISPATCH_STATUS = "FRONTU"
+# record_outcomes: one row per BC order and run (spec phase 1); "-" = order without a number.
+OBJECT_TYPE = "bc_service_order"
+NO_NUMBER = "-"
+INVALID: Outcome = "VALIDATION_ERROR"
+RESULTS: dict[Outcome, OutcomeResult] = {
+    "SYNCED": "ok",
+    "SKIPPED": "skipped",
+    "FAILED": "error",
+    "VALIDATION_ERROR": "error",
+}
 
 
 class TaskOutboundService:
@@ -42,8 +54,10 @@ class TaskOutboundService:
         *,
         initial_watermark: datetime,
         now: Callable[[], datetime] = utc_now,
+        outcomes: OutcomeSink | None = None,
     ) -> None:
         self._bc = bc
+        self._outcomes = outcomes
         self._frontu = frontu
         self._watermarks = watermarks
         self._states = states
@@ -57,7 +71,8 @@ class TaskOutboundService:
         order = await self._bc.fetch_order(order_no)
         if order is None:
             logger.warning("Canary: BC order %s not found", order_no)
-            result.record("VALIDATION_ERROR")
+            params = {"order_no": order_no}
+            result.record(await self._note(order_no, INVALID, "task.order_not_found", params))
         elif order.DocumentStatus != DISPATCH_STATUS:
             logger.warning(
                 "Canary: BC order %s has status %r, not %r; nothing pushed",
@@ -65,7 +80,8 @@ class TaskOutboundService:
                 order.DocumentStatus,
                 DISPATCH_STATUS,
             )
-            result.record("SKIPPED")
+            params = {"status": order.DocumentStatus or ""}
+            result.record(await self._note(order_no, "SKIPPED", "task.not_frontu_status", params))
         else:
             result.record(await self._sync_order(order, uuid.uuid4().hex))
         return result
@@ -87,7 +103,7 @@ class TaskOutboundService:
     async def _sync_order(self, order: BCServiceOrderHeader, run_id: str) -> Outcome:
         order_no = order.No
         if not order_no:
-            return "VALIDATION_ERROR"
+            return await self._note(NO_NUMBER, INVALID, "task.no_order_no")
         context = {"run_id": run_id, "service_order_no": order_no}
         existing = await self._states.get_by_order(order_no)
         task: FrontuTask | None = None
@@ -95,7 +111,8 @@ class TaskOutboundService:
             refs = await self._resolve_refs(order)
             if refs is None:
                 logger.warning("Order has no Frontu client match", extra=context)
-                return "VALIDATION_ERROR"
+                params = {"customer_no": order.SelltoCustomerNo or ""}
+                return await self._note(order_no, INVALID, "task.no_client_match", params)
             digest = header_hash(order)
             if existing and existing.header_hash == digest and existing.sync_status == "SYNCED":
                 task = FrontuTask(guid=existing.frontu_task_guid, code=existing.frontu_task_code)
@@ -110,12 +127,27 @@ class TaskOutboundService:
             patch = tasker_patch(task, FALLBACK_STATUS.bc_status, self._now())
             await self._bc.update_order_header(order_no, patch)
             await self._save(order_no, task, digest, "SYNCED")
-            return "SYNCED"
+            return await self._note(order_no, "SYNCED")
         except ExternalServiceError as exc:
             logger.error("Outbound order sync failed: %s", exc, extra=context)
             if task is not None:
                 await self._save(order_no, task, header_hash(order), "FAILED", str(exc))
-            return "FAILED"
+            return await self._note(order_no, "FAILED", error=exc)
+
+    async def _note(
+        self,
+        order_no: str,
+        outcome: Outcome,
+        code: str | None = None,
+        params: dict[str, str] | None = None,
+        error: BaseException | None = None,
+    ) -> Outcome:
+        """Record the order's outcome in the current job run (if wired); returns `outcome`."""
+        if self._outcomes is not None:
+            await self._outcomes.record_outcome(
+                OBJECT_TYPE, order_no, RESULTS[outcome], error_code=code, params=params, error=error
+            )
+        return outcome
 
     async def _resolve_refs(self, order: BCServiceOrderHeader) -> FrontuRefs | None:
         if not order.SelltoCustomerNo:

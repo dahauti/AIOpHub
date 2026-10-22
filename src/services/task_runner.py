@@ -11,7 +11,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
-from typing import Literal
+from typing import Final, Literal
 
 import httpx
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ from src.database import get_engine, get_sessionmaker, init_db
 from src.domain.canary import CanaryTarget
 from src.repositories.config_repository import SqlConfigStore, resolve_dry_run, runtime_defaults
 from src.repositories.sync_repository import SqlSyncRepository
+from src.schemas.operations import TriggerKind, mode_of
 from src.schemas.sync import AuditEntry, ReleaseStatus
 from src.services.link_status import persist_link_health
 from src.services.ports import SyncRunResult, utc_now
@@ -30,7 +31,7 @@ from src.storage.task_repository import TaskRepository
 logger = logging.getLogger(__name__)
 
 HTTP_TIMEOUT_SECONDS = 30.0
-LOCK_MODULE = "tasks_sync"
+LOCK_MODULE: Final = "tasks_sync"
 # Task passes are short polls; a lock older than this is a crashed run, not a live one.
 TASK_STALE_RUN_AFTER = timedelta(minutes=15)
 
@@ -77,8 +78,13 @@ async def _timed(direction: Direction, work: Awaitable[SyncRunResult]) -> Direct
     )
 
 
-async def run_tasks(settings: Settings, mode: TaskMode) -> TaskRunReport | None:
-    """Poll the mode's directions; None when another run holds the lock."""
+async def run_tasks(
+    settings: Settings, mode: TaskMode, trigger: TriggerKind = "manual"
+) -> TaskRunReport | None:
+    """Poll the mode's directions; None when another run holds the lock.
+
+    UI and CLI runs are `manual`: no OS schedule registers `tasks` (deploy/register_task.ps1).
+    """
 
     async def work(wiring: Wiring) -> list[DirectionRun]:
         runs = []
@@ -88,7 +94,7 @@ async def run_tasks(settings: Settings, mode: TaskMode) -> TaskRunReport | None:
             runs.append(await _timed(direction, service.run()))
         return runs
 
-    return await _report(settings, work)
+    return await _report(settings, work, trigger)
 
 
 async def run_single(
@@ -106,7 +112,7 @@ async def run_single(
 
     if force_live:
         logger.warning("Forced LIVE task canary for %s %s", target.kind, target.value)
-    return await _report(settings, work, force_live=force_live)
+    return await _report(settings, work, "canary", force_live=force_live)
 
 
 async def run_bootstrap(settings: Settings) -> int | None:
@@ -121,12 +127,18 @@ async def run_bootstrap(settings: Settings) -> int | None:
 async def _report(
     settings: Settings,
     work: Callable[[Wiring], Awaitable[list[DirectionRun]]],
+    trigger: TriggerKind,
     *,
     force_live: bool = False,
 ) -> TaskRunReport | None:
     async def audited(wiring: Wiring) -> TaskRunReport:
-        report = TaskRunReport(dry_run=wiring.dry_run, runs=await work(wiring))
-        await task_lock().record_audit(run_audit_entry(report))
+        async with wiring.recorder.run(LOCK_MODULE, trigger, mode_of(wiring.dry_run)) as run:
+            report = TaskRunReport(dry_run=wiring.dry_run, runs=await work(wiring))
+            results = [direction.result for direction in report.runs]
+            run.count_ok = sum(r.synced for r in results)
+            run.count_skipped = sum(r.skipped for r in results)
+            run.count_failed = sum(r.failed + r.validation_errors for r in results)
+            await task_lock().record_audit(run_audit_entry(report))
         return report
 
     return await _locked(settings, audited, force_live=force_live)

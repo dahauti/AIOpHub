@@ -51,7 +51,11 @@ async def test_init_db_creates_tables_and_index_idempotently(temp_database: Path
     await get_engine().dispose()
 
     assert tables == [
+        "job_runs",
         "link_health",
+        "processes",
+        "record_outcomes",
+        "schema_migrations",
         "sync_audit_log",
         "sync_config",
         "sync_fingerprints",

@@ -40,6 +40,7 @@ class MockBackends:
     def __init__(self) -> None:
         self.requests: list[httpx.Request] = []
         self.fail_bc_reads = False
+        self.frontu_write_status: int | None = None  # e.g. 422: Frontu rejects every POST
 
     @property
     def writes(self) -> list[httpx.Request]:
@@ -51,6 +52,9 @@ class MockBackends:
         self.requests.append(request)
         if request.method == "PATCH":
             return httpx.Response(204)
+        frontu_post = request.method == "POST" and request.url.host.endswith("frontu.com")
+        if frontu_post and self.frontu_write_status is not None:
+            return httpx.Response(self.frontu_write_status, json={"error": "rejected"})
         if request.method == "POST":
             return httpx.Response(201, json={"guid": "created-1", "code": "T-1", "No": "SO9"})
         if request.url.host.endswith("frontu.com"):
