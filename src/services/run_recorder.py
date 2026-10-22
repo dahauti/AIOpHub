@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.config import Settings
-from src.logging_setup import TRACE_ID
+from src.logging_setup import TRACE_ID, note_trace
 from src.repositories.job_run_repository import JobRunRepository
 from src.schemas.operations import (
     JobRunFinish,
@@ -97,8 +97,9 @@ class RunRecorder:
             except asyncio.CancelledError:
                 await self._finish(run, "aborted")
                 raise
-            except Exception as error:  # recorded, then re-raised unchanged
+            except Exception as error:  # recorded, then re-raised with its trace noted
                 await self._finish(run, "failed", error)
+                note_trace(error, run.trace_id)
                 raise
             await self._finish(run, "skipped" if run.skipped else "succeeded")
         finally:
@@ -140,6 +141,13 @@ class RunRecorder:
             await self._repo.add_outcome(outcome)
 
         await self._safely("outcome", write)
+
+    async def record_failure(self, object_type: str, object_id: str, error: BaseException) -> None:
+        """The one object a failing run was working on (a canary): error outcome, 1 failed."""
+        run = _CURRENT.get()
+        if run is not None:
+            run.count_failed = 1
+        await self.record_outcome(object_type, object_id, "error", error=error)
 
     async def _finish(
         self, run: ActiveRun, status: RunStatus, error: BaseException | None = None

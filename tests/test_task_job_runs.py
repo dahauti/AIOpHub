@@ -1,5 +1,7 @@
 """Task runs end to end: job_runs + record_outcomes, with BC/Frontu writes left unchanged."""
 
+from typing import Literal
+
 import pytest
 from sqlalchemy.exc import OperationalError
 
@@ -164,6 +166,48 @@ async def test_canary_run_has_canary_trigger(backends: MockBackends) -> None:
     [(run, outcomes)] = await _stored()
     assert (run.trigger_kind, run.mode) == ("canary", "DRY_RUN")
     assert [(o.object_id, o.result) for o in outcomes] == [("SO00001", "ok")]
+
+
+CANARY_FAILURES = [
+    ("order", "SO00001", "bc_service_order", "system.bc_error", 400),
+    ("task", "0f8fad5b-d9cb-469f-a165-70867728950e", "frontu_task", "system.frontu_error", 500),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("live")
+@pytest.mark.parametrize(("kind", "value", "object_type", "code", "http_status"), CANARY_FAILURES)
+async def test_failed_canary_is_an_error_outcome_of_its_target(
+    backends: MockBackends,
+    kind: Literal["order", "task"],
+    value: str,
+    object_type: str,
+    code: str,
+    http_status: int,
+) -> None:
+    backends.fail_bc_reads = True
+    backends.frontu_read_status = 500
+    target = CanaryTarget(kind=kind, value=value)
+
+    for _ in range(2):  # idempotency: each run records its own single outcome
+        with pytest.raises(ExternalServiceError):
+            await run_single(get_settings(), target)
+
+    stored = await _stored()
+    assert len(stored) == 2 and backends.writes == []
+    for run, [outcome] in stored:
+        assert (run.status, run.error_code, run.count_failed) == ("failed", code, 1)
+        assert (outcome.object_type, outcome.object_id, outcome.result) == (
+            object_type,
+            value,
+            "error",
+        )
+        assert (outcome.error_code, outcome.error_type, outcome.http_status) == (
+            code,
+            "system",
+            http_status,
+        )
+        assert outcome.trace_id == run.trace_id
 
 
 @pytest.mark.asyncio

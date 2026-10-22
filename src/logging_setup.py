@@ -1,11 +1,14 @@
 """Centralised logging: console stream plus a size-rotated file under <project root>/logs.
 
 Every line carries `[trace=<id>]`: the trace ID of the job run in progress (see
-`src/services/run_recorder.py`), or `-` outside a run.
+`src/services/run_recorder.py`), or `-` outside a run. An exception that failed a run is
+noted with that run's trace ID, so an error logged after the run joins the same trace.
 """
 
+import contextlib
 import logging
 import sys
+from collections.abc import Iterator
 from contextvars import ContextVar
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -20,6 +23,24 @@ _HANDLER_PREFIX = "aiophub-"
 NO_TRACE = "-"
 
 TRACE_ID: ContextVar[str] = ContextVar("trace_id", default=NO_TRACE)
+TRACE_NOTE = "trace_id="
+
+
+def note_trace(error: BaseException, trace_id: str) -> None:
+    """Tag `error` with the trace of the run it failed (shown in its traceback too)."""
+    error.add_note(f"{TRACE_NOTE}{trace_id}")
+
+
+@contextlib.contextmanager
+def failed_run_trace(error: BaseException) -> Iterator[None]:
+    """Log inside the trace of the run `error` failed; `-` if it failed outside a run."""
+    notes: list[str] = getattr(error, "__notes__", [])
+    traces = [note.removeprefix(TRACE_NOTE) for note in notes if note.startswith(TRACE_NOTE)]
+    token = TRACE_ID.set(traces[0] if traces else NO_TRACE)
+    try:
+        yield
+    finally:
+        TRACE_ID.reset(token)
 
 
 class TraceIdFilter(logging.Filter):

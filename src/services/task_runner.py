@@ -18,13 +18,14 @@ from pydantic import BaseModel
 
 from src.config import Settings
 from src.database import get_engine, get_sessionmaker, init_db
-from src.domain.canary import CanaryTarget
+from src.domain.canary import CanaryKind, CanaryTarget
 from src.repositories.config_repository import SqlConfigStore, resolve_dry_run, runtime_defaults
 from src.repositories.sync_repository import SqlSyncRepository
 from src.schemas.operations import TriggerKind, mode_of
 from src.schemas.sync import AuditEntry, ReleaseStatus
 from src.services.link_status import persist_link_health
 from src.services.ports import SyncRunResult, utc_now
+from src.services.task_outbound import OBJECT_TYPE as ORDER_OBJECT_TYPE
 from src.services.task_wiring import Wiring, wire
 from src.storage.task_repository import TaskRepository
 
@@ -43,6 +44,8 @@ MODE_DIRECTIONS: dict[TaskMode, tuple[Direction, ...]] = {
     "outbound": ("outbound",),
     "inbound": ("inbound",),
 }
+# record_outcomes.object_type of a canary target that failed its run
+CANARY_OBJECT_TYPES: dict[CanaryKind, str] = {"order": ORDER_OBJECT_TYPE, "task": "frontu_task"}
 
 
 class DirectionRun(BaseModel):
@@ -106,9 +109,14 @@ async def run_single(
     """
 
     async def work(wiring: Wiring) -> list[DirectionRun]:
-        if target.kind == "order":
-            return [await _timed("outbound", wiring.outbound.sync_single_order(target.value))]
-        return [await _timed("inbound", wiring.inbound.sync_single_frontu_task(target.value))]
+        try:
+            if target.kind == "order":
+                return [await _timed("outbound", wiring.outbound.sync_single_order(target.value))]
+            return [await _timed("inbound", wiring.inbound.sync_single_frontu_task(target.value))]
+        except Exception as error:  # the run fails as before, with its target as the outcome
+            object_type = CANARY_OBJECT_TYPES[target.kind]
+            await wiring.recorder.record_failure(object_type, target.value, error)
+            raise
 
     if force_live:
         logger.warning("Forced LIVE task canary for %s %s", target.kind, target.value)

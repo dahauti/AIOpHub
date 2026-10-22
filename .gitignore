@@ -21,6 +21,7 @@ data/
 *.log
 *.sqlite
 *.sql
+!db/migrations/*.sql
 
 # Local launchers
 *.bat

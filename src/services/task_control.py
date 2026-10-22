@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.config import Settings
 from src.database import get_engine, get_sessionmaker
 from src.domain.canary import CanaryTarget
+from src.logging_setup import failed_run_trace
 from src.repositories.config_repository import SqlConfigStore, runtime_defaults
 from src.repositories.event_repository import AuditEvent, AuditEventRepository
 from src.repositories.task_status_repository import TaskStatusRepository
@@ -143,15 +144,17 @@ class TaskSyncControl:
         try:
             if await self._runner(self._settings, "sync") is None:
                 logger.warning("UI task sync skipped: another run holds the tasks_sync lock")
-        except Exception:
-            logger.exception("UI-triggered task sync failed")
+        except Exception as exc:
+            with failed_run_trace(exc):
+                logger.exception("UI-triggered task sync failed")
 
     async def _run_single(self, target: CanaryTarget, force_live: bool) -> None:
         started = utc_now().replace(microsecond=0)  # audit rows are stamped to the second
         try:
             report = await self._single_runner(self._settings, target, force_live=force_live)
         except Exception as exc:
-            logger.exception("Task canary for %s failed", target.value)
+            with failed_run_trace(exc):
+                logger.exception("Task canary for %s failed", target.value)
             self._canary = CanaryOutcome.from_error(target, exc)
             return
         if report is None:
