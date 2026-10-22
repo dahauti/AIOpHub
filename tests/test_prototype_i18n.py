@@ -54,7 +54,7 @@ def _literal_ok(literal: str) -> bool:
     return (
         not LETTER.search(literal)
         or literal.endswith(".html")
-        or re.fullmatch(r"([a-z]+/)?[a-z]+\.(css|js|png)", literal) is not None  # asset("x.css")
+        or re.fullmatch(r"[a-z]+\.(css|js)|brand/[a-z]+\.png", literal) is not None  # asset()
         or literal.startswith("proto-")
         or literal in ENUMS | TECHNICAL
         or any(f".{core}." in f".{key}." for key in catalog("lt"))
@@ -154,6 +154,14 @@ def test_text_check_catches_hardcoded_text() -> None:
     sample = '<p title="Pagalba">Labas {{ t("app.pavadinimas") }}</p>{{ "Frontu" if x }}'
 
     assert hardcoded_text(sample) == ["Pagalba", "Frontu", "Labas"]
+
+
+@pytest.mark.parametrize("path", ["foo/bar.js", "logo.png"])
+def test_text_check_allows_only_flat_css_js_and_brand_png(path: str) -> None:
+    allowed = '{{ asset("proto.css") }}{{ asset("proto.js") }}{{ asset("brand/logo.png") }}'
+
+    assert hardcoded_text(allowed) == []
+    assert hardcoded_text(f'{{{{ asset("{path}") }}}}') == [path]
 
 
 @pytest.mark.parametrize("path", sorted(TEMPLATES.glob("*.html")), ids=lambda p: p.name)
