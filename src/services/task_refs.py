@@ -24,12 +24,10 @@ async def resolve_refs(
     client = await frontu.find_client_guid(customer) if customer else None
     if client is None:
         return RefMiss(code="task.no_client_match", params={"customer_no": customer})
-    workspace: str | None = None
-    if order.VehicleSerialNo:
-        workspace = await frontu.find_workspace_guid(order.VehicleSerialNo)
-        if workspace is None:
-            params = {"serial_no": order.VehicleSerialNo}
-            return RefMiss(code="task.workspace_not_found", params=params)
+    # No workspace match is not a stop: BC allows orders without a vehicle (ADR 0004).
+    workspace = (
+        await frontu.find_workspace_guid(order.VehicleSerialNo) if order.VehicleSerialNo else None
+    )
     task_type: str | None = None
     if order.DealType:
         task_type = await frontu.find_task_type_guid(order.DealType)

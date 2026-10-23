@@ -22,7 +22,6 @@ LANGUAGES = get_args(Language)
 EXPECTED_CODES = {
     "task.no_order_no",
     "task.no_client_match",
-    "task.workspace_not_found",
     "task.task_type_not_found",
     "task.order_not_found",
     "task.not_frontu_status",

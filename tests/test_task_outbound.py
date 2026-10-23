@@ -157,7 +157,6 @@ class _Codes:
     ("fields", "code", "params"),
     [
         ({"SelltoCustomerNo": "UNKNOWN"}, "task.no_client_match", {"customer_no": "UNKNOWN"}),
-        ({"VehicleSerialNo": "SN-404"}, "task.workspace_not_found", {"serial_no": "SN-404"}),
         ({"DealType": "NOPE"}, "task.task_type_not_found", {"task_type": "NOPE"}),
     ],
 )
@@ -177,6 +176,26 @@ async def test_missing_frontu_reference_is_data_error_naming_it_without_writes(
     assert error_type(code) == "data"
     assert frontu.upserts == [] and bc.header_patches == []
     assert await stores.states.get_by_order("SO00001") is None
+
+
+@pytest.mark.asyncio
+async def test_order_whose_vehicle_frontu_lacks_is_sent_without_workspace(stores: Stores) -> None:
+    bc, frontu, codes = FakeBC(), FakeFrontu(), _Codes()
+    bc.released = [_order("SO00001", VehicleSerialNo="SN-404")]
+    service = TaskOutboundService(
+        bc, frontu, stores.watermarks, stores.states, initial_watermark=INITIAL, outcomes=codes
+    )
+
+    result = await service.run()
+
+    assert result.synced == 1
+    assert codes.rows == [("SO00001", "ok", None, None)]
+    [payload] = frontu.upserts
+    assert (payload.client, payload.workspace, payload.taskType) == (
+        "client-guid",
+        None,
+        "type-guid",
+    )
 
 
 @pytest.mark.asyncio

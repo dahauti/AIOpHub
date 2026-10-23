@@ -43,13 +43,6 @@ CATALOG: dict[str, ErrorDefinition] = {
             "en": "BC customer {customer_no} was not found in Frontu.",
         },
     ),
-    "task.workspace_not_found": ErrorDefinition(
-        error_type="data",
-        text={
-            "lt": "Transporto priemonė su serijos nr. {serial_no} nerasta Frontu.",
-            "en": "The vehicle with serial number {serial_no} was not found in Frontu.",
-        },
-    ),
     "task.task_type_not_found": ErrorDefinition(
         error_type="data",
         text={
