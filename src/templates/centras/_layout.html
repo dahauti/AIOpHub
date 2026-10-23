@@ -23,8 +23,9 @@
       <span role="note" class="proto-env-badge {{ 'proto-env-badge-prod' if aplinka == 'PROD' else 'proto-env-badge-dev' }}" title="{{ aplinkos_tekstas }}" aria-label="{{ aplinkos_tekstas }}">{{ aplinka }}</span>
     </div>
     <div class="proto-prefs">
-      {% block zenklas %}<span role="note" class="proto-flag" title="{{ t('centras.pastaba') }}" aria-label="{{ t('centras.pastaba') }}">{{ t("centras.zenklas") }}</span>{% endblock %}
-      {{ vartotojo_meniu(vartotojas, tema, kalba) }}
+      {#- Only writing pages (Testinis šūvis) show a flag; read screens show none. -#}
+      {% block zenklas %}{% endblock %}
+      {{ vartotojo_meniu(vartotojas, tema, kalba, etikete=vartotojas.vardas, patarimas=t("centras.vartotojas_pastaba")) }}
     </div>
   </header>
   <main class="proto-main">

@@ -109,11 +109,12 @@
 </fieldset>
 {%- endmacro %}
 
-{#- User menu: trigger shows initials + current language; Esc / outside click close it and
-    `#user-menu` returns focus to the trigger after the reload (static/proto.js). -#}
-{% macro vartotojo_meniu(vartotojas, tema, kalba) -%}
+{#- User menu: trigger shows initials (or `etikete`, e.g. /centras "Savininkas") + current
+    language, `patarimas` as its tooltip; Esc / outside click close it and `#user-menu` returns
+    focus to the trigger after the reload (static/proto.js). -#}
+{% macro vartotojo_meniu(vartotojas, tema, kalba, etikete=none, patarimas=none) -%}
 <details class="proto-user" id="user-menu">
-  <summary class="proto-user-trigger" aria-label="{{ t('meniu.aria', vardas=vartotojas.vardas, kalba=kalba | upper) }}">{{ vartotojas.inicialai }} &middot; {{ kalba | upper }} &#9662;</summary>
+  <summary class="proto-user-trigger"{% if patarimas %} title="{{ patarimas }}"{% endif %} aria-label="{{ t('meniu.aria', vardas=vartotojas.vardas, kalba=kalba | upper) }}">{{ etikete or vartotojas.inicialai }} &middot; {{ kalba | upper }} &#9662;</summary>
   <div class="proto-user-panel">
     <p class="proto-user-name">{{ vartotojas.vardas }}</p>
     <form hx-post="{{ nuostatos_url }}" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">

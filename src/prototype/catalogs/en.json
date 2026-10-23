@@ -173,11 +173,10 @@
   "ivykis.rezimas.pakeistas": "Mode changed {is} → {i}. Reason: {priezastis}",
 
   "centras.vartotojas": "Owner",
-  "centras.zenklas": "READ-ONLY",
-  "centras.pastaba": "Real data from job_runs and record_outcomes. Owner only, this computer only. There are no buttons that change anything.",
+  "centras.vartotojas_pastaba": "No sign-in yet – access only from this computer",
   "centras.procesas.tasks_sync": "Task sync",
   "centras.procesas.workspaces_vehicles": "Vehicle sync",
-  "centras.apzvalga.paskirtis": "The last run of each process and the records whose latest result is an error. Nothing is changed in BC or Frontu.",
+  "centras.apzvalga.paskirtis": "The last run of each process and the records whose latest result is an error. This screen changes nothing in BC or Frontu; only the separate “Test shot” action writes, after confirmation.",
   "centras.procesas.paskirtis": "Up to the last {n} runs, newest first. Nothing is changed in BC or Frontu.",
   "centras.paleidimas.paskirtis": "Facts of the run and all its records. Nothing is changed in BC or Frontu.",
   "centras.irasas.paskirtis": "One object's result in this run and every run it appeared in. Nothing is changed in BC or Frontu.",

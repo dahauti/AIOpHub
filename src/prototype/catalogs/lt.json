@@ -173,11 +173,10 @@
   "ivykis.rezimas.pakeistas": "Režimas pakeistas {is} → {i}. Priežastis: {priezastis}",
 
   "centras.vartotojas": "Savininkas",
-  "centras.zenklas": "TIK SKAITYMAS",
-  "centras.pastaba": "Tikri duomenys iš job_runs ir record_outcomes. Tik savininkui, tik šiame kompiuteryje. Mygtukų, kurie ką nors keistų, nėra.",
+  "centras.vartotojas_pastaba": "Prisijungimo dar nėra – prieiga tik iš šio kompiuterio",
   "centras.procesas.tasks_sync": "Užduočių sinchronizacija",
   "centras.procesas.workspaces_vehicles": "Transporto priemonių sinchronizacija",
-  "centras.apzvalga.paskirtis": "Kiekvieno proceso paskutinis paleidimas ir įrašai, kurių paskutinis rezultatas – klaida. BC ir Frontu niekas nekeičiama.",
+  "centras.apzvalga.paskirtis": "Kiekvieno proceso paskutinis paleidimas ir įrašai, kurių paskutinis rezultatas – klaida. Šiame ekrane BC ir Frontu niekas nekeičiama; rašo tik atskiras veiksmas „Testinis šūvis“ su patvirtinimu.",
   "centras.procesas.paskirtis": "Iki {n} paskutinių paleidimų, naujausi viršuje. BC ir Frontu niekas nekeičiama.",
   "centras.paleidimas.paskirtis": "Paleidimo faktai ir visi jo įrašai. BC ir Frontu niekas nekeičiama.",
   "centras.irasas.paskirtis": "Vieno objekto rezultatas šiame paleidime ir visi paleidimai, kuriuose jis buvo. BC ir Frontu niekas nekeičiama.",

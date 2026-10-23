@@ -177,6 +177,17 @@ def test_listed_header_fields_are_the_ones_the_canary_patches() -> None:
 
 
 @pytest.mark.asyncio
+async def test_only_shot_pages_carry_a_flag_and_the_user_is_the_owner(client: Client) -> None:
+    overview = (await client.get("/centras/")).text
+    shot = (await client.get("/centras/testinis")).text
+
+    assert "proto-flag" not in overview and "RAŠANTIS VEIKSMAS" in shot
+    trigger = overview.split('<summary class="proto-user-trigger"', 1)[1].split("</summary>", 1)[0]
+    assert 'title="Prisijungimo dar nėra \u2013 prieiga tik iš šio kompiuterio"' in trigger
+    assert ">Savininkas &middot; LT" in trigger
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("path", ["/centras/testinis", "/centras/testinis/paleisti"])
 @pytest.mark.parametrize(
     ("order", "text"),
