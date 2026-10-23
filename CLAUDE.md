@@ -12,6 +12,8 @@ Binding for every AI-assisted change in this repository. If a request conflicts 
 - Scope Containment: no refactors of adjacent code, no rewrites of working logic, no unrequested features.
 - Migration step: every task states which step of the migration lifecycle (section 9) it belongs to.
 - UI changes (`src/templates/`, `src/static/`): read `docs/UX_GUIDELINES.md` before planning.
+- Never trigger runs, canaries, syncs or calls to BC/Frontu yourself. The owner triggers them from the UI. You may propose; the owner decides.
+- No changes beyond what was asked. If you think something else should change, ask first and wait for yes/no.
 
 ## 2. Product Context
 - AIOpHub is the replacement for the legacy Operation Hub (`AlwarkOperationHub_Dev` / `AlwarkOperationHub`). One product, one visual system, UI: LT numatyta, daugiakalbis (ADR 0002).
