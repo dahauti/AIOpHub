@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from src.adapters.resilience import ExternalServiceError, send_with_retry
+from src.clients.frontu_task_payloads import FrontuRejectedError
 from src.services.error_catalog import (
     CATALOG,
     UNKNOWN,
@@ -16,12 +17,14 @@ from src.services.error_catalog import (
     error_type,
     message,
     placeholders,
+    rejection_params,
 )
 
 LANGUAGES = get_args(Language)
 EXPECTED_CODES = {
     "task.no_order_no",
     "task.no_client_match",
+    "task.frontu_rejected",
     "task.task_type_not_found",
     "task.order_not_found",
     "task.not_frontu_status",
@@ -94,6 +97,18 @@ def test_frontu_success_with_unrecognized_body_is_unexpected_response() -> None:
     assert message(classified.code, "lt") == (
         "Frontu atsakė netikėtu formatu \u2013 reikia patikrinti integraciją."
     )
+
+
+def test_frontu_write_rejection_is_a_data_error_showing_frontus_reason() -> None:
+    raw = '{"error": "title required"}'
+    rejected = FrontuRejectedError(ExternalServiceError("frontu", 422, raw))
+
+    classified = classify(rejected)
+
+    assert (classified.code, classified.http_status) == ("task.frontu_rejected", 422)
+    assert error_type(classified.code) == "data"
+    params = rejection_params(rejected)
+    assert message(classified.code, "en", params) == "Frontu rejected the record: title required"
 
 
 async def _send_error(

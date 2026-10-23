@@ -8,6 +8,7 @@ from pydantic import JsonValue, SecretStr
 
 from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError
+from src.clients.frontu_task_payloads import FrontuRejectedError
 from src.clients.frontu_tasks_client import FrontuTasksClient
 from src.domain.frontu_models import FrontuMaterial, FrontuTaskPayload, FrontuWork
 from tests.contracts import contract
@@ -155,6 +156,30 @@ async def test_catalog_lookups_map_contract_not_found_to_cached_none() -> None:
     assert await client.find_task_type_guid("NONEXISTENT_TEST") is None
     assert await client.find_task_type_guid("NONEXISTENT_TEST") is None
     assert len(mock.requests) == 3
+
+
+@pytest.mark.asyncio
+async def test_write_4xx_is_rejection_carrying_frontus_message() -> None:
+    body: JsonValue = {"error": "title required"}
+    mock = RecordingHandler(sequence(httpx.Response(422, json=body)))
+    payload = FrontuTaskPayload(title="T", client="c-1")
+
+    with pytest.raises(FrontuRejectedError) as caught:
+        await _client(mock).upsert_task(payload)
+
+    assert (caught.value.status_code, caught.value.frontu_message) == (422, "title required")
+    assert len(mock.requests) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 403, 500])
+async def test_write_auth_or_server_error_is_not_a_rejection(status: int) -> None:
+    mock = RecordingHandler(sequence(httpx.Response(status, json={"error": "x"})))
+
+    with pytest.raises(ExternalServiceError) as caught:
+        await _client(mock).push_material(FrontuMaterial(systemId="I", task="t", amount=1))
+
+    assert not isinstance(caught.value, FrontuRejectedError)
 
 
 @pytest.mark.asyncio

@@ -11,8 +11,10 @@ from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError, Sleep, send_with_retry
 from src.clients.frontu_task_payloads import (
     SERVICE,
+    FrontuRejectedError,
     catalog_guid,
     is_not_found,
+    is_rejection,
     parse_entity,
     parse_listing,
     system_id_for_guid,
@@ -180,13 +182,18 @@ class FrontuTasksClient:
             json=body,
             params=params,
         )
-        return await send_with_retry(
-            self._http,
-            request,
-            service=SERVICE,
-            sleep=self._sleep,
-            before_attempt=self._pacer.acquire,
-        )
+        try:
+            return await send_with_retry(
+                self._http,
+                request,
+                service=SERVICE,
+                sleep=self._sleep,
+                before_attempt=self._pacer.acquire,
+            )
+        except ExternalServiceError as exc:
+            if method != "GET" and is_rejection(exc):  # Frontu validates writes (ADR 0004)
+                raise FrontuRejectedError(exc) from exc
+            raise
 
 
 def _body(model: BaseModel) -> dict[str, JsonValue]:

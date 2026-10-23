@@ -3,11 +3,31 @@
 import httpx
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
+from src.adapters.link_health import LINK_FAILURE_CODES
 from src.adapters.resilience import ExternalServiceError
-from src.domain.frontu_models import FrontuCatalogEntry, FrontuNotFound, FrontuTaskList
+from src.domain.frontu_models import FrontuCatalogEntry, FrontuErrorBody, FrontuTaskList
+from src.services.redaction import sanitize
 
 SERVICE = "frontu"
 _LISTING = TypeAdapter(list[JsonValue] | FrontuTaskList)
+
+
+class FrontuRejectedError(ExternalServiceError):
+    """Frontu refused a write with 4xx; `frontu_message` is its own reason, sanitized (≤500)."""
+
+    def __init__(self, error: ExternalServiceError) -> None:
+        super().__init__(error.service, error.status_code, error.detail, url=error.url)
+        try:
+            reason = FrontuErrorBody.model_validate_json(error.detail).error
+        except ValidationError:
+            reason = error.detail  # not the `{"error": ...}` shape: show the body as is
+        self.frontu_message = sanitize(reason) or ""
+
+
+def is_rejection(error: ExternalServiceError) -> bool:
+    """4xx except auth/throttling (401/403/429), which stay link failures (system errors)."""
+    code = error.status_code
+    return code is not None and 400 <= code < 500 and code not in LINK_FAILURE_CODES
 
 
 def _unexpected(status_code: int, detail: str) -> ExternalServiceError:
@@ -57,7 +77,7 @@ def is_not_found(error: ExternalServiceError) -> bool:
     if error.status_code != 404:
         return False
     try:
-        FrontuNotFound.model_validate_json(error.detail)
+        FrontuErrorBody.model_validate_json(error.detail)
     except ValidationError:
         return False
     return True

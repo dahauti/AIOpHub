@@ -11,6 +11,7 @@ from src.database import get_engine
 from src.domain.canary import CanaryTarget
 from src.repositories.job_run_repository import JobRunRepository
 from src.schemas.operations import JobRun, RecordOutcome
+from src.services.error_catalog import message
 from src.services.task_runner import run_single, run_tasks
 from src.storage.task_repository import TaskRepository
 from src.storage.task_state_repository import TaskStateRepository
@@ -147,10 +148,12 @@ async def test_error_before_the_frontu_task_exists_is_recorded(backends: MockBac
     assert (run.status, run.count_failed) == ("succeeded", 1)
     assert (outcome.result, outcome.error_code, outcome.error_type, outcome.http_status) == (
         "error",
-        "system.frontu_error",
-        "system",
+        "task.frontu_rejected",
+        "data",
         422,
     )
+    assert outcome.params == {"frontu_message": "rejected"}
+    assert message(outcome.error_code, "lt", outcome.params) == "Frontu atmetė įrašą: rejected"
     assert outcome.technical_detail is not None and "422" in outcome.technical_detail
     engine = get_engine()
     try:

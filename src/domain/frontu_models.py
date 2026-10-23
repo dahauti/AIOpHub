@@ -95,8 +95,8 @@ class FrontuCatalogEntry(FrontuEntityRef):
     systemId: str | None = None
 
 
-class FrontuNotFound(BaseModel):
-    """404 body of `/task_types/details` (contracts/frontu/task_types_details_not_found.json)."""
+class FrontuErrorBody(BaseModel):
+    """Frontu error body `{"error": ...}` (contracts/frontu/task_types_details_not_found.json)."""
 
     model_config = ConfigDict(extra="ignore")
 

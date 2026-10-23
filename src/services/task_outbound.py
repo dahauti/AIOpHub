@@ -12,6 +12,7 @@ from src.domain.mapping import FALLBACK_STATUS, header_hash
 from src.domain.task_builders import build_task_payload, tasker_patch
 from src.domain.task_state import TaskSyncState, TaskSyncStatus
 from src.schemas.operations import OutcomeResult
+from src.services.error_catalog import rejection_params
 from src.services.line_reconciler import LineReconciler
 from src.services.ports import (
     MAX_ERROR_CHARS,
@@ -132,7 +133,8 @@ class TaskOutboundService:
             logger.error("Outbound order sync failed: %s", exc, extra=context)
             if task is not None:
                 await self._save(order_no, task, header_hash(order), "FAILED", str(exc))
-            return await self._note(order_no, "FAILED", error=exc)
+            params = rejection_params(exc)
+            return await self._note(order_no, "FAILED", params=params, error=exc)
 
     async def _note(
         self,

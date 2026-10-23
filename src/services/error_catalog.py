@@ -11,10 +11,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 from src.adapters.resilience import ExternalServiceError
+from src.clients.frontu_task_payloads import FrontuRejectedError
 from src.schemas.operations import ErrorType
 
 Language = Literal["lt", "en"]
 UNKNOWN = "system.unknown"
+REJECTED = "task.frontu_rejected"  # params: frontu_message (Frontu's own reason, ADR 0004)
 
 
 class ErrorDefinition(BaseModel):
@@ -41,6 +43,13 @@ CATALOG: dict[str, ErrorDefinition] = {
         text={
             "lt": "BC klientas {customer_no} nerastas Frontu.",
             "en": "BC customer {customer_no} was not found in Frontu.",
+        },
+    ),
+    "task.frontu_rejected": ErrorDefinition(
+        error_type="data",
+        text={
+            "lt": "Frontu atmetė įrašą: {frontu_message}",
+            "en": "Frontu rejected the record: {frontu_message}",
         },
     ),
     "task.task_type_not_found": ErrorDefinition(
@@ -138,12 +147,22 @@ def error_type(code: str) -> ErrorType:
 
 def classify(error: BaseException) -> ClassifiedError:
     """Code, HTTP status and raw (unsanitised) detail of an exception."""
+    if isinstance(error, FrontuRejectedError):
+        detail = str(error)
+        return ClassifiedError(code=REJECTED, http_status=error.status_code, detail=detail)
     if isinstance(error, ExternalServiceError):
         codes = UNREACHABLE_CODES if error.unreachable else {}
         codes = UNEXPECTED_CODES if error.unexpected_response else codes
         code = codes.get(error.service) or SERVICE_CODES.get(error.service, UNKNOWN)
         return ClassifiedError(code=code, http_status=error.status_code, detail=str(error))
     return ClassifiedError(code=UNKNOWN, detail=f"{type(error).__name__}: {error}")
+
+
+def rejection_params(error: BaseException) -> dict[str, str] | None:
+    """Catalog params of a Frontu write rejection (its sanitized reason), else None."""
+    if isinstance(error, FrontuRejectedError):
+        return {"frontu_message": error.frontu_message}
+    return None
 
 
 def placeholders(template: str) -> set[str]:
