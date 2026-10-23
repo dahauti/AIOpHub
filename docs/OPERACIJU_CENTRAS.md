@@ -38,8 +38,8 @@ Kiekvienas modulis turi atitikti šį modelį. Tada visi moduliai gauna tuos pa�
 | --- | --- | --- | --- |
 | Procesas | Valdoma procedūra su savininku ir grafiku | Užduočių sinchronizacija BC → Frontu | Taip |
 | Paleidimas | Vienas proceso vykdymas: kas paleido, kada, kokiu režimu, rezultatas | Naktinis sync 02:00, LIVE | Tik rezultatą |
-| Įrašas | Vienas apdorotas objektas su būsena (pavyko / praleista / klaida) | Užsakymas SO029748 | Tik savo skyriaus klaidas |
-| Priežastis | Kodėl įrašas nepavyko: verslo sakinys + techninė detalė | „Nenurodytas technikas“ + Frontu HTTP 422 | Tik verslo sakinį |
+| Įrašas | Vienas apdorotas objektas su būsena (pavyko / praleista / klaida) | Užsakymas SO-DEMO-001 (išgalvotas pavyzdys) | Tik savo skyriaus klaidas |
+| Priežastis | Kodėl įrašas nepavyko: verslo sakinys + techninė detalė | „Nenurodytas technikas“ + Frontu HTTP 422 (išgalvotas pavyzdys) | Tik verslo sakinį |
 | Režimas | Ar procesas rašo: DRY RUN arba LIVE | LIVE | Taip |
 | Aplinka | Į kurias sistemas jungiamasi: DEV arba PROD | DEV: BC Copy LT + alwarktest | Taip |
 

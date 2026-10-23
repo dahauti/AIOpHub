@@ -185,7 +185,7 @@ async def test_english_light_page_is_rendered_by_the_server(client: Client) -> N
     overview = (await client.get("/prototype/")).text
 
     assert '<html lang="en" data-theme="light">' in record
-    assert "No technician assigned" in record and "BC order SO029748" in record
+    assert "No technician assigned" in record and "BC order SO-DEMO-001" in record
     assert "Nenurodytas" not in record
     assert ">LIVE processes</dt>" in overview and ">Name</th>" in overview
     assert "21 Oct 2026" in overview

@@ -79,7 +79,7 @@ async def test_action_rows_are_plain_rows_in_type_order(client: Client) -> None:
     rows = _section(await _overview(client, "administruoti"), "veiksmo-h")
 
     objects = re.findall(r'<span class="mono-id proto-row-name">([^<]+)</span>', rows)
-    assert objects == ["SO029761", "SO029748"]
+    assert objects == ["SO-DEMO-002", "SO-DEMO-001"]
     assert "proto-card" not in rows
 
 
@@ -101,7 +101,7 @@ async def test_process_table_one_linked_row_per_process(client: Client, level: s
 async def test_matyti_sees_no_system_errors_in_needs_action(client: Client) -> None:
     rows = _section(await _overview(client, "matyti"), "veiksmo-h")
 
-    assert "SO029748" in rows and "SO029761" not in rows
+    assert "SO-DEMO-001" in rows and "SO-DEMO-002" not in rows
 
 
 def test_only_the_item_name_is_underlined_and_rows_have_no_frame() -> None:

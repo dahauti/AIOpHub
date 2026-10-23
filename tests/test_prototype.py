@@ -46,8 +46,8 @@ def test_fixture_covers_every_scenario() -> None:
     errors = {(r.objektas, r.tipas) for r in data.irasai if r.busena == "klaida"}
 
     assert modes == {"transporto": "LIVE", "uzduotys": "LIVE", "klientai": "DRY_RUN"}
-    assert {("SO029748", "duomenu"), ("SO029761", "sistemos")} <= errors
-    assert [r.objektas for r in visible_errors("matyti")] == ["SO029748"]
+    assert {("SO-DEMO-001", "duomenu"), ("SO-DEMO-002", "sistemos")} <= errors
+    assert [r.objektas for r in visible_errors("matyti")] == ["SO-DEMO-001"]
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,7 @@ async def test_overview_shows_scenarios(client: Client) -> None:
 
     for text in ("Transporto priemonių sinchronizacija", "Užduočių sinchronizacija"):
         assert text in html
-    assert "SO029748" in html and "Nenurodytas technikas" in html and "HTTP 500" in html
+    assert "SO-DEMO-001" in html and "Nenurodytas technikas" in html and "HTTP 500" in html
     assert "Būtų sinchronizuota: 54" in html
 
 

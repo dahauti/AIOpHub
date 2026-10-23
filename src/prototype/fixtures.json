@@ -98,24 +98,24 @@
       "id": "i-1",
       "paleidimas_id": "p-202",
       "procesas_id": "uzduotys",
-      "objektas": "SO029748",
+      "objektas": "SO-DEMO-001",
       "busena": "klaida",
       "tipas": "duomenu",
-      "klaida": {"kodas": "uzduotis.nera_techniko", "parametrai": {"objektas": "SO029748"}},
+      "klaida": {"kodas": "uzduotis.nera_techniko", "parametrai": {"objektas": "SO-DEMO-001"}},
       "techninis": {
         "http_statusas": 422,
         "url": "https://alwarktest.frontu.com/api/v2/tasks",
         "atsakymas": "{\"message\": \"The given data was invalid.\", \"errors\": {\"assignees\": [\"The assignees field is required.\"]}}",
         "taisykle": "TG_Lines.TechnicianCode → task.assignees"
       },
-      "payload": {"systemId": "SO029748", "title": "Servisas – SO029748", "status": 100, "assignees": []},
+      "payload": {"systemId": "SO-DEMO-001", "title": "Servisas – SO-DEMO-001", "status": 100, "assignees": []},
       "trace_id": "trace-c41d0e88-01"
     },
     {
       "id": "i-2",
       "paleidimas_id": "p-202",
       "procesas_id": "uzduotys",
-      "objektas": "SO029761",
+      "objektas": "SO-DEMO-002",
       "busena": "klaida",
       "tipas": "sistemos",
       "klaida": {"kodas": "sistema.atsake_klaida", "parametrai": {"sistema": "Frontu"}},
@@ -125,25 +125,25 @@
         "atsakymas": "{\"message\": \"Server Error\"}",
         "taisykle": null
       },
-      "payload": {"systemId": "SO029761", "title": "Servisas – SO029761", "status": 100, "assignees": ["T-014"]},
+      "payload": {"systemId": "SO-DEMO-002", "title": "Servisas – SO-DEMO-002", "status": 100, "assignees": ["T-014"]},
       "trace_id": "trace-c41d0e88-02"
     },
     {
       "id": "i-3",
       "paleidimas_id": "p-202",
       "procesas_id": "uzduotys",
-      "objektas": "SO029750",
+      "objektas": "SO-DEMO-003",
       "busena": "pavyko",
       "tipas": null,
       "klaida": null,
       "techninis": null,
-      "payload": {"systemId": "SO029750", "title": "Servisas – SO029750", "status": 100, "assignees": ["T-007"]},
+      "payload": {"systemId": "SO-DEMO-003", "title": "Servisas – SO-DEMO-003", "status": 100, "assignees": ["T-007"]},
       "trace_id": "trace-c41d0e88-03"
     }
   ],
   "zurnalas": [
-    {"laikas": "2026-10-21T14:45:06+03:00", "lygis": "ERROR", "procesas_id": "uzduotys", "ivykis": {"kodas": "irasas.http_klaida", "parametrai": {"objektas": "SO029761", "sistema": "Frontu", "statusas": "500"}}, "kas": null, "trace_id": "trace-c41d0e88-02"},
-    {"laikas": "2026-10-21T14:45:05+03:00", "lygis": "WARN", "procesas_id": "uzduotys", "ivykis": {"kodas": "irasas.http_klaida_laukas", "parametrai": {"objektas": "SO029748", "sistema": "Frontu", "statusas": "422", "laukas": "assignees"}}, "kas": null, "trace_id": "trace-c41d0e88-01"},
+    {"laikas": "2026-10-21T14:45:06+03:00", "lygis": "ERROR", "procesas_id": "uzduotys", "ivykis": {"kodas": "irasas.http_klaida", "parametrai": {"objektas": "SO-DEMO-002", "sistema": "Frontu", "statusas": "500"}}, "kas": null, "trace_id": "trace-c41d0e88-02"},
+    {"laikas": "2026-10-21T14:45:05+03:00", "lygis": "WARN", "procesas_id": "uzduotys", "ivykis": {"kodas": "irasas.http_klaida_laukas", "parametrai": {"objektas": "SO-DEMO-001", "sistema": "Frontu", "statusas": "422", "laukas": "assignees"}}, "kas": null, "trace_id": "trace-c41d0e88-01"},
     {"laikas": "2026-10-21T14:45:02+03:00", "lygis": "INFO", "procesas_id": "uzduotys", "ivykis": {"kodas": "paleidimas.pradetas", "parametrai": {"paleidimas": "p-202", "rezimas": "LIVE"}}, "kas": null, "trace_id": "trace-c41d0e88"},
     {"laikas": "2026-10-21T14:30:03+03:00", "lygis": "INFO", "procesas_id": "uzduotys", "ivykis": {"kodas": "paleidimas.baigtas", "parametrai": {"paleidimas": "p-201", "pavyko": "9", "praleista": "0"}}, "kas": null, "trace_id": "trace-0b9e5a17"},
     {"laikas": "2026-10-20T09:12:00+03:00", "lygis": "WARN", "procesas_id": "uzduotys", "ivykis": {"kodas": "rezimas.pakeistas", "parametrai": {"is": "DRY RUN", "i": "LIVE", "priezastis": "patikra baigta"}}, "kas": "Tomas", "trace_id": "trace-91aa03f4"},

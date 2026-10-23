@@ -59,14 +59,14 @@ async def _seed() -> None:
         )
         await repo.start_run(start)
     failed = {"error_code": "system.bc_unreachable", "error_type": "system"}
-    await repo.add_outcome(_outcome("o-a-1", RUN_A, "SO029748", T0, **failed))
+    await repo.add_outcome(_outcome("o-a-1", RUN_A, "SO-DEMO-001", T0, **failed))
     no_client = {"error_code": "task.no_client_match", "error_type": "data"}
     params = {"params": {"customer_no": "C00010"}}
-    await repo.add_outcome(_outcome("o-a-2", RUN_A, "SO00002", T0, **no_client, **params))
+    await repo.add_outcome(_outcome("o-a-2", RUN_A, "SO-DEMO-002", T0, **no_client, **params))
     frontu = {"error_code": "system.frontu_error", "error_type": "system", "http_status": 200}
     detail = {"technical_detail": "frontu request failed (status=200): unexpected listing payload"}
-    await repo.add_outcome(_outcome("o-b-1", RUN_B, "SO029748", T1, **frontu, **detail))
-    await repo.add_outcome(_outcome("o-b-2", RUN_B, "SO00002", T1, result="ok"))
+    await repo.add_outcome(_outcome("o-b-1", RUN_B, "SO-DEMO-001", T1, **frontu, **detail))
+    await repo.add_outcome(_outcome("o-b-2", RUN_B, "SO-DEMO-002", T1, result="ok"))
     await repo.finish_run(
         JobRunFinish(
             run_id=RUN_A,
@@ -124,9 +124,9 @@ async def test_overview_lists_processes_and_objects_whose_latest_result_is_an_er
     html = (await client.get("/centras/")).text
 
     attention = _section(html, "veiksmo-h", "procesai-h")
-    assert "SO029748" in attention and "/centras/irasai/o-b-1" in attention
+    assert "SO-DEMO-001" in attention and "/centras/irasai/o-b-1" in attention
     assert "Frontu neatsakė arba grąžino klaidą (HTTP 200)." in attention
-    assert "SO00002" not in attention  # its later run succeeded
+    assert "SO-DEMO-002" not in attention  # its later run succeeded
     processes = html.split('id="procesai-h"', 1)[1]
     assert "Užduočių sinchronizacija" in processes
     assert "Pavyko: 1 · praleista 0 · klaidų 1" in processes
@@ -157,7 +157,7 @@ async def test_run_page_shows_its_facts_and_all_its_records(client: Client) -> N
 async def test_record_page_shows_code_texts_technical_detail_and_every_run(client: Client) -> None:
     html = (await client.get("/centras/irasai/o-b-1")).text
 
-    for fact in ("SO029748", "system.frontu_error", "Sistemos klaida", "200 OK", "trace-bbbb"):
+    for fact in ("SO-DEMO-001", "system.frontu_error", "Sistemos klaida", "200 OK", "trace-bbbb"):
         assert fact in html
     assert "Frontu neatsakė arba grąžino klaidą (HTTP 200)." in html
     assert "Frontu did not respond or returned an error (HTTP 200)." in html
