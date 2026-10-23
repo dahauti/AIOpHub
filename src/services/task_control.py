@@ -43,7 +43,13 @@ TaskRunner = Callable[[Settings, TaskMode], Awaitable[TaskRunReport | None]]
 
 class SingleRunner(Protocol):
     def __call__(
-        self, settings: Settings, target: CanaryTarget, /, *, force_live: bool = False
+        self,
+        settings: Settings,
+        target: CanaryTarget,
+        /,
+        *,
+        force_live: bool = False,
+        force_dry: bool = False,
     ) -> Awaitable[TaskRunReport | None]: ...
 
 
@@ -56,7 +62,9 @@ class TaskControlPort(Protocol):
     """Port consumed by the task cockpit routes."""
 
     def trigger(self) -> bool: ...
-    def trigger_single(self, target: CanaryTarget, force_live: bool = False) -> bool: ...
+    def trigger_single(
+        self, target: CanaryTarget, force_live: bool = False, force_dry: bool = False
+    ) -> bool: ...
     async def cockpit(self) -> TaskCockpit: ...
     async def toggle_dry_run(self) -> RuntimeConfig | None: ...
 
@@ -96,15 +104,18 @@ class TaskSyncControl:
         self._task = asyncio.create_task(self._run())
         return True
 
-    def trigger_single(self, target: CanaryTarget, force_live: bool = False) -> bool:
+    def trigger_single(
+        self, target: CanaryTarget, force_live: bool = False, force_dry: bool = False
+    ) -> bool:
         """Start a one-entity canary in the background; False if any UI run is in flight.
 
-        `force_live` bypasses the tasks_sync dry-run for this canary only.
+        `force_live` bypasses the tasks_sync dry-run for this canary only; `force_dry`
+        (the /centras form) makes it dry regardless and wins over `force_live`.
         """
         if self.busy:
             return False
         self._canary = CanaryOutcome(target=target, state="RUNNING")
-        self._task = asyncio.create_task(self._run_single(target, force_live))
+        self._task = asyncio.create_task(self._run_single(target, force_live, force_dry))
         return True
 
     async def cockpit(self) -> TaskCockpit:
@@ -148,10 +159,12 @@ class TaskSyncControl:
             with failed_run_trace(exc):
                 logger.exception("UI-triggered task sync failed")
 
-    async def _run_single(self, target: CanaryTarget, force_live: bool) -> None:
+    async def _run_single(self, target: CanaryTarget, force_live: bool, force_dry: bool) -> None:
         started = utc_now().replace(microsecond=0)  # audit rows are stamped to the second
         try:
-            report = await self._single_runner(self._settings, target, force_live=force_live)
+            report = await self._single_runner(
+                self._settings, target, force_live=force_live, force_dry=force_dry
+            )
         except Exception as exc:
             with failed_run_trace(exc):
                 logger.exception("Task canary for %s failed", target.value)

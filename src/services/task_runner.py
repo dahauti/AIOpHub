@@ -101,11 +101,12 @@ async def run_tasks(
 
 
 async def run_single(
-    settings: Settings, target: CanaryTarget, *, force_live: bool = False
+    settings: Settings, target: CanaryTarget, *, force_live: bool = False, force_dry: bool = False
 ) -> TaskRunReport | None:
     """Canary: one BC order out, or one Frontu task in; watermarks are not moved.
 
-    `force_live` (explicit user choice) bypasses the dry-run wrappers for this run only.
+    `force_live` (explicit user choice) bypasses the dry-run wrappers for this run only;
+    `force_dry` (the /centras form) makes this run dry whatever the config says, and wins.
     """
 
     async def work(wiring: Wiring) -> list[DirectionRun]:
@@ -118,9 +119,9 @@ async def run_single(
             await wiring.recorder.record_failure(object_type, target.value, error)
             raise
 
-    if force_live:
+    if force_live and not force_dry:
         logger.warning("Forced LIVE task canary for %s %s", target.kind, target.value)
-    return await _report(settings, work, "canary", force_live=force_live)
+    return await _report(settings, work, "canary", force_live=force_live, force_dry=force_dry)
 
 
 async def run_bootstrap(settings: Settings) -> int | None:
@@ -138,6 +139,7 @@ async def _report(
     trigger: TriggerKind,
     *,
     force_live: bool = False,
+    force_dry: bool = False,
 ) -> TaskRunReport | None:
     async def audited(wiring: Wiring) -> TaskRunReport:
         async with wiring.recorder.run(LOCK_MODULE, trigger, mode_of(wiring.dry_run)) as run:
@@ -149,11 +151,15 @@ async def _report(
             await task_lock().record_audit(run_audit_entry(report))
         return report
 
-    return await _locked(settings, audited, force_live=force_live)
+    return await _locked(settings, audited, force_live=force_live, force_dry=force_dry)
 
 
 async def _locked[T](
-    settings: Settings, work: Callable[[Wiring], Awaitable[T]], *, force_live: bool = False
+    settings: Settings,
+    work: Callable[[Wiring], Awaitable[T]],
+    *,
+    force_live: bool = False,
+    force_dry: bool = False,
 ) -> T | None:
     await init_db()  # shared tables (locks, config, audit) exist before the claim
     engine = get_engine()
@@ -169,7 +175,9 @@ async def _locked[T](
         status: ReleaseStatus = "FAILED"
         try:
             config = SqlConfigStore(get_sessionmaker(), LOCK_MODULE, runtime_defaults(settings))
-            dry_run = not force_live and await resolve_dry_run(config, settings.sync_dry_run)
+            dry_run = force_dry or (
+                not force_live and await resolve_dry_run(config, settings.sync_dry_run)
+            )
             async with build_http_client() as http:
                 result = await work(wire(settings, engine, lock, http, dry_run))
             status = "IDLE"

@@ -77,7 +77,11 @@ async def test_ui_run_failures_are_logged_in_the_failed_run_trace(
         return None
 
     async def single(
-        _settings: Settings, _target: CanaryTarget, *, force_live: bool = False
+        _settings: Settings,
+        _target: CanaryTarget,
+        *,
+        force_live: bool = False,
+        force_dry: bool = False,
     ) -> TaskRunReport | None:
         await failing_run()
         return None

@@ -171,6 +171,21 @@ async def test_canary_run_has_canary_trigger(backends: MockBackends) -> None:
     assert [(o.object_id, o.result) for o in outcomes] == [("SO00001", "ok")]
 
 
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("live")
+async def test_force_dry_canary_is_dry_run_even_when_config_is_live(
+    backends: MockBackends,
+) -> None:
+    target = CanaryTarget(kind="order", value="SO00001")
+
+    await run_single(get_settings(), target, force_live=True, force_dry=True)
+
+    [(run, outcomes)] = await _stored()
+    assert (run.trigger_kind, run.mode) == ("canary", "DRY_RUN")
+    assert [(o.object_id, o.result) for o in outcomes] == [("SO00001", "ok")]
+    assert backends.writes == []
+
+
 CANARY_FAILURES = [
     ("order", "SO00001", "bc_service_order", "system.bc_error", 400),
     ("task", "0f8fad5b-d9cb-469f-a165-70867728950e", "frontu_task", "system.frontu_error", 500),

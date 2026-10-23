@@ -157,7 +157,11 @@ async def test_control_records_canary_outcome(
     temp_database: Path, outcome: TaskRunReport | None, state: str, text: str | None
 ) -> None:
     async def single(
-        _settings: Settings, _target: CanaryTarget, *, force_live: bool = False
+        _settings: Settings,
+        _target: CanaryTarget,
+        *,
+        force_live: bool = False,
+        force_dry: bool = False,
     ) -> TaskRunReport | None:
         return outcome
 
