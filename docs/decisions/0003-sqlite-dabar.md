@@ -2,7 +2,7 @@
 
 - Data: 2026-10-22
 - Būsena: Priimtas
-- Susiję: `docs/SPEC_OPERACIJU_CENTRAS.md` 3 sk. (atviras DB klausimas), CLAUDE.md §2, §6
+- Susiję: `docs/SPEC_OPERACIJU_CENTRAS.md` 3 sk. (atviras DB klausimas), AGENTS.md §2, §6
 
 ## Kontekstas
 
@@ -23,7 +23,7 @@ Operacijų centrui reikia paleidimų (`job_runs`), įrašų rezultatų (`record_
 
 ## Pasekmės
 
-- GRANT'ai programos rolėms (CLAUDE.md §6) neįmanomi SQLite; jie pridedami migruojant į PostgreSQL 14.
+- GRANT'ai programos rolėms (AGENTS.md §6) neįmanomi SQLite; jie pridedami migruojant į PostgreSQL 14.
 - Esamos lentelės (`create_all` `src/database.py`, raw DDL `src/storage/task_repository.py`) lieka kaip yra; jų perkėlimas į `db/migrations/` – atskira užduotis.
 - SQLite turi vieną rašytoją: `hub` ir CLI/`worker` rašymai į naujas lenteles yra trumpi, bet lygiagretumas lieka ribotas iki PostgreSQL.
-- Perėjimas į PostgreSQL 14 lieka atskira patvirtinta užduotis (CLAUDE.md §2).
+- Perėjimas į PostgreSQL 14 lieka atskira patvirtinta užduotis (AGENTS.md §2).

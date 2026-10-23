@@ -48,7 +48,7 @@
 | Kas paleido | Nesaugoma niekur | Paleidėjas (grafikas / vartotojas), kai bus autentifikacija |
 | Watermark / kursorius | Transporto priemonės: `sync_states.cursor_timestamp` (tik dabartinė reikšmė). Užduotys: `sync_watermarks` (`operative_tasks_bc` – laikas; `operative_tasks_frontu` – Frontu versija, Unix sekundės) | Reikšmė paleidimo pradžioje ir pabaigoje |
 | HTTP kvietimai | Nesaugoma; tik `link_health` (paskutinis rezultatas per servisą) | Jei reikia: kvietimų santrauka per paleidimą `[NEŽINOMA: ar verta saugoti]` |
-| Trace ID | Nėra. Log'e yra tik `run_id` (`uuid4().hex`, `extra`) | Trace ID per paleidimą ir įrašą (CLAUDE.md §4) |
+| Trace ID | Nėra. Log'e yra tik `run_id` (`uuid4().hex`, `extra`) | Trace ID per paleidimą ir įrašą (AGENTS.md §4) |
 | Paleidimo įrašai | Transporto priemonės: `sync_audit_log` eilutės per `entity_key` (SerialNo), **be ryšio su paleidimu** (stulpelio `run_id` nėra). Užduotys: tik `DRY_RUN_TASK` eilutės dry-run režimu | Įrašo rezultatas su `run_id` |
 
 ### 1.4 Įrašas
@@ -92,7 +92,7 @@
    - Reikia: kodas → tipas (duomenų / sistemos) → tekstas per kalbą (ADR 0002 katalogo formatas). Nežinoma klaida = sistemos.
    - Klasifikavimo taisyklės kiekvienam kodui: `[NEŽINOMA]`, reikia savininko pavyzdžių (kokios klaidos kartojasi).
 3. **Paleidimų ir įrašų rezultatų modelis.**
-   - CLAUDE.md §6 reikalauja `job_runs` ir `job_requests`; jų nėra.
+   - AGENTS.md §6 reikalauja `job_runs` ir `job_requests`; jų nėra.
    - Reikia: `job_runs` (procesas, pradžia, pabaiga, būsena, režimas, paleidėjas, skaitikliai, watermark iki/po, trace ID) ir įrašo rezultato lentelės su `run_id`.
    - Tai taip pat išsprendžia skaitiklių prieštaravimą. „Errors today“ skaičiuoja tik `action="FAILED"` (`src/repositories/sync_repository.py`, `dashboard_snapshot`), o užduotys tokių eilučių nerašo – jų klaidos yra `TASK_RUN` payload ir `task_sync_state`.
 4. **Trace ID.** Nėra niekur (`src/` neturi „trace“). Reikia: generuoti per paleidimą, rašyti į log'us ir rezultatus.
@@ -107,7 +107,7 @@
 9. **Schemos keitimai ne per migracijas.**
    - `src/database.py` kuria lenteles `create_all` ir prideda trūkstamus stulpelius `ALTER TABLE` paleidimo metu.
    - `task_repository.py` `MIGRATIONS` vykdo raw DDL.
-   - CLAUDE.md §6 reikalauja numeruotų failų `db/migrations/` (katalogo nėra). Naujos lentelės turėtų eiti jau per migracijas.
+   - AGENTS.md §6 reikalauja numeruotų failų `db/migrations/` (katalogo nėra). Naujos lentelės turėtų eiti jau per migracijas.
 10. **Kiti koncepcijos punktai, kodu nepatvirtinti.**
     - „Latency vienoda BC ir engine“: `[NEŽINOMA]`.
     - „Aplinka koduojama lentelių pavadinimuose (`_dev`)“: AIOpHub kode `_dev` lentelių nėra – aplinka parenka atskirą DB failą (`aio_dev.db` / `aio_prod.db`); ar tai liečia legacy – `[NEŽINOMA]`.
@@ -129,7 +129,7 @@
 Taisyklės visiems etapams:
 
 - Nauji ekranai – atskiru maršrutu šalia seno cockpit (pvz. `/operacijos/`); senas cockpit lieka nepakeistas.
-- Senas cockpit pašalinamas tik po parity (CLAUDE.md §9: shadow run → parity gate su ADR → pilot → cutover → retire).
+- Senas cockpit pašalinamas tik po parity (AGENTS.md §9: shadow run → parity gate su ADR → pilot → cutover → retire).
 - Vienas procesas vienu metu; pirmas – transporto priemonės (viena kryptis).
 
 | Etapas | Turinys | Priklauso nuo |
@@ -148,9 +148,9 @@ Taisyklės visiems etapams:
 | Etapas | Testai |
 |---|---|
 | 0 | Migracijos taikomos tuščiai DB ir esamai DB kopijai; pakartotinis taikymas nieko nekeičia; jei PG – tie patys repository testai abiem dialektais arba PG |
-| 1 | Pagal CLAUDE.md §7 kiekvienam sync job: happy path (`job_runs` = `succeeded`, skaitikliai sutampa su įrašų rezultatais); idempotency (du paleidimai – antras be naujų rašymų, rezultatai `skipped`); failure path (API klaida → `job_runs` = `failed`, jokios dalinės korupcijos, kursorius nepajuda už nepavykusio įrašo). Klaidų katalogas: kiekvienas kodas turi tekstą visose kalbose; nežinoma klaida → sistemos tipas; trace ID yra log'e ir rezultate |
+| 1 | Pagal AGENTS.md §7 kiekvienam sync job: happy path (`job_runs` = `succeeded`, skaitikliai sutampa su įrašų rezultatais); idempotency (du paleidimai – antras be naujų rašymų, rezultatai `skipped`); failure path (API klaida → `job_runs` = `failed`, jokios dalinės korupcijos, kursorius nepajuda už nepavykusio įrašo). Klaidų katalogas: kiekvienas kodas turi tekstą visose kalbose; nežinoma klaida → sistemos tipas; trace ID yra log'e ir rezultate |
 | 2 | Be sesijos – 401 / nukreipimas; kiekvienas maršrutas turi lygio tikrinimą (testas pereina visus maršrutus); lygis tikrinamas serveryje net jei UI mygtuko nerodo (kaip `test_actions_check_the_level_on_the_server` prototipe) |
-| 3 | Ekranai rodo tik DB duomenis (be išorinių kvietimų, CLAUDE.md §3); Matyti nemato sistemos klaidų ir techninės detalės; tekstai iš katalogų (prototipo `test_no_hardcoded_user_facing_text...` principas); WCAG kontrastas (prototipo testas) |
+| 3 | Ekranai rodo tik DB duomenis (be išorinių kvietimų, AGENTS.md §3); Matyti nemato sistemos klaidų ir techninės detalės; tekstai iš katalogų (prototipo `test_no_hardcoded_user_facing_text...` principas); WCAG kontrastas (prototipo testas) |
 | 4 | Kaip 1 ir 3 užduotims; atskirai: klaida prieš Frontu task sukūrimą ir „no client match“ dabar sukuria įrašo rezultatą su kodu |
 | 5 | Veiksmas be reikiamo lygio – 403; „Pakartoti“ apdoroja tik tą įrašą; paleidimas, kai kitas vyksta – BUSY, be antro paleidimo |
 | 6 | Be priežasties – 422; sėkmingas veiksmas sukuria žurnalo įvykį (kas, kada, iš → į, priežastis); PROD negrįžtamam veiksmui reikia įvesti aplinkos pavadinimą; DRY RUN režimu išorinių rašymų nėra (fake adapteriai) |
