@@ -1,0 +1,38 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
+{% from "centras/_macros.html" import busena, rezimas, skaiciai, trukmes_tekstas with context %}
+{% set process_id = procesas.process.id %}
+{% block title %}{{ pavadinimas(process_id) }}{% endblock %}
+{% block crumbs %} / {{ pavadinimas(process_id) }}{% endblock %}
+{% block content %}
+{% set paskutinis = procesas.runs[0] if procesas.runs else none %}
+{% set facts = [
+  (t("centras.paleidimu"), sk(procesas.runs | length, 0)),
+  (t("procesas.paskutinis"), laikas(paskutinis.started_at) if paskutinis else "—"),
+] %}
+{% set purpose = t("centras.procesas.paskirtis", n=sk(riba, 0)) %}
+{% call page_head(t("irasas.procesas"), pavadinimas(process_id), facts, purpose) %}{% if paskutinis %}{{ busena(paskutinis) }}{% endif %}{% endcall %}
+<section class="proto-section" aria-labelledby="paleidimai-h">
+  <h2 id="paleidimai-h" class="proto-section-title">{{ t("procesas.istorija") }}</h2>
+  {% if procesas.runs %}
+  <table class="proto-table">
+    <thead><tr><th>{{ t("procesas.pradzia") }}</th><th>{{ t("paleidimas.paleido") }}</th><th>{{ t("nustatymai.rezimas") }}</th><th>{{ t("procesas.busena") }}</th><th>{{ t("procesas.rezultatas") }}</th><th>{{ t("paleidimas.trukme") }}</th><th>{{ t("centras.klaidos_kodas") }}</th></tr></thead>
+    <tbody>
+      {% for run in procesas.runs %}
+      <tr class="proto-link-row">
+        <td><a href="/centras/paleidimai/{{ run.run_id }}" class="proto-link mono-id proto-stretched">{{ laikas(run.started_at) }}</a></td>
+        <td>{{ t("centras.paleido." ~ run.trigger_kind) }}</td>
+        <td>{{ rezimas(run) }}</td>
+        <td>{{ busena(run) }}</td>
+        <td>{{ skaiciai(run) }}</td>
+        <td class="mono-id">{{ trukmes_tekstas(run) }}</td>
+        <td class="mono-id">{{ run.error_code or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="proto-muted">{{ t("centras.nera_paleidimu") }}</p>
+  {% endif %}
+</section>
+{% endblock %}

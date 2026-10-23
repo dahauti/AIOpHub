@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="{{ kalba }}" data-theme="{{ tema }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="{{ tema }}">
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":false,"error":true}]}'>
+  <title>{% block title %}{{ t("app.pavadinimas") }}{% endblock %} &middot; {{ t("app.pavadinimas") }}</title>
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('hub.css') }}">
+  <link rel="stylesheet" href="{{ asset('proto.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="{{ asset('proto.js') }}" defer></script>
+</head>
+{#- Operacijų centras, pirmi tikri ekranai: tas pats vaizdas kaip prototipo, duomenys iš job_runs ir
+    record_outcomes. Tik skaitymas: vienintelė forma – tema ir kalba (slapukas, kelias /centras). -#}
+<body class="proto-body antialiased">
+  {% from "prototype/_macros.html" import vartotojo_meniu with context %}
+  {% set aplinkos_tekstas = t("aplinka.prod_juosta") if aplinka == "PROD" else t("aplinka.dev_juosta") %}
+  <header class="proto-top{% if aplinka == "PROD" %} proto-top-prod{% endif %}">
+    <div class="proto-brand-group">
+      <a href="/centras/" class="proto-brand"><img class="proto-logo" src="{{ asset('brand/logo.png') }}" alt="{{ t('app.logotipas') }}" width="102" height="24">{{ t("app.pavadinimas") }}</a>
+      <span role="note" class="proto-env-badge {{ 'proto-env-badge-prod' if aplinka == 'PROD' else 'proto-env-badge-dev' }}" title="{{ aplinkos_tekstas }}" aria-label="{{ aplinkos_tekstas }}">{{ aplinka }}</span>
+    </div>
+    <div class="proto-prefs">
+      <span role="note" class="proto-flag" title="{{ t('centras.pastaba') }}" aria-label="{{ t('centras.pastaba') }}">{{ t("centras.zenklas") }}</span>
+      {{ vartotojo_meniu(vartotojas, tema, kalba) }}
+    </div>
+  </header>
+  <main class="proto-main">
+    {% block breadcrumb %}<nav class="proto-crumbs" aria-label="{{ t('kelias.aria') }}"><a href="/centras/" class="proto-link">{{ t("app.pavadinimas") }}</a>{% block crumbs %}{% endblock %}</nav>{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

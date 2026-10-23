@@ -1,0 +1,56 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
+{% from "centras/_macros.html" import busena, rezimas, rezultatas, tipas with context %}
+{% set o = irasas.outcome %}
+{% block title %}{{ o.object_id }}{% endblock %}
+{% block crumbs %} / <a href="/centras/procesai/{{ irasas.run.process_id }}" class="proto-link">{{ pavadinimas(irasas.run.process_id) }}</a> / <a href="/centras/paleidimai/{{ o.run_id }}" class="proto-link">{{ t("paleidimas.pavadinimas") }}</a> / {{ o.object_id }}{% endblock %}
+{% block content %}
+{% set facts = [
+  (t("irasas.busena"), rezultatas(o)),
+  (t("irasas.procesas"), pavadinimas(irasas.run.process_id)),
+  (t("irasas.aptikta"), laikas(o.recorded_at)),
+  (t("centras.objekto_tipas"), o.object_type),
+] %}
+{% set objektas %}<span class="mono-id">{{ o.object_id }}</span>{% endset %}
+{% call page_head(t("irasas.pavadinimas"), objektas, facts, t("centras.irasas.paskirtis")) %}{{ tipas(o) }}{% endcall %}
+{% if o.error_code %}
+<section class="proto-section proto-reason-box" aria-labelledby="priezastis-h">
+  <h2 id="priezastis-h" class="proto-section-title">{{ t("irasas.kodel") }}</h2>
+  <p class="proto-reason-text proto-prose">{{ klaida(o.error_code, o.params, http_status=o.http_status) }}</p>
+  <dl class="proto-facts">
+    <div><dt>{{ t("centras.tekstas_lt") }}</dt><dd class="proto-prose" lang="lt">{{ klaida(o.error_code, o.params, "lt", o.http_status) }}</dd></div>
+    <div><dt>{{ t("centras.tekstas_en") }}</dt><dd class="proto-prose" lang="en">{{ klaida(o.error_code, o.params, "en", o.http_status) }}</dd></div>
+  </dl>
+</section>
+{% endif %}
+<section class="proto-section" aria-labelledby="technine-h">
+  <h2 id="technine-h" class="proto-section-title">{{ t("technine.antraste") }}</h2>
+  <dl class="proto-facts">
+    <div><dt>{{ t("centras.objektas") }}</dt><dd class="mono-id">{{ o.object_id }}</dd></div>
+    <div><dt>{{ t("centras.klaidos_kodas") }}</dt><dd class="mono-id">{{ o.error_code or "—" }}</dd></div>
+    <div><dt>{{ t("centras.klaidos_tipas") }}</dt><dd>{{ t("centras.tipas." ~ o.error_type) if o.error_type else "—" }}</dd></div>
+    <div><dt>{{ t("centras.http") }}</dt><dd class="mono-id">{{ o.http_status ~ " " ~ (o.http_status | http_reason) if o.http_status else "—" }}</dd></div>
+    <div><dt>{{ t("technine.trace") }}</dt><dd class="mono-id">{{ o.trace_id }}</dd></div>
+  </dl>
+  <p class="label">{{ t("centras.techninis") }}</p>
+  <pre class="proto-pre">{{ o.technical_detail or "—" }}</pre>
+</section>
+<section class="proto-section" aria-labelledby="istorija-h">
+  <h2 id="istorija-h" class="proto-section-title">{{ t("centras.istorija") }}</h2>
+  <table class="proto-table">
+    <thead><tr><th>{{ t("procesas.pradzia") }}</th><th>{{ t("paleidimas.paleido") }}</th><th>{{ t("nustatymai.rezimas") }}</th><th>{{ t("procesas.busena") }}</th><th>{{ t("irasas.busena") }}</th><th>{{ t("centras.klaidos_kodas") }}</th></tr></thead>
+    <tbody>
+      {% for h in irasas.history %}
+      <tr class="proto-link-row">
+        <td><a href="/centras/paleidimai/{{ h.run.run_id }}" class="proto-link mono-id proto-stretched">{{ laikas(h.run.started_at) }}</a>{% if h.outcome.outcome_id == o.outcome_id %} <span class="proto-cell-sub">{{ t("centras.sis") }}</span>{% endif %}</td>
+        <td>{{ t("centras.paleido." ~ h.run.trigger_kind) }}</td>
+        <td>{{ rezimas(h.run) }}</td>
+        <td>{{ busena(h.run) }}</td>
+        <td>{{ rezultatas(h.outcome) }}</td>
+        <td class="mono-id">{{ h.outcome.error_code or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -86,6 +86,7 @@ def _page(
         "tn": v.tn,
         "laikas": v.laikas,
         "sk": v.sk,
+        "nuostatos_url": "/prototype/nuostatos",
     }
     return TEMPLATES.TemplateResponse(
         request, f"prototype/{template}", base | context, status_code=status_code

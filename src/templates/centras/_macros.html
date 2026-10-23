@@ -1,0 +1,26 @@
+{#- Operacijų centro ženkliukai iš saugomų kodų (ADR 0003): tekstas iš katalogo, klasė iš `klases`
+    (src/api/centras_handlers.py). Importuoti `with context`. -#}
+
+{% macro busena(run) -%}
+<span class="pill {{ klases.busena[run.status] }}">{{ t("centras.busena." ~ run.status) }}</span>
+{%- endmacro %}
+
+{% macro skaiciai(run) -%}
+{{ t("centras.skaiciai", ok=sk(run.count_ok, 0), praleista=sk(run.count_skipped, 0), klaidu=sk(run.count_failed, 0)) }}
+{%- endmacro %}
+
+{% macro rezimas(run) -%}
+<span class="proto-badge {{ klases.rezimas[run.mode] }}">{{ t("rezimas." ~ run.mode) }}</span>
+{%- endmacro %}
+
+{% macro rezultatas(outcome) -%}
+<span class="pill {{ klases.rezultatas[outcome.result] }}">{{ t("centras.rezultatas." ~ outcome.result) }}</span>
+{%- endmacro %}
+
+{% macro tipas(outcome) -%}
+{% if outcome.error_type %}<span class="proto-type {{ klases.tipas[outcome.error_type] }}">{{ t("centras.tipas." ~ outcome.error_type) }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro trukmes_tekstas(run) -%}
+{% set s = trukme(run) %}{{ t("vienetai.s", n=sk(s)) if s is not none else t("centras.vyksta") }}
+{%- endmacro %}

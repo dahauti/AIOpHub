@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Integer,
     MetaData,
+    RowMapping,
     String,
     Table,
     bindparam,
@@ -112,7 +113,9 @@ class JobRunRepository:
         )
         async with self._engine.connect() as connection:
             rows = (await connection.execute(statement)).mappings().all()
-        return [
-            RecordOutcome.model_validate({**row, "params": json.loads(row["params"] or "{}")})
-            for row in rows
-        ]
+        return [outcome_from_row(row) for row in rows]
+
+
+def outcome_from_row(row: RowMapping) -> RecordOutcome:
+    """A stored outcome row; `params` is kept as JSON text in the table."""
+    return RecordOutcome.model_validate({**row, "params": json.loads(row["params"] or "{}")})

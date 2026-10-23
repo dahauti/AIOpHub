@@ -15,6 +15,7 @@ from src.adapters.bc_client import BCClient, select_connection
 from src.adapters.frontu_client import FrontuClient
 from src.api.audit_handlers import audit_router
 from src.api.canary_handlers import canary_router
+from src.api.centras_handlers import centras_router
 from src.api.cockpit_handlers import cockpit_router
 from src.api.config_handlers import config_router
 from src.api.glass_box_handlers import glass_box_router
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(canary_router)
     app.include_router(glass_box_router)
     app.include_router(prototype_router)  # 404 unless PROTOTYPE_ENABLED
+    app.include_router(centras_router)  # 404 unless CENTRAS_ENABLED and a localhost client
     return app
 
 

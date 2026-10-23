@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     sync_dry_run: bool = True
     sync_initial_lookback_days: int = Field(default=0, ge=0)
     prototype_enabled: bool = False  # /prototype UX preview (fixture data only)
+    centras_enabled: bool = False  # /centras read-only Operations Center (localhost only)
 
     # Business Central OnPrem Prod
     bc_tenant_id_onprem: str

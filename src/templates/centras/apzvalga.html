@@ -1,0 +1,44 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
+{% from "centras/_macros.html" import busena, rezimas, skaiciai, tipas with context %}
+{% block title %}{{ t("apzvalga.pavadinimas") }}{% endblock %}
+{% block breadcrumb %}{% endblock %}
+{% block content %}
+{% set facts = [
+  (t("apzvalga.procesu"), sk(apzvalga.processes | length, 0)),
+  (t("apzvalga.reikia_veiksmo"), sk(apzvalga.attention | length, 0)),
+] %}
+{{ page_head(t("apzvalga.pavadinimas"), t("apzvalga.antraste"), facts, t("centras.apzvalga.paskirtis")) }}
+<section class="proto-section" aria-labelledby="veiksmo-h">
+  <h2 id="veiksmo-h" class="proto-section-title">{{ t("apzvalga.reikia_veiksmo") }}</h2>
+  {% for item in apzvalga.attention %}
+  <a href="/centras/irasai/{{ item.outcome.outcome_id }}" class="proto-row">
+    <span class="mono-id proto-row-name">{{ item.outcome.object_id }}</span>
+    {{ tipas(item.outcome) }}
+    <span class="proto-row-main">{{ klaida(item.outcome.error_code, item.outcome.params, http_status=item.outcome.http_status) }}{% if item.outcome.http_status %} <span class="proto-muted">&middot; {{ t("paleidimas.http") }} {{ item.outcome.http_status }}</span>{% endif %}</span>
+    <span class="proto-muted">{{ pavadinimas(item.run.process_id) }} &middot; <span class="mono-id">{{ laikas(item.outcome.recorded_at) }}</span></span>
+  </a>
+  {% else %}
+  <p class="proto-muted">{{ t("apzvalga.nera_veiksmo") }}</p>
+  {% endfor %}
+</section>
+<section class="proto-section" aria-labelledby="procesai-h">
+  <h2 id="procesai-h" class="proto-section-title">{{ t("apzvalga.procesai") }}</h2>
+  {#- One row per process (UX_GUIDELINES 3 sk.): the name is the only link; its ::after covers the row. -#}
+  <table class="proto-table">
+    <thead><tr><th>{{ t("apzvalga.pavadinimas_stulpelis") }}</th><th>{{ t("procesas.paskutinis") }}</th><th>{{ t("nustatymai.rezimas") }}</th><th>{{ t("procesas.busena") }}</th><th>{{ t("procesas.rezultatas") }}</th></tr></thead>
+    <tbody>
+      {% for summary in apzvalga.processes %}
+      {% set run = summary.last_run %}
+      <tr class="proto-link-row">
+        <td><a href="/centras/procesai/{{ summary.process.id }}" class="proto-row-name proto-stretched">{{ pavadinimas(summary.process.id) }}</a><span class="proto-cell-sub mono-id">{{ summary.process.id }}</span></td>
+        <td class="mono-id">{{ laikas(run.started_at) if run else "—" }}</td>
+        <td>{{ rezimas(run) if run else "—" }}</td>
+        <td>{{ busena(run) if run else "—" }}</td>
+        <td>{{ skaiciai(run) if run else t("centras.nera_paleidimu") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

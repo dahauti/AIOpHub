@@ -1,0 +1,35 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
+{% from "centras/_macros.html" import busena, rezimas, rezultatas, skaiciai, tipas, trukmes_tekstas with context %}
+{% set run = paleidimas.run %}
+{% block title %}{{ t("paleidimas.pavadinimas") }} {{ laikas(run.started_at) }}{% endblock %}
+{% block crumbs %} / <a href="/centras/procesai/{{ run.process_id }}" class="proto-link">{{ pavadinimas(run.process_id) }}</a> / {{ t("paleidimas.pavadinimas") }}{% endblock %}
+{% block content %}
+{% set facts = [
+  (t("procesas.pradzia"), laikas(run.started_at)),
+  (t("paleidimas.trukme"), trukmes_tekstas(run)),
+  (t("paleidimas.paleido"), t("centras.paleido." ~ run.trigger_kind)),
+  (t("procesas.rezultatas"), skaiciai(run)),
+] %}
+{% call page_head(pavadinimas(run.process_id), t("paleidimas.pavadinimas"), facts, t("centras.paleidimas.paskirtis")) %}{{ busena(run) }} {{ rezimas(run) }}{% endcall %}
+<section class="proto-section" aria-labelledby="detales-h">
+  <h2 id="detales-h" class="proto-section-title">{{ t("paleidimas.detales") }}</h2>
+  <dl class="proto-facts">
+    <div><dt>{{ t("centras.pabaiga") }}</dt><dd class="mono-id">{{ laikas(run.finished_at) if run.finished_at else t("centras.vyksta") }}</dd></div>
+    <div><dt>{{ t("centras.profilis") }}</dt><dd class="mono-id">{{ run.profile }}</dd></div>
+    <div><dt>{{ t("technine.trace") }}</dt><dd class="mono-id">{{ run.trace_id }}</dd></div>
+    {% if run.error_code %}
+    <div><dt>{{ t("centras.klaidos_kodas") }}</dt><dd><span class="mono-id">{{ run.error_code }}</span> &middot; {{ klaida(run.error_code, {}) }}</dd></div>
+    <div><dt>{{ t("centras.klaidos_santrauka") }}</dt><dd class="mono-id proto-url">{{ run.error_summary or "—" }}</dd></div>
+    {% endif %}
+  </dl>
+</section>
+<section class="proto-section" aria-labelledby="irasai-h">
+  <h2 id="irasai-h" class="proto-section-title">{{ t("paleidimas.irasai") }}</h2>
+  {% for o in paleidimas.outcomes %}
+  <a href="/centras/irasai/{{ o.outcome_id }}" class="proto-row"><span class="mono-id proto-row-name">{{ o.object_id }}</span>{% if o.result == "error" %}{{ tipas(o) }}{% else %}{{ rezultatas(o) }}{% endif %}<span class="proto-row-main">{% if o.error_code %}{{ klaida(o.error_code, o.params, http_status=o.http_status) }}{% endif %}</span><span class="proto-muted mono-id">{{ o.object_type }}</span></a>
+  {% else %}
+  <p class="proto-muted">{{ t("paleidimas.nera_irasu") }}</p>
+  {% endfor %}
+</section>
+{% endblock %}

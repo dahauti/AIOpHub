@@ -116,11 +116,11 @@
   <summary class="proto-user-trigger" aria-label="{{ t('meniu.aria', vardas=vartotojas.vardas, kalba=kalba | upper) }}">{{ vartotojas.inicialai }} &middot; {{ kalba | upper }} &#9662;</summary>
   <div class="proto-user-panel">
     <p class="proto-user-name">{{ vartotojas.vardas }}</p>
-    <form hx-post="/prototype/nuostatos" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
+    <form hx-post="{{ nuostatos_url }}" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
       <input type="hidden" name="kalba" value="{{ kalba }}">
       {{ pasirinkimai("tema", "nuostatos.tema", tema, temos, "tema.") }}
     </form>
-    <form hx-post="/prototype/nuostatos" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
+    <form hx-post="{{ nuostatos_url }}" hx-trigger="change delay:500ms" hx-swap="none" data-focus="user-menu">
       <input type="hidden" name="tema" value="{{ tema }}">
       {{ pasirinkimai("kalba", "nuostatos.kalba", kalba, kalbos, "kalba.") }}
     </form>
