@@ -4,7 +4,7 @@ Read-only: built from job_runs / record_outcomes via `OperationsReadRepository`.
 produced here; templates render codes through the catalogs (ADR 0002, ADR 0003).
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -103,8 +103,23 @@ class OperationsView:
             return None
         return RecordDetail(outcome=outcome, run=run, history=history)
 
+    async def canary_outcome(
+        self, object_type: str, object_id: str, since: datetime
+    ) -> RecordOutcome | None:
+        """Outcome of the newest finished canary run for the object started at/after `since`."""
+        for item in await self._reads.object_history(object_type, object_id):  # newest first
+            run = item.run
+            if run.trigger_kind == "canary" and run.finished_at and _utc(run.started_at) >= since:
+                return item.outcome
+        return None
+
     async def _process(self, process_id: str) -> ProcessRow | None:
         return next((p for p in await self._reads.list_processes() if p.id == process_id), None)
+
+
+def _utc(value: datetime) -> datetime:
+    """SQLite hands stored UTC back without a zone."""
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def local(value: datetime) -> datetime:

@@ -12,6 +12,7 @@
 ] %}
 {% set purpose = t("centras.procesas.paskirtis", n=sk(riba, 0)) %}
 {% call page_head(t("irasas.procesas"), pavadinimas(process_id), facts, purpose) %}{% if paskutinis %}{{ busena(paskutinis) }}{% endif %}{% endcall %}
+{% if testinis_url %}<p class="proto-actions"><a href="{{ testinis_url }}" class="proto-btn proto-btn-danger">&#9888; {{ t("centras.testinis.pavadinimas") }}</a></p>{% endif %}
 <section class="proto-section" aria-labelledby="paleidimai-h">
   <h2 id="paleidimai-h" class="proto-section-title">{{ t("procesas.istorija") }}</h2>
   {% if procesas.runs %}

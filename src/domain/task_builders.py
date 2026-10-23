@@ -66,6 +66,15 @@ def build_work(line: BCServiceOrderLine, task_guid: str) -> FrontuWork:
     return FrontuWork(systemId=line.No or "", task=task_guid, duration=duration)
 
 
+# Keys of `tasker_patch`, in order; the /centras LIVE dialog lists them (test-guarded).
+TASKER_PATCH_FIELDS = (
+    "DocumentStatus",
+    "Tasker_ID",
+    "Tasker_Document_No",
+    "Last_Tasker_Sinhr_Time",
+)
+
+
 def tasker_patch(task: FrontuTask, status: str, synced_at: datetime) -> dict[str, JsonValue]:
     """BC header fields linking an order to its Frontu task."""
     return {

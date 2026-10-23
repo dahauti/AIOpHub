@@ -13,6 +13,7 @@
 ] %}
 {% set objektas %}<span class="mono-id">{{ o.object_id }}</span>{% endset %}
 {% call page_head(t("irasas.pavadinimas"), objektas, facts, t("centras.irasas.paskirtis")) %}{{ tipas(o) }}{% endcall %}
+{% if kartoti_url %}<p class="proto-actions"><a href="{{ kartoti_url }}" class="proto-btn proto-btn-danger">&#9888; {{ t("centras.testinis.kartoti") }}</a></p>{% endif %}
 {% if o.error_code %}
 <section class="proto-section proto-reason-box" aria-labelledby="priezastis-h">
   <h2 id="priezastis-h" class="proto-section-title">{{ t("irasas.kodel") }}</h2>

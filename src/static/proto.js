@@ -16,6 +16,11 @@ document.addEventListener("DOMContentLoaded", () => {
   history.replaceState(null, "", location.pathname + location.search);
 });
 
+// A server-rendered confirmation step (/centras/testinis) opens its dialog as a modal.
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelector("dialog[data-open-modal]")?.showModal();
+});
+
 // User menu (<details>): Esc closes it and returns focus to the trigger; a click outside closes it.
 document.addEventListener("keydown", (event) => {
   const menu = document.querySelector("details.proto-user[open]");

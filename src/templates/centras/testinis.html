@@ -1,0 +1,44 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head, segment with context %}
+{#- Testinis šūvis (UX_GUIDELINES 5–6 sk.): rašantis veiksmas, todėl režimas pasirenkamas aiškiai,
+    o paleidžiama tik per patvirtinimo dialogą. Serveris užtikrina režimą (force_dry / force_live). -#}
+{% block title %}{{ t("centras.testinis.pavadinimas") }}{% endblock %}
+{% block zenklas %}<span role="note" class="proto-flag" title="{{ t('centras.testinis.pastaba') }}" aria-label="{{ t('centras.testinis.pastaba') }}">{{ t("centras.testinis.zenklas") }}</span>{% endblock %}
+{% block crumbs %} / {{ t("centras.testinis.pavadinimas") }}{% endblock %}
+{% block content %}
+{% set sistema = t("centras.testinis.sistema", frontu=frontu, bc=bc, aplinka=aplinka) %}
+{{ page_head(t("app.pavadinimas"), t("centras.testinis.pavadinimas"), [(t("dialogas.sistema"), sistema)], t("centras.testinis.paskirtis")) }}
+{% if pranesimas %}<p class="proto-mode proto-mode-live" role="alert">{{ t(pranesimas) }}</p>{% endif %}
+<section class="proto-section" aria-labelledby="sauti-h">
+  <h2 id="sauti-h" class="proto-section-title">{{ t("centras.testinis.pavadinimas") }}</h2>
+  <form method="post" action="/centras/testinis" class="proto-actions">
+    <label class="proto-field">{{ t("centras.testinis.uzsakymas") }}<input type="text" name="uzsakymas" value="{{ uzsakymas }}" required maxlength="64" autocomplete="off" class="field mono-id"></label>
+    {{ segment("rezimas", "centras.testinis.rezimas", rezimas, ["DRY_RUN", "LIVE"], "rezimas.") }}
+    <button type="submit" class="proto-btn proto-btn-danger">&#9888; {{ t("centras.testinis.paleisti") }}</button>
+  </form>
+</section>
+{% if patvirtinti %}
+<dialog id="dlg-sauti" class="proto-dialog" aria-labelledby="dlg-sauti-title" data-open-modal>
+  <form method="post" action="/centras/testinis/paleisti">
+    <input type="hidden" name="uzsakymas" value="{{ uzsakymas }}">
+    <input type="hidden" name="rezimas" value="{{ rezimas }}">
+    <h2 id="dlg-sauti-title" class="proto-dialog-title">&#9888; {{ t("centras.testinis.pavadinimas") }}: <span class="mono-id">{{ uzsakymas }}</span></h2>
+    {% if rezimas == "LIVE" %}
+    <p class="proto-mode proto-mode-live" role="status">{{ t("rezimas.juosta_live", tikslas=t("centras.testinis.tikslas"), aplinka=aplinka) }}</p>
+    {% else %}
+    <p class="proto-mode proto-mode-dry" role="status"><span class="proto-badge proto-badge-dry">{{ t("rezimas.DRY_RUN") }}</span>{{ t("rezimas.juosta_dry", tikslas=t("centras.testinis.tikslas")) }}</p>
+    {% endif %}
+    <dl class="proto-facts">
+      <div><dt>{{ t("dialogas.ka_padarys") }}</dt><dd class="proto-prose">{{ t("centras.testinis.ka." ~ rezimas, uzsakymas=uzsakymas, antraste=antraste, eilutes=eilutes) }}</dd></div>
+      <div><dt>{{ t("dialogas.kiek") }}</dt><dd>{{ t("centras.testinis.kiek") }}</dd></div>
+      <div><dt>{{ t("dialogas.sistema") }}</dt><dd>{{ sistema }}</dd></div>
+      <div><dt>{{ t("dialogas.grizta") }}</dt><dd class="proto-prose">{{ t("centras.testinis.grizta." ~ rezimas) }}</dd></div>
+    </dl>
+    <div class="proto-dialog-actions">
+      <a href="/centras/testinis" class="proto-btn">{{ t("dialogas.uzdaryti") }}</a>
+      <button type="submit" class="proto-btn proto-btn-danger">{{ t("centras.testinis.patvirtinti." ~ rezimas) }}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "centras/_layout.html" %}
+{% from "prototype/_macros.html" import page_head with context %}
+{#- Laukimas: puslapis persikrauna kas 2 s, kol serveris randa šio šūvio rezultatą ir nukreipia į
+    įrašo puslapį. Jei paleidimas nebevyksta ir rezultato nėra – pranešimas, be persikrovimo. -#}
+{% block title %}{{ t("centras.testinis.pavadinimas") }}{% endblock %}
+{% block zenklas %}<span role="note" class="proto-flag" title="{{ t('centras.testinis.pastaba') }}" aria-label="{{ t('centras.testinis.pastaba') }}">{{ t("centras.testinis.zenklas") }}</span>{% endblock %}
+{% block crumbs %} / <a href="/centras/testinis" class="proto-link">{{ t("centras.testinis.pavadinimas") }}</a>{% endblock %}
+{% block content %}
+{% if vyksta %}<meta http-equiv="refresh" content="2">{% endif %}
+{{ page_head(t("app.pavadinimas"), t("centras.testinis.pavadinimas"), [(t("centras.testinis.uzsakymas"), uzsakymas)]) }}
+{% if vyksta %}
+<p class="proto-mode proto-mode-dry" role="status" aria-live="polite">{{ t("centras.testinis.laukia", uzsakymas=uzsakymas) }}</p>
+{% else %}
+<p class="proto-mode proto-mode-live" role="alert">{{ t("centras.testinis.nera_rezultato") }}</p>
+{% endif %}
+{% endblock %}

@@ -23,7 +23,7 @@
       <span role="note" class="proto-env-badge {{ 'proto-env-badge-prod' if aplinka == 'PROD' else 'proto-env-badge-dev' }}" title="{{ aplinkos_tekstas }}" aria-label="{{ aplinkos_tekstas }}">{{ aplinka }}</span>
     </div>
     <div class="proto-prefs">
-      <span role="note" class="proto-flag" title="{{ t('centras.pastaba') }}" aria-label="{{ t('centras.pastaba') }}">{{ t("centras.zenklas") }}</span>
+      {% block zenklas %}<span role="note" class="proto-flag" title="{{ t('centras.pastaba') }}" aria-label="{{ t('centras.pastaba') }}">{{ t("centras.zenklas") }}</span>{% endblock %}
       {{ vartotojo_meniu(vartotojas, tema, kalba) }}
     </div>
   </header>

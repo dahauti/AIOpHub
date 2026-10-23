@@ -6,6 +6,7 @@ viewer's theme/language cookie. Look and texts are the prototype's (ADR 0002).
 """
 
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
@@ -25,8 +26,11 @@ from src.services.operations_view import (
     duration_seconds,
     local,
 )
+from src.services.task_outbound import OBJECT_TYPE as ORDER_OBJECT_TYPE
+from src.services.task_runner import LOCK_MODULE as TASKS_PROCESS
 
 LOCAL_HOSTS = frozenset({"127.0.0.1", "::1"})
+SHOT = "/centras/testinis"  # Testinis šūvis form (centras_shot_handlers)
 THEME_COOKIE, LANG_COOKIE = "centras_tema", "centras_kalba"
 COOKIE_PATH = "/centras"
 # CSS class per stored code (proto.css / hub.css); the text comes from the catalog.
@@ -117,7 +121,9 @@ async def overview(request: Request) -> HTMLResponse:
 @centras_router.get("/procesai/{process_id}", response_class=HTMLResponse)
 async def process_page(request: Request, process_id: str) -> HTMLResponse:
     item = _found(await _view().process_runs(process_id))
-    return _page(request, "procesas.html", {"procesas": item, "riba": RUNS_PER_PROCESS})
+    shot = SHOT if process_id == TASKS_PROCESS else None  # the test shot runs the task canary
+    context = {"procesas": item, "riba": RUNS_PER_PROCESS, "testinis_url": shot}
+    return _page(request, "procesas.html", context)
 
 
 @centras_router.get("/paleidimai/{run_id}", response_class=HTMLResponse)
@@ -129,7 +135,11 @@ async def run_page(request: Request, run_id: str) -> HTMLResponse:
 @centras_router.get("/irasai/{outcome_id}", response_class=HTMLResponse)
 async def record_page(request: Request, outcome_id: str) -> HTMLResponse:
     item = _found(await _view().record(outcome_id))
-    return _page(request, "irasas.html", {"irasas": item})
+    outcome = item.outcome
+    repeat = None  # only a BC order can be shot again; the form opens pre-filled, not started
+    if outcome.object_type == ORDER_OBJECT_TYPE:
+        repeat = f"{SHOT}?{urlencode({'uzsakymas': outcome.object_id})}"
+    return _page(request, "irasas.html", {"irasas": item, "kartoti_url": repeat})
 
 
 @centras_router.post("/nuostatos")

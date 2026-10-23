@@ -9,6 +9,7 @@
   (t("apzvalga.reikia_veiksmo"), sk(apzvalga.attention | length, 0)),
 ] %}
 {{ page_head(t("apzvalga.pavadinimas"), t("apzvalga.antraste"), facts, t("centras.apzvalga.paskirtis")) }}
+<p class="proto-actions"><a href="/centras/testinis" class="proto-btn proto-btn-danger">&#9888; {{ t("centras.testinis.pavadinimas") }}</a></p>
 <section class="proto-section" aria-labelledby="veiksmo-h">
   <h2 id="veiksmo-h" class="proto-section-title">{{ t("apzvalga.reikia_veiksmo") }}</h2>
   {% for item in apzvalga.attention %}

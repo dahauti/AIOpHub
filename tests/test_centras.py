@@ -176,6 +176,23 @@ async def test_unknown_ids_are_404(client: Client, path: str) -> None:
 
 
 @pytest.mark.asyncio
+async def test_only_the_task_sync_process_links_to_the_test_shot(client: Client) -> None:
+    tasks = (await client.get("/centras/procesai/tasks_sync")).text
+    vehicles = (await client.get("/centras/procesai/workspaces_vehicles")).text
+
+    assert 'href="/centras/testinis"' in tasks
+    assert "/centras/testinis" not in vehicles
+
+
+@pytest.mark.asyncio
+async def test_order_record_offers_to_repeat_the_shot_with_its_number(client: Client) -> None:
+    html = (await client.get("/centras/irasai/o-b-1")).text
+
+    assert 'href="/centras/testinis?uzsakymas=SO-DEMO-001"' in html
+    assert "Kartoti testinį šūvį" in html
+
+
+@pytest.mark.asyncio
 async def test_screens_have_no_writing_controls(client: Client) -> None:
     for path in SCREENS:
         html = (await client.get(path)).text
