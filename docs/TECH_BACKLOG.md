@@ -45,6 +45,7 @@ Perkelta iš `docs/UX_GUIDELINES.md` 8 sk. („Inžinerinis backlog (ne UX)“).
 - **Saugojimo politika `job_runs` / `record_outcomes`.** Lentelės auga su kiekvienu paleidimu; reikia nuspręsti, kiek laiko laikyti (pvz. N dienų arba N paleidimų per procesą) ir kas valo (worker job).
 - **Transporto priemonių `record_outcomes`.** Dabar transporto priemonės rašo tik `job_runs`; įrašų rezultatams reikia pirma išskaidyti `src/pipelines/sync_vehicles.py` (~200 LOC).
 - **Prisegti `requirements.txt` versijas** (CLAUDE.md §4 reikalauja prisegtų): dabar `>=` intervalai.
+- **BC rašymai su `If-Match: *` – lygiagretus pakeitimas gali būti perrašytas.** `update_order_header` / `update_order_line` (`src/clients/bc_tasks_client.py`) visada siunčia `If-Match: *`; skaitymas `@odata.etag` nesaugo, kvietėjai ETag neperduoda. Siūloma: siųsti perskaityto įrašo ETag; BC 412 (įrašas pakeistas) → pakartoti po 5 min., po 10 min., tada įspėjimas (ta pati schema kaip BC skaitymo „changed between initial and JIT load“ klaidai). Neįgyvendinta (savininko sprendimas 2026-10-23).
 
 ## Diegimas
 
