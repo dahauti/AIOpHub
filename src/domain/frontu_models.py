@@ -85,6 +85,24 @@ class FrontuEntityRef(BaseModel):
     guid: str = Field(min_length=1)
 
 
+class FrontuCatalogEntry(FrontuEntityRef):
+    """Row of `/clients` or `/workspaces?systemId=`, or the `/task_types/details` object.
+
+    Shapes: contracts/frontu/clients_2216.json, workspaces_30971.json,
+    task_types_details_SERVICE.json.
+    """
+
+    systemId: str | None = None
+
+
+class FrontuNotFound(BaseModel):
+    """404 body of `/task_types/details` (contracts/frontu/task_types_details_not_found.json)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    error: str
+
+
 class _FrontuTaskEntity(BaseModel):
     """Fields shared by materials and works registered on a task."""
 

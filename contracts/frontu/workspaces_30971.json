@@ -1,0 +1,52 @@
+{
+  "next_page": 0,
+  "items": [
+    {
+      "version": 1792355499,
+      "title": "<title>",
+      "serialNumber": "H2X386Y06846",
+      "longitude": "<longitude>",
+      "latitude": "<latitude>",
+      "note": null,
+      "address": "<address>",
+      "city": "<city>",
+      "zipCode": null,
+      "apartmentNumber": "<apartmentNumber>",
+      "signatureCode": "<signatureCode>",
+      "objectCode": "<objectCode>",
+      "client": {
+        "title": "<title>",
+        "companyCode": "<companyCode>",
+        "guid": "d5d5789c-c120-11e5-af86-0a610904597d",
+        "systemId": "2216"
+      },
+      "guid": "cbe86409-4a2b-6cd9-bcaa-e9db34dd8533",
+      "created": "2021-07-28T11:11:07+0000",
+      "updated": "2026-10-18T20:31:39+0000",
+      "deleted": false,
+      "systemId": "30971",
+      "warrantyIndicator": "4170",
+      "warrantyRequired": false,
+      "warrantyStartDate": null,
+      "warrantyEndDate": null,
+      "extendedWarrantyEndDate": null,
+      "warrantyIndicatorLimit": null,
+      "extendedWarrantyIndicatorLimit": null,
+      "sendMaintenanceNotification": false,
+      "hoursNotificationSentAt": null,
+      "workspaceModel": null,
+      "firstMaintenanceHours": null,
+      "secondMaintenanceHours": null,
+      "intervalMaintenanceHours": null,
+      "warrantyResponsiblePerson": null,
+      "projectManager": null,
+      "technician": null,
+      "office": null,
+      "type": "object",
+      "fullAddress": "<fullAddress>",
+      "region": null,
+      "tags": [],
+      "customValues": null
+    }
+  ]
+}

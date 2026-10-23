@@ -9,7 +9,7 @@ from src.adapters.resilience import ExternalServiceError
 from src.domain.bc_models import BCServiceOrderHeader
 from src.domain.frontu_models import FrontuTask
 from src.domain.mapping import FALLBACK_STATUS, header_hash
-from src.domain.task_builders import FrontuRefs, build_task_payload, tasker_patch
+from src.domain.task_builders import build_task_payload, tasker_patch
 from src.domain.task_state import TaskSyncState, TaskSyncStatus
 from src.schemas.operations import OutcomeResult
 from src.services.line_reconciler import LineReconciler
@@ -22,6 +22,7 @@ from src.services.ports import (
     SyncRunResult,
     utc_now,
 )
+from src.services.task_refs import RefMiss, resolve_refs
 from src.storage.task_repository import TaskRepository
 from src.storage.task_state_repository import TaskStateRepository
 
@@ -108,11 +109,10 @@ class TaskOutboundService:
         existing = await self._states.get_by_order(order_no)
         task: FrontuTask | None = None
         try:
-            refs = await self._resolve_refs(order)
-            if refs is None:
-                logger.warning("Order has no Frontu client match", extra=context)
-                params = {"customer_no": order.SelltoCustomerNo or ""}
-                return await self._note(order_no, INVALID, "task.no_client_match", params)
+            refs = await resolve_refs(self._frontu, order)
+            if isinstance(refs, RefMiss):
+                logger.warning("Order reference not found in Frontu: %s", refs.code, extra=context)
+                return await self._note(order_no, INVALID, refs.code, refs.params)
             digest = header_hash(order)
             if existing and existing.header_hash == digest and existing.sync_status == "SYNCED":
                 task = FrontuTask(guid=existing.frontu_task_guid, code=existing.frontu_task_code)
@@ -148,22 +148,6 @@ class TaskOutboundService:
                 OBJECT_TYPE, order_no, RESULTS[outcome], error_code=code, params=params, error=error
             )
         return outcome
-
-    async def _resolve_refs(self, order: BCServiceOrderHeader) -> FrontuRefs | None:
-        if not order.SelltoCustomerNo:
-            return None
-        client = await self._frontu.find_client_guid(order.SelltoCustomerNo)
-        if client is None:
-            return None
-        workspace = (
-            await self._frontu.find_workspace_guid(order.VehicleSerialNo)
-            if order.VehicleSerialNo
-            else None
-        )
-        task_type = (
-            await self._frontu.find_task_type_guid(order.DealType) if order.DealType else None
-        )
-        return FrontuRefs(client=client, workspace=workspace, task_type=task_type)
 
     async def _save(
         self,

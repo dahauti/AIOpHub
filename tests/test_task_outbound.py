@@ -6,6 +6,8 @@ from decimal import Decimal
 import pytest
 
 from src.domain.bc_models import BCServiceOrderHeader, BCServiceOrderLine
+from src.schemas.operations import OutcomeResult
+from src.services.error_catalog import error_type
 from src.services.task_outbound import STREAM, TaskOutboundService
 from tests.task_fakes import NOW, FakeBC, FakeFrontu, Stores, stores
 
@@ -129,6 +131,52 @@ async def test_unknown_client_is_validation_error_without_side_effects(stores: S
     assert result.validation_errors == 1
     assert frontu.upserts == [] and bc.header_patches == []
     assert await stores.watermarks.get_raw_watermark(STREAM) == NOW
+
+
+class _Codes:
+    """OutcomeSink keeping (object_id, result, error_code, params) per recorded outcome."""
+
+    def __init__(self) -> None:
+        self.rows: list[tuple[str, OutcomeResult, str | None, dict[str, str] | None]] = []
+
+    async def record_outcome(
+        self,
+        object_type: str,
+        object_id: str,
+        result: OutcomeResult,
+        *,
+        error_code: str | None = None,
+        params: dict[str, str] | None = None,
+        error: BaseException | None = None,
+    ) -> None:
+        self.rows.append((object_id, result, error_code, params))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("fields", "code", "params"),
+    [
+        ({"SelltoCustomerNo": "UNKNOWN"}, "task.no_client_match", {"customer_no": "UNKNOWN"}),
+        ({"VehicleSerialNo": "SN-404"}, "task.workspace_not_found", {"serial_no": "SN-404"}),
+        ({"DealType": "NOPE"}, "task.task_type_not_found", {"task_type": "NOPE"}),
+    ],
+)
+async def test_missing_frontu_reference_is_data_error_naming_it_without_writes(
+    stores: Stores, fields: dict[str, str], code: str, params: dict[str, str]
+) -> None:
+    bc, frontu, codes = FakeBC(), FakeFrontu(), _Codes()
+    bc.released = [_order("SO00001", **fields)]
+    service = TaskOutboundService(
+        bc, frontu, stores.watermarks, stores.states, initial_watermark=INITIAL, outcomes=codes
+    )
+
+    result = await service.run()
+
+    assert result.validation_errors == 1
+    assert codes.rows == [("SO00001", "error", code, params)]
+    assert error_type(code) == "data"
+    assert frontu.upserts == [] and bc.header_patches == []
+    assert await stores.states.get_by_order("SO00001") is None
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError
 from src.clients.frontu_tasks_client import FrontuTasksClient
 from src.domain.frontu_models import FrontuMaterial, FrontuTaskPayload, FrontuWork
+from tests.contracts import contract
 from tests.fakes import FakeClock, RecordingHandler, sequence
 
 BASE_URL = "https://acme.frontu.com/client/api/v2"
@@ -116,27 +117,64 @@ async def test_push_material_and_work_post_to_task() -> None:
 
 
 @pytest.mark.asyncio
-async def test_catalog_lookups_hit_each_endpoint_and_cache_hits_and_misses() -> None:
+async def test_catalog_lookups_parse_contract_hits_and_cache_them() -> None:
     mock = RecordingHandler(
         sequence(
-            _ok({"items": [{"guid": "c-1"}], "next_page": 0}),
-            _ok([{"guid": "w-1"}]),
-            _ok({"items": [], "next_page": 0}),
+            _ok(contract("clients_2216")),
+            _ok(contract("workspaces_30971")),
+            _ok(contract("task_types_details_SERVICE")),
         )
     )
     client = _client(mock)
 
-    assert await client.find_client_guid("C00010") == "c-1"
-    assert await client.find_workspace_guid("SN-1") == "w-1"
-    assert await client.find_task_type_guid("MISSING") is None
-    assert await client.find_client_guid("C00010") == "c-1"
-    assert await client.find_task_type_guid("MISSING") is None
+    assert await client.find_client_guid("2216") == "d5d5789c-c120-11e5-af86-0a610904597d"
+    assert await client.find_workspace_guid("30971") == "cbe86409-4a2b-6cd9-bcaa-e9db34dd8533"
+    assert await client.find_task_type_guid("SERVICE") == "97d7ea07-4dc9-48f1-9845-005d89430499"
+    assert await client.find_client_guid("2216") == "d5d5789c-c120-11e5-af86-0a610904597d"
 
     assert [str(r.url) for r in mock.requests] == [
-        f"{BASE_URL}/clients?systemId=C00010",
-        f"{BASE_URL}/workspaces?systemId=SN-1",
-        f"{BASE_URL}/task_types/details?systemId=MISSING",
+        f"{BASE_URL}/clients?systemId=2216",
+        f"{BASE_URL}/workspaces?systemId=30971",
+        f"{BASE_URL}/task_types/details?systemId=SERVICE",
     ]
+
+
+@pytest.mark.asyncio
+async def test_catalog_lookups_map_contract_not_found_to_cached_none() -> None:
+    mock = RecordingHandler(
+        sequence(
+            _ok(contract("clients_not_found")),
+            _ok(contract("workspaces_not_found")),
+            httpx.Response(404, json=contract("task_types_details_not_found")),
+        )
+    )
+    client = _client(mock)
+
+    assert await client.find_client_guid("NONEXISTENT_TEST") is None
+    assert await client.find_workspace_guid("NONEXISTENT_TEST") is None
+    assert await client.find_task_type_guid("NONEXISTENT_TEST") is None
+    assert await client.find_task_type_guid("NONEXISTENT_TEST") is None
+    assert len(mock.requests) == 3
+
+
+@pytest.mark.asyncio
+async def test_task_type_listing_body_is_unexpected_response() -> None:
+    mock = RecordingHandler(sequence(_ok(contract("clients_not_found"))))
+
+    with pytest.raises(ExternalServiceError) as caught:
+        await _client(mock).find_task_type_guid("SERVICE")
+
+    assert caught.value.unexpected_response and caught.value.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_task_type_404_without_contract_body_stays_http_error() -> None:
+    mock = RecordingHandler(sequence(httpx.Response(404, text="<html>gone</html>")))
+
+    with pytest.raises(ExternalServiceError) as caught:
+        await _client(mock).find_task_type_guid("SERVICE")
+
+    assert caught.value.status_code == 404 and not caught.value.unexpected_response
 
 
 @pytest.mark.asyncio

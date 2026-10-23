@@ -1,0 +1,27 @@
+{
+  "next_page": 0,
+  "items": [
+    {
+      "version": 1792493192,
+      "title": "<title>",
+      "address": "<address>",
+      "city": "<city>",
+      "zipCode": "<zipCode>",
+      "phone": "<phone>",
+      "email": "<email>",
+      "creditStatus": null,
+      "note": "<note>",
+      "companyCode": "<companyCode>",
+      "companyVatCode": "<companyVatCode>",
+      "guid": "d5d5789c-c120-11e5-af86-0a610904597d",
+      "created": "2015-11-03T12:29:15+0000",
+      "updated": "2026-10-20T10:46:32+0000",
+      "deleted": false,
+      "clientType": 2,
+      "systemId": "2216",
+      "reportEmails": null,
+      "tags": [],
+      "customValues": null
+    }
+  ]
+}

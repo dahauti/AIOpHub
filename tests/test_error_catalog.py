@@ -22,12 +22,15 @@ LANGUAGES = get_args(Language)
 EXPECTED_CODES = {
     "task.no_order_no",
     "task.no_client_match",
+    "task.workspace_not_found",
+    "task.task_type_not_found",
     "task.order_not_found",
     "task.not_frontu_status",
     "system.bc_error",
     "system.frontu_error",
     "system.bc_unreachable",
     "system.frontu_unreachable",
+    "system.frontu_unexpected_response",
     "system.auth",
     "system.unknown",
 }
@@ -78,6 +81,20 @@ def test_external_errors_are_classified_by_service(service: str, code: str) -> N
     assert (classified.code, classified.http_status) == (code, 503)
     assert error_type(classified.code) == "system"
     assert "unavailable" in classified.detail
+
+
+def test_frontu_success_with_unrecognized_body_is_unexpected_response() -> None:
+    error = ExternalServiceError(
+        "frontu", 200, "unexpected listing payload", unexpected_response=True
+    )
+
+    classified = classify(error)
+
+    assert (classified.code, classified.http_status) == ("system.frontu_unexpected_response", 200)
+    assert error_type(classified.code) == "system"
+    assert message(classified.code, "lt") == (
+        "Frontu atsakė netikėtu formatu \u2013 reikia patikrinti integraciją."
+    )
 
 
 async def _send_error(

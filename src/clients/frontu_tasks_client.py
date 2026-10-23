@@ -11,7 +11,8 @@ from src.adapters.rate_limit import RatePacer
 from src.adapters.resilience import ExternalServiceError, Sleep, send_with_retry
 from src.clients.frontu_task_payloads import (
     SERVICE,
-    first_guid,
+    catalog_guid,
+    is_not_found,
     parse_entity,
     parse_listing,
     system_id_for_guid,
@@ -124,8 +125,14 @@ class FrontuTasksClient:
         async with self._catalog_lock:
             if key not in self._catalog:
                 params = {"systemId": system_id}
-                response = await self._send("GET", CATALOG_PATHS[kind], params=params)
-                self._catalog[key] = first_guid(parse_listing(response)[0])
+                try:
+                    response = await self._send("GET", CATALOG_PATHS[kind], params=params)
+                except ExternalServiceError as exc:
+                    if not is_not_found(exc):  # only /task_types/details answers a miss with 404
+                        raise
+                    self._catalog[key] = None
+                else:
+                    self._catalog[key] = catalog_guid(response, single=kind == "taskType")
             return self._catalog[key]
 
     async def _paged[ModelT: BaseModel](

@@ -43,6 +43,20 @@ CATALOG: dict[str, ErrorDefinition] = {
             "en": "BC customer {customer_no} was not found in Frontu.",
         },
     ),
+    "task.workspace_not_found": ErrorDefinition(
+        error_type="data",
+        text={
+            "lt": "Transporto priemonė su serijos nr. {serial_no} nerasta Frontu.",
+            "en": "The vehicle with serial number {serial_no} was not found in Frontu.",
+        },
+    ),
+    "task.task_type_not_found": ErrorDefinition(
+        error_type="data",
+        text={
+            "lt": "Užduoties tipas {task_type} nerastas Frontu.",
+            "en": "Task type {task_type} was not found in Frontu.",
+        },
+    ),
     "task.order_not_found": ErrorDefinition(
         error_type="data",
         text={
@@ -85,6 +99,13 @@ CATALOG: dict[str, ErrorDefinition] = {
             "en": "Could not connect to Frontu \u2013 check the network connection.",
         },
     ),
+    "system.frontu_unexpected_response": ErrorDefinition(
+        error_type="system",
+        text={
+            "lt": "Frontu atsakė netikėtu formatu \u2013 reikia patikrinti integraciją.",
+            "en": "Frontu responded in an unexpected format \u2013 the integration needs checking.",
+        },
+    ),
     "system.auth": ErrorDefinition(
         error_type="system",
         text={
@@ -112,6 +133,10 @@ UNREACHABLE_CODES: dict[str, str] = {
     "business-central": "system.bc_unreachable",
     "frontu": "system.frontu_unreachable",
 }
+# The same services when a success status carried a body of unrecognized shape
+UNEXPECTED_CODES: dict[str, str] = {
+    "frontu": "system.frontu_unexpected_response",
+}
 
 
 def error_type(code: str) -> ErrorType:
@@ -122,6 +147,7 @@ def classify(error: BaseException) -> ClassifiedError:
     """Code, HTTP status and raw (unsanitised) detail of an exception."""
     if isinstance(error, ExternalServiceError):
         codes = UNREACHABLE_CODES if error.unreachable else {}
+        codes = UNEXPECTED_CODES if error.unexpected_response else codes
         code = codes.get(error.service) or SERVICE_CODES.get(error.service, UNKNOWN)
         return ClassifiedError(code=code, http_status=error.status_code, detail=str(error))
     return ClassifiedError(code=UNKNOWN, detail=f"{type(error).__name__}: {error}")

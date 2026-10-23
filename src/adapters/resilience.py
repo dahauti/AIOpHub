@@ -40,6 +40,7 @@ class ExternalServiceError(Exception):
         *,
         url: str | None = None,
         unreachable: bool = False,
+        unexpected_response: bool = False,
     ) -> None:
         super().__init__(f"{service} request failed (status={status_code}): {detail}")
         self.service = service
@@ -47,6 +48,7 @@ class ExternalServiceError(Exception):
         self.detail = detail
         self.url = url
         self.unreachable = unreachable  # no HTTP response at all: network, DNS, TLS, timeout
+        self.unexpected_response = unexpected_response  # success status, unrecognized body
 
 
 class _RetryableStatusError(Exception):

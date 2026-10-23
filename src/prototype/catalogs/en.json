@@ -205,6 +205,8 @@
   "centras.klaidos_santrauka": "Error summary (technical)",
   "centras.objektas": "Object",
   "centras.objekto_tipas": "Object type",
+  "centras.paleidimo_busena": "Run status",
+  "centras.iraso_rezultatas": "Record result",
   "centras.http": "HTTP status",
   "centras.techninis": "Technical detail",
   "centras.tekstas_lt": "Text (LT)",

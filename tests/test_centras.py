@@ -164,6 +164,7 @@ async def test_record_page_shows_code_texts_technical_detail_and_every_run(clien
     assert "unexpected listing payload" in html
     history = html.split('id="istorija-h"', 1)[1]
     assert f"/centras/paleidimai/{RUN_A}" in history and f"/centras/paleidimai/{RUN_B}" in history
+    assert "<th>Paleidimo būsena</th><th>Įrašo rezultatas</th>" in history
 
 
 @pytest.mark.asyncio
